@@ -1,0 +1,8 @@
+# IDE
+.idea/
+
+# generated data
+data
+data/BK_AG
+data/TBk_main
+data/tbk_qgis_data.qgz
