@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/plugins/tbk_qgis" >
+     <file>resources/BFH_Logo_A_de_100_RGB.png</file>
+     <file>resources/Logo_TBk.png</file>
+     <file>resources/TBk_Bestandeskarte.qgz</file>
+     <file>resources/NorthArrow_04.svg</file>
+  </qresource>
+</RCC>
