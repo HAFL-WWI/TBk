@@ -31,17 +31,27 @@ __copyright__ = '(C) 2020 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
+import inspect
 import os
 import sys
-import inspect
 
-from qgis.core import QgsProcessingAlgorithm, QgsApplication
-from .tbk_qgis_provider import TBkProvider
+if __name__ == "__main__":  # this will be invoked if this module is being run directly, but not via import!
+    # add plugin directory to python path (so parent package tbk_qgis is found on path for relative imports)
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    __package__ = 'tbk_qgis'  # make sure relative imports work when testing (no there is a known parent package)
 
+# add cmd folder to python path (TODO: not sure why - Hannes 2023-01-11)
 cmd_folder = os.path.split(inspect.getfile(inspect.currentframe()))[0]
-
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
+
+# Add plugin directory to python path (so shipped packages in root are found on import)
+pluginPath = os.path.join(os.path.dirname(__file__))
+if pluginPath not in sys.path:
+    sys.path.insert(0, pluginPath)
+
+from qgis.core import QgsApplication
+from .tbk_qgis_provider import TBkProvider
 
 
 class TBkPlugin(object):

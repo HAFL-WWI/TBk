@@ -65,8 +65,7 @@ from qgis.core import (QgsProcessing,
                        QgsApplication)
 import processing
 
-from .resources import *
-from .tbk_utilities import *
+from tbk.utility.tbk_utilities import *
 
 from .pre_processing_helper import PreProcessingHelper
 

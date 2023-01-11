@@ -28,13 +28,12 @@ __date__ = '2020-08-03'
 __copyright__ = '(C) 2020 by Berner Fachhochschule HAFL'
 
 
-# noinspection PyPep8Naming
-def classFactory(iface):  # pylint: disable=invalid-name
+def classFactory(iface):
     """Load TBk class from file TBk.
 
     :param iface: A QGIS interface instance.
     :type iface: QgsInterface
     """
     #
-    from .tbk_qgis import TBkPlugin
+    from .tbk_qgis_plugin import TBkPlugin
     return TBkPlugin()

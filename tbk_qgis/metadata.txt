@@ -3,12 +3,12 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=Toolkit Bestandeskarten
+name=Toolkit Bestandeskarte TBk
 qgisMinimumVersion=3.10
-description=Toolkit for thee generation of forest stand maps
+description=Toolkit for the generation of forest stand maps
 version=0.1
 author=Berner Fachhochschule HAFL
-email=christian.rosset@bfh.ch
+email=hannes.horneber@bfh.ch
 
 about=Toolkit for the generation of forest stand maps.
 
@@ -27,7 +27,7 @@ tags=python
 
 homepage=http://homepage
 category=Analysis
-icon=icon.png
+icon=resources/icon_tbk.png
 # experimental flag
 experimental=True
 

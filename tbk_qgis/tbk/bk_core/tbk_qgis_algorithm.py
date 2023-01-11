@@ -36,6 +36,9 @@ __copyright__ = '(C) 2020 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
+if __name__ == "__main__":  # this will be invoked if this module is being run directly, but not via import!
+    __package__ = 'bk_core' # make sure relative imports work when testing
+
 import os
 from shutil import copyfile
 from datetime import datetime, time, timedelta
@@ -54,11 +57,11 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterDefinition,
-                       
+
                        QgsApplication)
 
-from .resources import *
-from .tbk_utilities import *
+#from .resources import *
+#from tbk.utility.tbk_utilities import *
 
 from .tbk_create_stands import *
 from .post_process import *
@@ -249,9 +252,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
-        settings_path = QgsApplication.qgisSettingsDirPath()
-
-        tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
+        # settings_path = QgsApplication.qgisSettingsDirPath()
+        # tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
+        tbk_tool_path = os.path.dirname(__file__)
 
         vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
@@ -404,9 +407,12 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             os.environ["PYTHONPATH"] = qgisPythonPath + os.pathsep + os.environ["PYTHONPATH"]
         else:
             os.environ["PYTHONPATH"] = qgisPythonPath
-        script_path= os.path.join(settings_path,"python/plugins/tbk_qgis/create_project.py")
+        script_path = os.path.join(tbk_tool_path, "create_project.py")
 
-        command = "python3.exe \"" + script_path + "\" \"" + tbk_result_dir.replace("\\","/") + "\" \"" + tbk_tool_path.replace("\\","/") + "\" \"" + working_root.replace("\\","/") + "\" \"" + vhm_10m + "\" \"" + vhm_150cm + "\""
+        command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" + tbk_result_dir.replace("\\", "/") + "\" \"" \
+                  + tbk_tool_path.replace("\\", "/") + "\" \"" + working_root.replace("\\", "/") + "\" \"" \
+                  + vhm_10m + "\" \"" + vhm_150cm + "\""
+
         rootLogger.info(command)
         os.system(command)
 
@@ -423,13 +429,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("====================================================================")
         rootLogger.info('FINISHED')
 
+
 #        # # copy temporary logfile to result directory
 #        # logfile = os.path.join(tbk_result_dir, config["logfile_name"])
 #        # print("Saving logfile under: %s" % logfile)
 #        # copyfile(config["logfile_tmp_path"], logfile)
-
-
-
 
 
 #        # Compute the number of steps to display within the progress bar and

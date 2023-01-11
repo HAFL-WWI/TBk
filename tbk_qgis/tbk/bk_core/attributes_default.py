@@ -16,7 +16,7 @@ from qgis.core import QgsProject
 import processing
 from qgis.core import *
 
-from .tbk_utilities import *
+from tbk.utility.tbk_utilities import *
 
 #
 ########################################################################################

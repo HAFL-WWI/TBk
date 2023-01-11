@@ -11,13 +11,14 @@ from collections import Counter
 import math
 import numpy
 from osgeo import osr
-#from rasterstats import zonal_stats
+# from rasterstats import zonal_stats
 
 
 import processing
 from qgis.core import *
 
-from .tbk_utilities import *
+from tbk.utility.tbk_utilities import *
+
 
 class ClassificationHelper:
 
@@ -43,12 +44,12 @@ class ClassificationHelper:
             value = 0
         pixelsTmp = math.sqrt(value)
         pixels = round(pixelsTmp)
-        if pixels%2==0:
-            #Even number
+        if pixels % 2 == 0:
+            # Even number
             if pixelsTmp - pixels > 0:
-                pixels +=1
+                pixels += 1
             else:
-                pixels -=1
+                pixels -= 1
         pixels = int(pixels)
         if pixels < 3:
             pixels = int(3)

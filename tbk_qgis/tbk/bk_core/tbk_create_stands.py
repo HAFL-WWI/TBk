@@ -9,7 +9,7 @@
 from osgeo import gdal, osr
 from osgeo.gdalconst import *
 import numpy as np
-from .Classification import ClassificationHelper as CH
+from tbk.bk_core.Classification import ClassificationHelper as CH
 import time
 import logging
 from datetime import datetime

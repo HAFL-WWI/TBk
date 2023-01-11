@@ -19,7 +19,7 @@ from qgis.core import QgsProject
 import processing
 from qgis.core import *
 
-from .tbk_utilities import *
+from tbk.utility.tbk_utilities import *
 
 
 def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_tmp=True):
@@ -61,7 +61,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
     if calc_main_layer:
         print("calc mean coniferous proportion for main layer...")
         # dg raster layer
-        dg_layer_os = os.path.join(tbk_path, "dg_layers\dg_layer.tif")
+        dg_layer_os = os.path.join(tbk_path, r"dg_layers\dg_layer.tif")
 
         # minimum degree of cover to select valid 10 m NH pixels
         cover = 40
