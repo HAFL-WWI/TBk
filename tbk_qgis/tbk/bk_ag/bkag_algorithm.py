@@ -386,10 +386,6 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         return {self.OUTPUT_ROOT: output_root}
 
 
-
-
-
-
     def name(self):
         """
         Returns the algorithm name, used for identifying the algorithm. This
@@ -400,6 +396,8 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         """
         return 'Generate BK AG'
 
+
+
     def displayName(self):
         """
         Returns the translated algorithm name, which should be used for any
@@ -407,12 +405,14 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         """
         return self.tr(self.name())
 
+    @property
     def group(self):
         """
         Returns the name of the group this algorithm belongs to. This string
         should be localised.
         """
-        return self.tr(self.groupId())
+        # return self.tr(self.groupId())
+        return '1 Bk generation (core)'
 
     def groupId(self):
         """
@@ -422,7 +422,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return ''
+        return 'tbkcore'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

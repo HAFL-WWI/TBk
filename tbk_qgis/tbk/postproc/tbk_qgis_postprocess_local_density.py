@@ -587,7 +587,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         Returns the name of the group this algorithm belongs to. This string
         should be localised.
         """
-        return self.tr(self.groupId())
+        # return self.tr(self.groupId())
+        return '2 TBk Postprocessing'
 
     def groupId(self):
         """
@@ -597,7 +598,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'TBk'
+        return 'postproc'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

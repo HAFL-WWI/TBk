@@ -51,7 +51,7 @@ if pluginPath not in sys.path:
     sys.path.insert(0, pluginPath)
 
 from qgis.core import QgsApplication
-from .tbk_qgis_provider import TBkProvider
+from tbk_qgis_provider import TBkProvider
 
 
 class TBkPlugin(object):

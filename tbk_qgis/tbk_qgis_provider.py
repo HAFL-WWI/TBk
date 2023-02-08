@@ -40,10 +40,10 @@ from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
 from tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
+from tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
 from tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
-from .resources import *
 
 
 class TBkProvider(QgsProcessingProvider):
@@ -65,10 +65,15 @@ class TBkProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        self.addAlgorithm(TBkAlgorithm())
+        # [grpID: preproc]      grpName: 0 Preprocessing
         self.addAlgorithm(TBkPrepareVhmAlgorithm())
         self.addAlgorithm(TBkPrepareMgAlgorithm())
+        # [grpID: core]         grpName: 1 Bk Generation
+        self.addAlgorithm(TBkAlgorithm())
+        self.addAlgorithm(BkAGAlgorithm())
+        # [grpID: postproc]     grpName: 2 Postprocessing
         self.addAlgorithm(TBkPostprocessLocalDensity())
+
 
     def id(self):
         """
@@ -76,7 +81,7 @@ class TBkProvider(QgsProcessingProvider):
         string should be a unique, short, character only string, eg "qgis" or
         "gdal". This string should not be localised.
         """
-        return 'TBk_generation'
+        return 'TBk'
 
     def name(self):
         """
@@ -85,7 +90,7 @@ class TBkProvider(QgsProcessingProvider):
 
         This string should be short (e.g. "Lastools") and localised.
         """
-        return self.tr('TBk_generation')
+        return self.tr('TBk')
 
     def icon(self):
         """
@@ -104,6 +109,6 @@ class TBkProvider(QgsProcessingProvider):
         Returns a longer version of the provider name, which can include
         extra details such as version numbers. E.g. "Lastools LIDAR tools
         (version 2.2.1)". This string should be localised. The default
-        implementation returns the same string as name().
+        implementation returns the same string as name() [return self.name()].
         """
-        return self.name()
+        return 'TBk: Toolkit Bestandeskarte'

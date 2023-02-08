@@ -190,7 +190,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),optional=True)
         self.addHiddenParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.LOGFILE_NAME, self.tr("Log File Name (.log)"),defaultValue = "tbk_processing.log")
+        parameter = QgsProcessingParameterString(self.LOGFILE_NAME, self.tr("Log File Name (.log)"), defaultValue = "tbk_processing.log")
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterString(self.DESCRIPTION, self.tr("Short description"),defaultValue = "TBk dataset")
@@ -469,7 +469,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'TBk generation'
+        return 'Generate BK'
 
     def displayName(self):
         """
@@ -483,7 +483,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         Returns the name of the group this algorithm belongs to. This string
         should be localised.
         """
-        return self.tr(self.groupId())
+        # return self.tr(self.groupId())
+        return '1 Bk generation (core)'
 
     def groupId(self):
         """
@@ -493,7 +494,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'TBk'
+        return 'tbkcore'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
