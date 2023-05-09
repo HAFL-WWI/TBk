@@ -94,6 +94,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
         return self.addParameter(parameter)
 
+    #------- DEFINE CONSTANTS -------#
     # Constants used to refer to parameters and outputs. They will be
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
@@ -103,7 +104,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
     # Directory containing the input files
-    WORKING_ROOT = "working_root"  
+    WORKING_ROOT = "working_root"
     # VHM 10m as main TBk input       
     VHM_10M = "vhm_10m"
     # VHM 150cm to calculate DG                                  
@@ -111,10 +112,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Coniferous raster to calculate stand mean                                  
     CONIFEROUS_RASTER = "coniferous_raster"
     # Perimeter shapefile to clip final result                                 
-    PERIMETER = "perimeter"  
+    PERIMETER = "perimeter"
 
     # Whether to clip the VHM prior to classification
-    CLIP_VHM_BEFORE = "clip_vhm_before" 
+    CLIP_VHM_BEFORE = "clip_vhm_before"
 
     # Default log file name
     # Will be stored in the result directory
@@ -122,40 +123,40 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
     # Main TBk parameters (for details see run_stand_classification function)
     # If to consider it for classification
-    USE_CONFEROUS_FOR_CLASSIFICATION = "useConiferousRasterForClassification"                          
+    USE_CONFEROUS_FOR_CLASSIFICATION = "useConiferousRasterForClassification"
     # Zone raster
     ZONE_RASTER_FILE = "zoneRasterFile"
     # Short description
-    DESCRIPTION = "description"                                     
+    DESCRIPTION = "description"
     # Relative min tolerance                                              
-    MIN_TOL = "min_tol"  
+    MIN_TOL = "min_tol"
     # Relative max tolerance                                                      
-    MAX_TOL = "max_tol" 
+    MAX_TOL = "max_tol"
     # Extension of the range down [m]                                                        
     MIN_CORR = "min_corr"
     # Extension of the range up [m]                                                         
-    MAX_CORR = "max_corr"                                                          
+    MAX_CORR = "max_corr"
     # Minimum relative amount of valid cells
     MIN_VALID_CELLS = "min_valid_cells"
     # Minimum cells per stand                                                 
-    MIN_CELLS_PER_STAND = "min_cells_per_stand"   
+    MIN_CELLS_PER_STAND = "min_cells_per_stand"
     # Minimum cells for pure mixture stands                                           
-    MIN_CELLS_PER_PURE_STAND = "min_cells_per_pure_stand"  
+    MIN_CELLS_PER_PURE_STAND = "min_cells_per_pure_stand"
     # VHM minimum height                                       
     VHM_MIN_HEIGHT = "vhm_min_height"
     # VHM maximum height                                                   
-    VHM_MAX_HEIGHT = "vhm_max_height"                                                   
+    VHM_MAX_HEIGHT = "vhm_max_height"
     # Simplification tolerance                                                   
-    SIMPLIFICATION_TOLERANCE = "simplification_tolerance"                                                   
+    SIMPLIFICATION_TOLERANCE = "simplification_tolerance"
 
 
     # Additional parameters
     # Min. area to eliminate small stands
-    MIN_AREA_M2 = "min_area_m2"     
+    MIN_AREA_M2 = "min_area_m2"
     # Min. area to merge similar stands                                              
-    SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"  
+    SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
     # hdom relative diff to merge similar stands                                  
-    SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel" 
+    SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel"
     # Also calc coniferous prop. for main layer                          
     CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
     #Delete temporary files and fields
@@ -167,9 +168,16 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
+        #### MY HEADLINE ####
+        #----------------------#
+
+        # > order has to be manually adjusted, otherwise bookmarks are ordered by time of creation
+        # > a codesection #
+        # > a different codesection #
+
 
         ## Directory containing the input files
-        #"working_root": r'C:\school\hafl\TBk-master_20200608\test_dataset',  
+        #"working_root": r'C:\school\hafl\TBk-master_20200608\test_dataset',
 
         # VHM 10m as main TBk input       
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M, self.tr("VHM 10m as main TBk input  (.tif)")))
@@ -182,7 +190,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
-        
+
         parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION, self.tr("Consider coniferous raster for classification"), defaultValue=True)
         self.addAdvancedParameter(parameter)
 
@@ -204,21 +212,21 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         parameter = QgsProcessingParameterNumber(self.MIN_CORR, self.tr("Extension of the range down [m]"), type=QgsProcessingParameterNumber.Double, defaultValue=4)
         self.addAdvancedParameter(parameter)
-                      
+
         parameter = QgsProcessingParameterNumber(self.MAX_CORR, self.tr("Extension of the range up [m]"), type=QgsProcessingParameterNumber.Double, defaultValue=4)
-        self.addAdvancedParameter(parameter)                                 
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS, self.tr("Minimum relative amount of valid cells"), type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
-        self.addAdvancedParameter(parameter)  
-  
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, self.tr("Minimum cells per stand"), type=QgsProcessingParameterNumber.Integer, defaultValue=10)
-        self.addAdvancedParameter(parameter)  
- 
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND, self.tr("Minimum cells for pure mixture stands"), type=QgsProcessingParameterNumber.Integer, defaultValue=30)
-        self.addAdvancedParameter(parameter)  
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, self.tr("VHM minimum height"), type=QgsProcessingParameterNumber.Double, defaultValue=0)
-        self.addAdvancedParameter(parameter)  
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, self.tr("VHM maximum height"), type=QgsProcessingParameterNumber.Double, defaultValue=60)
         self.addAdvancedParameter(parameter)
@@ -250,12 +258,14 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
 
+        #------- INITIALIZE -------#
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
         # settings_path = QgsApplication.qgisSettingsDirPath()
         # tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
         tbk_tool_path = os.path.dirname(__file__)
 
+        # get and check paths to VHMs
         vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file")
@@ -263,6 +273,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
+        # get and check coniferous Raster / settings
         useConiferousRaster = self.parameterAsBool(parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
         coniferous_raster_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER, context)
         coniferous_raster = None
@@ -273,6 +284,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         if useConiferousRaster and coniferous_raster == None:
             raise QgsProcessingException("coniferous_raster is not not specified")
 
+        # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
 
         if "|layername=" in perimeter.lower():
@@ -320,7 +332,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("coniferous_raster is not not specified")
 
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
-  
+
         # clip_vhm_before = self.parameterAsBool(parameters, self.CLIP_VHM_BEFORE, context)
 
         ensure_dir(output_root)
@@ -342,7 +354,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         rootLogger.info('Run TBk')
 
-        ###################
+        #------- TBk MAIN Processing --------#
         # Run TBk
         start_time = time.time()
 
@@ -361,7 +373,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                 min_corr, max_corr,
                                                 min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
                                                 vhm_min_height, vhm_max_height)
-    
+
         # Simplify & Eliminate
         rootLogger.info('Simplify & Eliminate')
         post_process(tbk_result_dir, min_area_m2, simplification_tolerance=simplification_tolerance, del_tmp=del_tmp)
@@ -380,7 +392,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # Calculate DG
         rootLogger.info('Calculate DG')
         calculate_dg(tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
-        
+
         # Add coniferous proportion
         if calc_mixture_for_main_layer:
             rootLogger.info('Add coniferous proportion')
@@ -389,7 +401,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # Calc specific attributes and write final shapefile
         rootLogger.info('Calc specific attributes and write final shapefile')
         calc_attributes(tbk_result_dir, del_tmp=del_tmp)
-    
+
         # Clean up unneeded fields
         if del_tmp:
             del_fields = ["FID_orig","OBJECTID"]
@@ -452,7 +464,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 #            # Update the progress bar
 #            feedback.setProgress(int(current * total))
 
-        
+
         # Return the results of the algorithm. In this case our only result is
         # the feature sink which contains the processed features, but some
         # algorithms may return multiple feature sinks, calculated numeric

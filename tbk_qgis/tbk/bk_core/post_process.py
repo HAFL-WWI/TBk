@@ -1,5 +1,5 @@
 ######################################################################
-# Post processing for the TBk classification using arcpy.
+# Post processing of the "raw" TBk classification.
 # Steps: Eliminate -> simplify -> eliminate -> calculate remainder values
 #
 # (C) Dominique Weber, Christoph Schaller,  HAFL, BFH
@@ -18,7 +18,9 @@ from qgis.core import *
 
 from tbk.utility.tbk_utilities import *
 
+
 def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
+    # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")
 
@@ -44,48 +46,52 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     tempLayer = "tmp"
     neighbors_out = "neighbors"
 
-    highest_raster_in = "hmax.tif" 
+    highest_raster_in = "hmax.tif"
     highest_point_out = "stands_highest_tree_tmp.shp"
 
     ########################################
     # Vectorize highest trees
-    highest_raster_path = os.path.join(workspace,highest_raster_in)
+    highest_raster_path = os.path.join(workspace, highest_raster_in)
     print(highest_raster_path)
 
-    params = {'INPUT_RASTER':highest_raster_path,'RASTER_BAND':1,'FIELD_NAME':'VALUE','OUTPUT':'TEMPORARY_OUTPUT'}
+    params = {'INPUT_RASTER': highest_raster_path, 'RASTER_BAND': 1, 'FIELD_NAME': 'VALUE',
+              'OUTPUT': 'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("native:pixelstopoints", params)
-    
-    highest_point_path = os.path.join(workspace,highest_point_out)
-    params = {'INPUT':algoOutput["OUTPUT"],'FIELD':'VALUE','OPERATOR':2,'VALUE':'0','OUTPUT':highest_point_path}
+
+    highest_point_path = os.path.join(workspace, highest_point_out)
+    params = {'INPUT': algoOutput["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
+              'OUTPUT': highest_point_path}
     algoOutput = processing.run("native:extractbyattribute", params)
 
     ########################################
     # Eliminate small polygons
 
     # Create tmp layer
-    stand_boundaries_path = os.path.join(workspace,shape_in)
-    tmp_stands_buf_path = os.path.join(workspace,tmp_stands_buf)
+    stand_boundaries_path = os.path.join(workspace, shape_in)
+    tmp_stands_buf_path = os.path.join(workspace, tmp_stands_buf)
 
-    params = {'INPUT':stand_boundaries_path,'DISTANCE':0,'SEGMENTS':5,'END_CAP_STYLE':0,'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'OUTPUT':tmp_stands_buf_path}
+    params = {'INPUT': stand_boundaries_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
+              'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_stands_buf_path}
     algoOutput = processing.run("native:buffer", params)
 
     stand_boundaries_layer = QgsVectorLayer(tmp_stands_buf_path, "stand_boundaries", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
     print("selecting small polygons...")
     stand_boundaries_layer.selectByExpression(expression)
-    
+
     # Execute Eliminate
     print("eliminating small polygons...")
 
-    tmp_reduced_path = os.path.join(workspace,tmp_reduced)
+    tmp_reduced_path = os.path.join(workspace, tmp_reduced)
 
     ##Does not persist results when writing directly to file
-    param = {'INPUT':stand_boundaries_layer,'MODE':2,'OUTPUT':'memory:'}
+    param = {'INPUT': stand_boundaries_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_reduced_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
-    #QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"ESRI Shapefile")
+    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"ESRI Shapefile")
 
     ########################################
     # Simplify
@@ -106,36 +112,41 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
     # tmp_simplified_layer = iface.addVectorLayer(tmp_simplified_path, "tmp_simplified", "ogr")
 
-
-
     print("simplifying polygons...")
-    tmp_simplified_path = os.path.join(workspace,tmp_simplified)
-    tmp_simplified_error_path = os.path.join(workspace,tmp_simplified_error)
+    tmp_simplified_path = os.path.join(workspace, tmp_simplified)
+    tmp_simplified_error_path = os.path.join(workspace, tmp_simplified_error)
 
-    param = {'input':tmp_reduced_path,'type':[0,1,2],'cats':'','where':'','method':0,'threshold':simplification_tolerance,'look_ahead':7,'reduction':50,'slide':0.5,'angle_thresh':3,'degree_thresh':0,'closeness_thresh':0,'betweeness_thresh':0,'alpha':1,'beta':1,'iterations':1,'-t':False,'-l':True,'output':tmp_simplified_path,'error':tmp_simplified_error_path,'GRASS_REGION_PARAMETER':None,'GRASS_SNAP_TOLERANCE_PARAMETER':-1,'GRASS_MIN_AREA_PARAMETER':0.0001,'GRASS_OUTPUT_TYPE_PARAMETER':0,'GRASS_VECTOR_DSCO':'','GRASS_VECTOR_LCO':''}
+    param = {'input': tmp_reduced_path, 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
+             'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
+             'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
+             '-t': False, '-l': True, 'output': tmp_simplified_path, 'error': tmp_simplified_error_path,
+             'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
+             'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
     algoOutput = processing.run("grass7:v.generalize", param)
 
     tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_reduced", "ogr")
     # Delete unimportant fields
 
-    fields = ['cat','cat_','foo']
-    delete_fields(tmp_simplified_layer,fields)
+    fields = ['cat', 'cat_', 'foo']
+    delete_fields(tmp_simplified_layer, fields)
 
     ########################################
     # Recalculate area
     print("recalculating area...")
-    param = {'INPUT':tmp_simplified_path,'OUTPUT':'memory:'}
+    param = {'INPUT': tmp_simplified_path, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("native:fixgeometries", param)
 
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'area_m2','FIELD_TYPE':0,'FIELD_LENGTH':10,'FIELD_PRECISION':3,'NEW_FIELD':False,'FORMULA':eArea,'OUTPUT':'memory:'}
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': eArea, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     del tmp_simplified_layer
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_simplified_path, ctc,
+                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
 
     ########################################
-    # Redo elimination of small polygons,
+    # Redo elimination of small polygons
     # because sometimes it's not possible in one GO
     # and simplification also alters polygon area
 
@@ -144,39 +155,48 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # Execute SelectLayerByAttribute to define features to be eliminated
     print("selecting small polygons...")
     tmp_simplified_layer.selectByExpression(expression)
-    
+
     # Execute Eliminate
     print("eliminating small polygons...")
 
     ##Does not persist results when writing directly to file
-    param = {'INPUT':tmp_simplified_layer,'MODE':2,'OUTPUT':'memory:'}
+    param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_reduced_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
-    
+    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
+
     ########################################
     # Recalculate area
     print("recalculating area...")
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'area_m2','FIELD_TYPE':0,'FIELD_LENGTH':10,'FIELD_PRECISION':3,'NEW_FIELD':False,'FORMULA':eArea,'OUTPUT':'memory:'}
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': eArea, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     del tmp_simplified_layer
-    #QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
 
     ########################################
     # Calculate hmax and hdom for remainders
     print("calculating hmax and hdom for remainders...")
     # Create tmp layer
-    #tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_simplified", "ogr")
+    # tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_simplified", "ogr")
     tmp_simplified_layer = algoOutput['OUTPUT']
+
     # Select remainders and calculate hmax, hdom
-    param = {'INPUT':tmp_simplified_layer,'FIELD':'type','OPERATOR':0,'VALUE':'remainder','METHOD':0}
+    param = {'INPUT': tmp_simplified_layer, 'FIELD': 'type', 'OPERATOR': 0, 'VALUE': 'remainder', 'METHOD': 0}
     algoOutput = processing.run("qgis:selectbyattribute", param)
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'hmax','FIELD_TYPE':0,'FIELD_LENGTH':10,'FIELD_PRECISION':3,'NEW_FIELD':False,'FORMULA':'if(is_selected(),hmax_eff,hmax)','OUTPUT':'memory:'}
+
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'hmax', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': 'if(is_selected(),hmax_eff,hmax)',
+             'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:fieldcalculator", param)
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD':'type','OPERATOR':0,'VALUE':'remainder','METHOD':0}
+
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD': 'type', 'OPERATOR': 0, 'VALUE': 'remainder', 'METHOD': 0}
     algoOutput = processing.run("qgis:selectbyattribute", param)
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'hdom','FIELD_TYPE':0,'FIELD_LENGTH':10,'FIELD_PRECISION':3,'NEW_FIELD':False,'FORMULA':'if(is_selected(),hp80,hdom)','OUTPUT':'memory:'}
+
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'hdom', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': 'if(is_selected(),hp80,hdom)', 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     # with edit(tmp_simplified_layer):
@@ -186,21 +206,25 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     #                 f['hdom'] == f['hp80']
     #                 tmp_simplified_layer.updateFeature(f)
 
+    ########################################
     # Prepare for further analysis of neighbors
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'FID_orig','FIELD_TYPE':1,'FIELD_LENGTH':10,'FIELD_PRECISION':0,'OUTPUT':'memory:'}
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'FID_orig', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 0, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:addfieldtoattributestable", param)
     ##May be the wrong field!
-    param = {'INPUT':algoOutput['OUTPUT'],'FIELD_NAME':'FID_orig','FIELD_TYPE':0,'FIELD_LENGTH':10,'FIELD_PRECISION':3,'NEW_FIELD':False,'FORMULA':'OBJECTID','OUTPUT':'memory:'}
+    param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'FID_orig', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
+             'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': 'OBJECTID', 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     # Delete fields
     mLayer = algoOutput['OUTPUT']
-    fields = ['hmax_eff','hp80']
-    if del_tmp:        
-        delete_fields(mLayer,fields)
+    fields = ['hmax_eff', 'hp80']
+    if del_tmp:
+        delete_fields(mLayer, fields)
 
-    shape_out_path = os.path.join(workspace,shape_out) 
-    QgsVectorFileWriter.writeAsVectorFormatV2(mLayer,shape_out_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    shape_out_path = os.path.join(workspace, shape_out)
+    QgsVectorFileWriter.writeAsVectorFormatV2(mLayer, shape_out_path, ctc,
+                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
 
     # print("write neighbors TXT...")
     # # arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")
@@ -218,7 +242,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     #     if findex != -1:
     #         mLayer.dataProvider().renameAttributes({findex: "src_"+name})
     #         mLayer.updateFields()
-    
+
     # neighbors_path = os.path.join(workspace,neighbors_out) 
     # QgsVectorFileWriter.writeAsVectorFormatV2(mLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
 
@@ -229,13 +253,13 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     print("write neighbors TXT...")
     #    arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")
 
-    neighbors_path = os.path.join(workspace,neighbors_out) 
+    neighbors_path = os.path.join(workspace, neighbors_out)
     # Create memory layer
     neighborLayer = QgsVectorLayer('None', 'Neighbors', 'memory')
 
     simplified_layer = QgsVectorLayer(shape_out_path, "stand_boundaries_simplified", "ogr")
-    #QgsProject.instance().addMapLayer(simplified_layer)
-    
+    # QgsProject.instance().addMapLayer(simplified_layer)
+
     # Create a dictionary of all features
     feature_dict = {f.id(): f for f in simplified_layer.getFeatures()}
 
@@ -272,21 +296,23 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
             # intersects a feature. We use the 'disjoint' predicate to satisfy
             # these conditions. So if a feature is not disjoint, it is a neighbor.
             if (f != intersecting_f and
-                not intersecting_f.geometry().disjoint(geom)):
+                    not intersecting_f.geometry().disjoint(geom)):
                 nbr_FID = intersecting_f["OBJECTID"]
                 nbr_ID = intersecting_f["OBJECTID"]
                 nbr_hdom = intersecting_f["hdom"]
                 nbr_type = intersecting_f["type"]
                 nbr_area_m2 = intersecting_f["area_m2"]
                 lngth = -1
-                if(intersecting_f.geometry().touches(geom) or intersecting_f.geometry().intersects(geom)):
+                if (intersecting_f.geometry().touches(geom) or intersecting_f.geometry().intersects(geom)):
                     isct = intersecting_f.geometry().intersection(geom)
                     lngth = isct.length()
                 # Add a feature with attributes (and without geometry) to populate the 3 fields
-                
-                #print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
-                neighbors_tmp.append([oid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
-                
+
+                # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+                neighbors_tmp.append(
+                    [oid, src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
+                     nbr_area_m2, lngth, node_count])
+
     # Begin editing memory layer and create 3 fields
     neighborLayer.startEditing()
     provider = neighborLayer.dataProvider()
@@ -304,30 +330,28 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
                             QgsField("LENGTH", QVariant.Double),
                             QgsField("NODE_COUNT", QVariant.Int)])
     neighborLayer.updateFields()
-                    
-            
+
     for n in neighbors_tmp:
         attr = neighborLayer.dataProvider()
         feat = QgsFeature()
-        #print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+        # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
         feat.setAttributes(n)
         attr.addFeatures([feat])
-        #print(feat)
-        
+        # print(feat)
+
         neighborLayer.commitChanges()
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(neighborLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
-    #QgsProject.instance().removeMapLayer(neighborLayer.id())
-    #QgsProject.instance().removeMapLayer(simplified_layer.id())
+    QgsVectorFileWriter.writeAsVectorFormatV2(neighborLayer, neighbors_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
+    # QgsProject.instance().removeMapLayer(neighborLayer.id())
+    # QgsProject.instance().removeMapLayer(simplified_layer.id())
 
     print('Processing neighbors complete.')
 
     # Delete files
-    if del_tmp:        
+    if del_tmp:
         delete_shapefile(tmp_simplified_path)
         delete_shapefile(tmp_simplified_error_path)
         delete_shapefile(tmp_reduced_path)
         delete_shapefile(tmp_stands_buf_path)
-        
 
     print("DONE!")

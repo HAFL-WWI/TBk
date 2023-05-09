@@ -93,6 +93,7 @@ def delete_shapefile_old(path):
             os.remove(f)
 
 # Function to ensure that a directory exists
+# (creates directory if non existent)
 def ensure_dir (path):
     if not os.path.isdir(path):
         os.mkdir(path)

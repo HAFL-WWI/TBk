@@ -52,6 +52,8 @@ def run_stand_classification(workingRoot,
     :param vhm_max_height: Max VHM height in meters for cells to be processed -> set to zero
     '''
 
+    #-------- INIT --------#
+
     print("--------------------------------------------")
     print("START stand delineation...")
 
@@ -149,6 +151,8 @@ def run_stand_classification(workingRoot,
 
     print("--- %s minutes, input data loaded---" % round((time.time() - start_time)/60, 2))
 
+    #------- STAND CLASSIFICATION -------#
+
     # Init stand number with one
     standNbr = 1
 
@@ -167,9 +171,11 @@ def run_stand_classification(workingRoot,
 
     print("--- %s minutes, classification finished ---" % round((time.time() - start_time)/60, 2))
 
-    # classify all value not classified till now
+    # classify all value not classified till now (assign standNbr - is last stand +1)
     m_tmp = (data >= 0) & (stand == 0)
     stand[m_tmp] = standNbr
+
+
 
     # Save raw classification file
     CH.store_raster(stand, outputRawFilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
@@ -183,6 +189,8 @@ def run_stand_classification(workingRoot,
     CH.store_raster(hdom, outputHdomPath, projectionfrom, geotransform, gdal.GDT_Byte)
     print("File %s saved" %outputHdomPath)
 
+    #------- SMOOTHING -------#
+
     # focal majority for all pixels where no stand was found (last stand number)
     stand = CH.focal_majority(stand, 3, standNbr, 0)
     # save file after reclassify
@@ -195,6 +203,8 @@ def run_stand_classification(workingRoot,
     CH.store_raster(stand, outputSmooth2FilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
     print("File %s saved" %outputSmooth2FilePath)
     print("--- %s minutes, raster smoothed and saved  ---" % round((time.time() - start_time)/60, 2))
+
+    #------- POLYGONIZE, ADD ATTRIBUTES -------#
 
     # polygonize the raster -> to ESRI Shapefile
     CH.polygonize(outputSmooth2FilePath, outputShapefilePath)
