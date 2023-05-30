@@ -1,0 +1,149 @@
+---
+title: "TBk Bericht (automatisch generiert)"
+author: "BFH-HAFL"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: pdf_document
+header-includes:
+- \usepackage{fancyhdr}
+- \pagestyle{fancy}
+- \fancyhead{}
+- \renewcommand{\headrule}{}
+- \fancyfoot{}
+- \fancyfoot[L]{Berner Fachhochschule | Hochschule für Agrar-, Forst- und Lebensmittelwissenschaften HAFL}
+- \fancyfoot[R]{\thepage}
+- \fancypagestyle{plain}{\pagestyle{fancy}}
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+```{r config, include=FALSE}
+########################
+# USER CONFIG
+desc = "TBk JU 2022"
+tbk_path = "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/tbk_2022/20230530-1332_arcpy/TBk_Bestandeskarte.shp"
+########################
+```
+
+```{r data prep, include=FALSE}
+library(sp)
+library(raster)
+library(rgdal)
+library(RColorBrewer)
+library(ggplot2)
+library(gridExtra)
+library(radiant.data)
+
+# read shapefile
+tbk = readOGR(tbk_path)
+crs(tbk) = CRS('+init=EPSG:2056')
+#tbk$NH = 0
+
+# correct data types
+int_cols = c("ID", "nr", "hmax", "hdom", "DG", "NH", "area_m2", "struktur", "DG_ks", "DG_us", "DG_ms", "DG_os", "DG_ueb")
+tbk@data[,int_cols] = sapply(tbk@data[,int_cols], function(x) as.numeric(as.character(x)))
+
+# build groups
+tbk$hdom_group = cut(tbk$hdom, seq(0, 60, 5), include.lowest=T)
+tbk$DG_group = cut(tbk$DG, seq(0, 100, 10), include.lowest=T)
+tbk$NH_group = cut(tbk$NH, seq(0, 100, 50), include.lowest=T)
+tbk$NH_group_detail = cut(tbk$NH, seq(0, 100, 10), include.lowest=T)
+
+# calculate area per grouping factor
+area_per_hdom = aggregate(area_m2~hdom_group + NH_group, tbk@data, sum)
+area_per_DG = aggregate(area_m2~DG_group + NH_group, tbk@data, sum)
+area_per_NH = aggregate(area_m2~NH_group_detail, tbk@data, sum)
+
+# calculate area weighted means and sd (ref: https://en.wikipedia.org/wiki/Weighted_arithmetic_mean#Weighted_sample_covariance)
+hdom_weighted = weighted.mean(tbk$hdom, tbk$area_m2, na.rm=T)
+hdom_weighted_sd = weighted.sd(tbk$hdom, tbk$area_m2)
+dg_weighted = weighted.mean(tbk$DG, tbk$area_m2, na.rm=T)
+dg_weighted_sd = weighted.sd(tbk$DG, tbk$area_m2)
+nh_weighted = weighted.mean(tbk$NH, tbk$area_m2, na.rm=T)
+nh_weighted_sd = weighted.sd(tbk$NH, tbk$area_m2)
+```
+
+# Zusammenfassung
+
+*`r desc`*
+
+* Gesamtfläche: **`r round(sum(tbk$area_m2)/10000)` ha**
+* Anzahl Bestände: **`r length(tbk)`**
+  + Anzahl Bestände kleiner als 0.1 ha: **`r sum(tbk$area_m2 < 1000)`**
+  + Anzahl Bestände 0.1 bis 1 ha: **`r sum(tbk$area_m2 >= 1000 & tbk$area_m2 < 10000)`**
+  + Anzahl Bestände 1 bis 5 ha: **`r sum(tbk$area_m2 >= 10000 & tbk$area_m2 < 50000)`**
+  + Anzahl Bestände 5 bis 20 ha: **`r sum(tbk$area_m2 >= 50000 & tbk$area_m2 < 200000)`** 
+  + Anzahl Bestände grösser als 20 ha: **`r sum(tbk$area_m2 > 200000)`** 
+* Mittlere Bestandesgrösse: **`r round(mean(tbk$area_m2)/10000,2)` ha (SD = `r round(sd(tbk$area_m2)/10000,2)`)**
+* Oberhöhe^[Mittelwert gewichtet nach Bestandesfläche]: **`r round(hdom_weighted,2) ` m (SD = `r round(hdom_weighted_sd,2)`)**
+* Deckungsgrad^1^: **`r round(dg_weighted,2) ` % (SD = `r round(dg_weighted_sd,2)`)**
+* Nadelholzanteil^1^: **`r round(nh_weighted,2) ` % (SD = `r round(nh_weighted_sd,2)`)**
+
+```{r map plot, fig.height=4, echo=FALSE}
+spplot(tbk, "hdom", main=list(label="Übersicht mit Oberhöhe [m]", cex=0.8), col="transparent", scales = list(draw = TRUE), cuts = 5, col.regions = brewer.pal(8, "YlGnBu"))
+```
+
+# Verteilung nach Fläche
+
+```{r plots per area, fig.height=2.5, echo=FALSE}
+ggplot(area_per_hdom, aes(x=hdom_group, y=area_m2/10000, fill=NH_group)) + 
+  geom_bar(stat="identity")+
+  labs(title="Oberhöhe", x="hdom Klasse [m]", y = "Flächenanteil [ha]")+
+  scale_fill_manual(values=c('black','lightgray'), labels=c("NH < 50%", "NH > 50%"), name=NULL)+
+  theme_bw()
+
+ggplot(area_per_DG, aes(x=DG_group, y=area_m2/10000, fill=NH_group)) + 
+  geom_bar(stat="identity")+
+  labs(title="Deckungsgrad", x="DG Klasse [%]", y = "Flächenanteil [ha]")+
+  scale_fill_manual(values=c('black','lightgray'), labels=c("NH < 50%", "NH > 50%"), name=NULL)+
+  theme_bw()
+
+ ggplot(area_per_NH, aes(x=NH_group_detail, y=area_m2/10000)) + 
+  geom_bar(stat="identity", position=position_dodge(), fill="black")+
+  labs(title="Nadelholzanteil", x="NH Klasse [%]", y = "Flächenanteil [ha]")+
+  theme_bw()
+```
+
+# Verteilung nach Beständen
+
+```{r histograms with stands, fig.height=3, fig.width=8, echo=FALSE}
+# plot hist 
+p1 = ggplot(tbk@data, aes(x = hdom))+
+  stat_bin(boundary=F, binwidth=5, colour = "black", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 60, 5)) + 
+  labs(title="Oberhöhe", x="Oberhöhe [m]", y = "Anzahl Bestände")+
+  theme_bw() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+p2 = ggplot(tbk@data, aes(x = DG))+
+  stat_bin(boundary=F, binwidth=10, colour = "black", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title="Deckungsgrad", x="Deckungsgrad [%]", y = "Anzahl Bestände")+
+  theme_bw()+ 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+p3 = ggplot(tbk@data, aes(x = NH))+
+  stat_bin(boundary=F, binwidth=10, colour = "black", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 100, 10)) +
+  labs(title="Nadelholzanteil", x="Nadelholzanteil [%]", y = "Anzahl Bestände")+
+  theme_classic() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+grid.arrange(p1, p2, p3, nrow = 1)
+
+ggplot(tbk@data[tbk$area_m2<200000,], aes(x = area_m2/10000))+
+  stat_bin(boundary=F, binwidth=0.2, colour = "black", fill = "white") +
+  scale_x_continuous(breaks = seq(0, 20, 2)) +
+  labs(title="Flächengrösse", x="Bestandesfläche [ha]", y = "Anzahl Bestände")+
+  theme_classic() + 
+  theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+```
+
+# Zusatzinformationen
+
+* Anzahl Bestände mit hdom < 5 m: **`r sum(tbk$hdom<5)`** mit einem Flächenanteil von **`r round(sum(tbk$area_m2[tbk$hdom<5])/sum(tbk$area_m2)*100,2)` %**
+* Anzahl Bestände mit DG < 10 %: **`r sum(tbk$DG<10)`** mit einem Flächenanteil von **`r round(sum(tbk$area_m2[tbk$DG<10])/sum(tbk$area_m2)*100,2)` %**
+* Anzahl Bestände mit DG > 70 % & hdom > 20 m: **`r sum(tbk$DG>70 & tbk$hdom>20)`** mit einem Flächenanteil von **`r round(sum(tbk$area_m2[tbk$DG>70 & tbk$hdom>20])/sum(tbk$area_m2)*100,2)` %**
+* Anzahl stufige Bestände^[Stufige Bestände mit mehreren Schichten, ab 28 hdom und einer Mindestgrösse von 0.3 ha]: **`r sum(tbk$struktur==1)`** mit einem Flächenanteil von **`r round(sum(tbk$area_m2[tbk$struktur==1])/sum(tbk$area_m2)*100,2)` %**
+* Anzahl Restflächen: **`r sum(tbk$tbk_typ=="remainder")`** mit einem Flächenanteil von **`r round(sum(tbk$area_m2[tbk$tbk_typ=="remainder"])/sum(tbk$area_m2)*100,2)` %**
