@@ -102,7 +102,7 @@ def run_stand_classification(workingRoot,
         sys.exit("Error: Raster input file (inputFilePath) not found!")
     ds = gdal.Open(inputFilePath, GA_ReadOnly)
     band = ds.GetRasterBand(1)
-    data = band.ReadAsArray().astype(np.float)  # format: data[row, col] -> data[y, x]
+    data = band.ReadAsArray().astype(float)  # format: data[row, col] -> data[y, x]
 
     # Get and print main input raster information
     geotransform = ds.GetGeoTransform()
@@ -136,7 +136,8 @@ def run_stand_classification(workingRoot,
     if coniferousRasterFile != 'null' and coniferousRasterFile != None:
         ds = gdal.Open(coniferousFilePath, GA_ReadOnly)
         band = ds.GetRasterBand(1)
-        coniferous = band.ReadAsArray().astype(np.int) # format: data[row, col] -> data[y, x]
+        data = band.ReadAsArray().astype(int)  # format: data[row, col] -> data[y, x]
+        #logging.info('read coniferousRasterFile as ' + type(coniferous))
         if not CH.compare_raster(inputFilePath, coniferousFilePath):
             logging.warning("VHM and MG raster have different extents and/or projections!")
 
@@ -145,7 +146,8 @@ def run_stand_classification(workingRoot,
     if zoneRasterFile != 'null' and zoneRasterFile != None:
         ds = gdal.Open(zoneFilePath, GA_ReadOnly)
         band = ds.GetRasterBand(1)
-        zone = band.ReadAsArray().astype(np.int) # format: data[row, col] -> data[y, x]
+        zone = band.ReadAsArray().astype(int) # format: data[row, col] -> data[y, x]
+        logging.info('read zone as ' + type(zone))
         if not CH.compare_raster(inputFilePath, zoneFilePath):
             logging.warning("VHM and ZONE raster have different extents and/or projections!")
 
