@@ -5,7 +5,7 @@
 #							 -------------------
 #		begin				: 2020-08-03
 #		git sha				: $Format:%H$
-#		copyright			: (C) 2020 by Berner Fachhochschule HAFL
+#		copyright			: (C) 2023 by Berner Fachhochschule HAFL
 #		email				: christian.rosset@bfh.ch
 # ***************************************************************************/
 #

@@ -25,7 +25,7 @@
 
 __author__ = 'Berner Fachhochschule HAFL'
 __date__ = '2020-08-03'
-__copyright__ = '(C) 2020 by Berner Fachhochschule HAFL'
+__copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 
 def classFactory(iface):

@@ -8,7 +8,7 @@
     ----------------------------------------------------------------------
     begin                : 2023-01-07
     copyright            : (C) 2022 by Berner Fachhochschule HAFL
-    email                : hannes.horneber@bfh.ch, christian.rosset@bfh.ch
+    email                : hannes.horneber@bfh.ch, christian.rosset@bfh.chcd C:\local_data\TBk_QGIS_Plugin\tbk_qgis
  ***************************************************************************/
 
 /***************************************************************************
@@ -25,7 +25,7 @@
 
 __author__ = 'Berner Fachhochschule HAFL'
 __date__ = '2020-08-03'
-__copyright__ = '(C) 2020 by Berner Fachhochschule HAFL'
+__copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 # This will get replaced with a git SHA1 when you do a git archive
 
