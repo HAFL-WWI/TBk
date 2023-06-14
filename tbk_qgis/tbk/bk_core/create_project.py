@@ -39,8 +39,10 @@ def create_project(result_dir, tool_path, root_dir, vhm_10m, vhm_150cm):
 
     # copy default Project file
     print("Copy Project...")
-    project_copy_path = copy_resource_file(tool_path, os.path.join("resources", "TBk_Bestandeskarte.qgz"),
-        result_dir, "TBk_Bestandeskarte.qgz")
+    project_copy_path = copy_resource_file(tool_path, os.path.join("resources", "TBk_Template.qgz"),
+        result_dir, "TBk_Project.qgz")
+ #   project_copy_path = copy_resource_file(tool_path, os.path.join("resources", "TBk_Bestandeskarte.qgz"),
+ #       result_dir, "TBk_Bestandeskarte.qgz")
     copy_resource_file(tool_path, os.path.join("resources", "BFH_Logo_A_de_100_RGB.png"),
                        result_dir, "BFH_Logo_A_de_100_RGB.png")
     copy_resource_file(tool_path, os.path.join("resources", "NorthArrow_04.svg"),
