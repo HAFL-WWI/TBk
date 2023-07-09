@@ -432,6 +432,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         #     if os.path.isdir(output_tmp_folder):
         #         shutil.rmtree(output_tmp_folder)
 
+        # Copy temporary logfile to result directory
+        #rootLogger.info("Copy logfile from: " + logfile_tmp_path)
+        logfile = os.path.join(tbk_result_dir, logfile_name)
+        rootLogger.info("Copy logfile to: " + logfile)
+        copyfile(logfile_tmp_path, logfile)
 
         # finished
         feedback.pushInfo("====================================================================")
@@ -439,12 +444,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
         rootLogger.info('FINISHED')
-
-
-#        # # copy temporary logfile to result directory
-#        # logfile = os.path.join(tbk_result_dir, config["logfile_name"])
-#        # print("Saving logfile under: %s" % logfile)
-#        # copyfile(config["logfile_tmp_path"], logfile)
 
 
 #        # Compute the number of steps to display within the progress bar and
