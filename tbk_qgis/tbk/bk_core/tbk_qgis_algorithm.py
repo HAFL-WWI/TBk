@@ -94,10 +94,12 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
         return self.addParameter(parameter)
 
-    #------- DEFINE CONSTANTS -------#
-    # Constants used to refer to parameters and outputs. They will be
-    # used when calling the algorithm from another algorithm, or when
-    # calling from the QGIS console.
+
+    #------- Define Constants -------#
+    # Constants used to refer to parameters and outputs.
+
+    # These constants will be used when calling the algorithm from another algorithm,
+    # or when calling from the QGIS console.
 
     OUTPUT = "OUTPUT"
 
@@ -162,19 +164,12 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     #Delete temporary files and fields
     DEL_TMP ="del_tmp"
 
-
+    #------- List of Algorithm Parameters -------#
+    # Parameters with default values
     def initAlgorithm(self, config):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
-        #### MY HEADLINE ####
-        #----------------------#
-
-        # > order has to be manually adjusted, otherwise bookmarks are ordered by time of creation
-        # > a codesection #
-        # > a different codesection #
-
-
         ## Directory containing the input files
         #"working_root": r'C:\school\hafl\TBk-master_20200608\test_dataset',
 
@@ -257,14 +252,14 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
 
-        #------- INITIALIZE -------#
+        #------- INIT Algorithm -------#
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
         # settings_path = QgsApplication.qgisSettingsDirPath()
         # tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
         tbk_tool_path = os.path.dirname(__file__)
 
-        # get and check paths to VHMs
+        #--- get and check paths to VHMs
         vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file")
@@ -291,6 +286,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         #if not os.path.splitext(perimeter)[1].lower() in (".shp"):
         #if not (".shp" in perimeter.lower()):
+        #TODO remove .shp restriction
         if not os.path.splitext(perimeter)[1].lower() in (".shp"):
             raise QgsProcessingException("perimeter must be a ESRI Shape file")
 
@@ -354,6 +350,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         rootLogger.info('Run TBk')
 
         #------- TBk MAIN Processing --------#
+
         # Run TBk
         start_time = time.time()
 
@@ -365,7 +362,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         #     rootLogger.info('Clipping VHM 10m before stand delineation')
         #     vhm_10m = clip_vhm_to_perimeter(working_root,vhm_10m,perimeter,"vhm_10m_clipped.tiff")
 
-        # Stand delineation
+        #--- Stand delineation (Main)
         rootLogger.info('Stand delineation')
         tbk_result_dir = run_stand_classification(working_root, vhm_10m, coniferous_raster_for_classification, zoneRasterFile, description,
                                                 min_tol, max_tol,
@@ -373,41 +370,41 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                 min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
                                                 vhm_min_height, vhm_max_height)
 
-        # Simplify & Eliminate
+        #--- Simplify & Eliminate
         rootLogger.info('Simplify & Eliminate')
         post_process(tbk_result_dir, min_area_m2, simplification_tolerance=simplification_tolerance, del_tmp=del_tmp)
 
-        # Merge similar neighbours
+        #--- Merge similar neighbours
         rootLogger.info('Merge similar neighbours')
         merge_similar_neighbours(tbk_result_dir, similar_neighbours_min_area, similar_neighbours_hdom_diff_rel, del_tmp=del_tmp)
 
-        # Clip to perimeter and eliminate gaps
+        #--- Clip to perimeter and eliminate gaps
         rootLogger.info('Clip to perimeter and eliminate gaps')
         # run clip function
         clip_to_perimeter(tbk_result_dir, perimeter, del_tmp=del_tmp)
         # run gaps function
         eliminate_gaps(tbk_result_dir, perimeter, del_tmp=del_tmp)
 
-        # Calculate DG
+        #--- Calculate DG
         rootLogger.info('Calculate DG')
         calculate_dg(tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
 
-        # Add coniferous proportion
+        #--- Add coniferous proportion
         if calc_mixture_for_main_layer:
             rootLogger.info('Add coniferous proportion')
             add_coniferous_proportion(tbk_result_dir, coniferous_raster, calc_mixture_for_main_layer, del_tmp=del_tmp)
 
-        # Calc specific attributes and write final shapefile
+        #--- Calc specific attributes and write final shapefile
         rootLogger.info('Calc specific attributes and write final shapefile')
         calc_attributes(tbk_result_dir, del_tmp=del_tmp)
 
-        # Clean up unneeded fields
+        #--- Clean up unneeded fields
         if del_tmp:
             del_fields = ["FID_orig","OBJECTID"]
             result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.shp")
             delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
 
-        # Create default Project
+        #--- Create default Project
         rootLogger.info('Create default Project')
         # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\post_processing_arcpy\\create_mxd.py" +
         #           " " + tbk_result_dir + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)
@@ -432,11 +429,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         #     if os.path.isdir(output_tmp_folder):
         #         shutil.rmtree(output_tmp_folder)
 
-        # Copy temporary logfile to result directory
+        #--- Copy temporary logfile to result directory
         #rootLogger.info("Copy logfile from: " + logfile_tmp_path)
-        logfile = os.path.join(tbk_result_dir, logfile_name)
-        rootLogger.info("Copy logfile to: " + logfile)
-        copyfile(logfile_tmp_path, logfile)
+        # logfile = os.path.join(tbk_result_dir, logfile_name)
+        # rootLogger.info("Copy logfile to: " + logfile)
+        # copyfile(logfile_tmp_path, logfile)
 
         # finished
         feedback.pushInfo("====================================================================")

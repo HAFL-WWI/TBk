@@ -67,7 +67,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         cover = 40
 
         # output raster file
-        dg_layer_os_nh = os.path.join(tbk_path, "nh_os.tif")
+        dg_layer_os_nh = os.path.join(tbk_path, "tmp", "nh_os.tif")
 
         # Output files tmp
         output_tmp_folder = os.path.join(tbk_path, "tmp")
@@ -102,6 +102,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
+        #TODO this sometimes throws an error because of "access denied"
         param = {'INPUT_A':nh_raster,'BAND_A':1,'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
                 'FORMULA':'A*(B>0)','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)

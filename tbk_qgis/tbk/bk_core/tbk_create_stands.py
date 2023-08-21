@@ -136,7 +136,7 @@ def run_stand_classification(workingRoot,
     if coniferousRasterFile != 'null' and coniferousRasterFile != None:
         ds = gdal.Open(coniferousFilePath, GA_ReadOnly)
         band = ds.GetRasterBand(1)
-        data = band.ReadAsArray().astype(int)  # format: data[row, col] -> data[y, x]
+        coniferous = band.ReadAsArray().astype(int)  # format: data[row, col] -> data[y, x]
         #logging.info('read coniferousRasterFile as ' + type(coniferous))
         if not CH.compare_raster(inputFilePath, coniferousFilePath):
             logging.warning("VHM and MG raster have different extents and/or projections!")
