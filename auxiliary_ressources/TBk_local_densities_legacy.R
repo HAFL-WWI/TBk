@@ -25,9 +25,12 @@
 #
 # (c) by Alexandra Erbach, HAFL, BFH, 2021-10
 # (c) by Hannes Horneber, HAFL, BFH, 2021-11, 2023-01
+#
+# DEVELOPMENT DISCONTINUED AFTER 2023-01, major changes led to a new version
 #------------------------------------------------------------------------------#
 
 library(raster)
+library(terra)
 library(rgdal)
 library(rgeos)
 library(landscapemetrics)
@@ -42,14 +45,12 @@ library(lidR)
 
 ### input parameters ###
 # path to TBk. This assumes the "normal" layer structure (subfolder with dg layers)
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_GL/Entwicklung/TBk_GL/20211011-0951_vhm2_min12a" # 2021-11-10
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_FL/TBk_FL/20210426-1427" # 2022-01-05
-PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_diverse/2023-01_Volketswil/tbk2018/20230125-0942" # 2022-01-05
+PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/TBk_main/20230810-0054" # 2022-01-05
 
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output - if left empty (""), input .shp will be overwritten
-NAME_SUFFIX = "_bs"
+NAME_SUFFIX = "_no_smoothing"
 
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
@@ -59,7 +60,7 @@ PLOT_RESULTS = FALSE # for visual output during processing
 CLIP_TO_STAND_BOUNDARIES = TRUE
 # write original file with new attributes 
 # this can fail if file is in use (will fall back to writing a new file in PATH_OUTPUT)
-OVERWRITE_ORIGINAL_TBK = TRUE
+OVERWRITE_ORIGINAL_TBK = FALSE
 
 # the path to the dg layers (relative or absolute) 
 # default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
@@ -79,7 +80,9 @@ crumb_thresh <- units::set_units(100, m^2) # for TBk stands
 
 # method to remove thin parts and details of zones
 # 0 = not applied, default: 10 (0.5*thickness that is preserved)
-BUFFER_SMOOTHING = 10
+BUFFER_SMOOTHING = 0
+# default smoothing. Isn't applied if buffer_smoothing is applied or if set to 0; default: 2
+KSMOOTH_FACTOR = 0
 
 # radius of circular moving window (in m)
 mw_rad = 7
@@ -131,7 +134,7 @@ ras2poly <- function(ras_foc, i=0, dg=0, poly_parent=NULL){
   # plot(poly_filled, add =T, col='blue')
   # smooth (via buffer or with smoothing algorithm)
   if(BUFFER_SMOOTHING != 0) {
-    remove("poly_smooth")
+    if(exists("poly_smooth")) remove("poly_smooth")
     # catch the case that the negative buffer deletes the whole polygon
     tryCatch(expr={poly_smooth = buffer(poly_filled, width= -BUFFER_SMOOTHING)}, 
              error=function(cond) {
@@ -148,8 +151,13 @@ ras2poly <- function(ras_foc, i=0, dg=0, poly_parent=NULL){
     ( poly_smooth.df <- data.frame( ID=1:length(poly_smooth), row.names = pid) )
     poly_smooth <- SpatialPolygonsDataFrame(poly_smooth, poly_smooth.df)
   } else {
-    # smoothing
-    poly_smooth <- smooth(poly_smooth, method = "ksmooth", smoothness = 2)
+    # default smoothing
+    if(KSMOOTH_FACTORTH != 0) {
+      poly_smooth <- smooth(poly_filled, method = "ksmooth", smoothness = 2)
+    } else {
+      # no smoothing
+      poly_smooth <- poly_filled
+    }
   }
   # plot(poly_smooth, add =T, col='red')
   # remove small areas (drop crumbs)
