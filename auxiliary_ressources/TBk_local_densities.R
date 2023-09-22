@@ -48,13 +48,28 @@ library(progress)
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_GL/Entwicklung/TBk_GL/20211011-0951_vhm2_min12a" # 2021-11-10
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_FL/TBk_FL/20210426-1427" # 2022-01-05
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_diverse/2023-01_Volketswil/tbk2018/20230125-0942" # 2022-01-05
-PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_JU/Dev/DG_split/data_aoi" # 2023-08-14
+# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_JU/Dev/DG_split/data_aoi" # 2023-08-14
+# PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_JU/tbk_2022/20230530-1332_arcpy" # 2023-08-14
+PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/tbk_2022/20230530-1332_arcpy" # 2023-09-20
+
+# the path to the polygons to perform the algorithm in
+# these can be stands (e.g. TBk) or other perimeters
+# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
+PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
+# PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
+
+# the path to the mg layers to compute NH per area
+# PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
+PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail_100.tif")
+
+# the path to the dg layers (relative or absolute) 
+# default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
+PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
 
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output - if left empty (""), input .shp will be overwritten
 NAME_SUFFIX = "_v7_6c"
-
 
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
@@ -66,21 +81,6 @@ CLIP_TO_STAND_BOUNDARIES = TRUE
 # write original file with new attributes 
 # this can fail if file is in use (will fall back to writing a new file in PATH_OUTPUT)
 OVERWRITE_ORIGINAL_TBK = FALSE
-
-# the path to the dg layers (relative or absolute) 
-# default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
-PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
-# PATH_DG_os = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_os.tif")
-# PATH_DG_ueb = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ueb.tif")
-
-# the path to the polygons to perform the algorithm in
-# these can be stands (e.g. TBk) or other perimeters
-PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
-# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
-# PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
-
-# the path to the mg layers to compute NH per area
-PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 
 # thresholds for removing polygon parts
 # default (as of 2021-10-27): 100 / 100 m^2
@@ -135,7 +135,7 @@ classes_df[nrow(classes_df)+1, ] <- list(0,   1, 0.60, 1, 'orangered')
 if(VERBOSE) print("Initialize: Load data from:")
 if(VERBOSE) print(PATH_SHP)
 
-# load dg raster "DG" (Hauptschicht = hs) and shapefile
+# load dg raster "DG" (Hauptschicht = hs) and vector data
 hs = rast(PATH_DG)
 mg = rast(PATH_MG)
 stands = st_read(PATH_SHP)
@@ -244,10 +244,10 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
 
 ### *iterate over stands/polygons* ####
 for (i in 1:nrow(stands)){
-# debug lines to check single stands
-# PLOT_INTERMEDIATE = T # for detailed visual output during processing
-# for (i in 215){
-# for (i in 1:4){
+  # debug lines to check single stands
+  # PLOT_INTERMEDIATE = T # for detailed visual output during processing
+  # for (i in 215){
+  # for (i in 1:4){
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
@@ -315,14 +315,14 @@ for (i in 1:nrow(stands)){
         } else {
           ras_foc = (focal_map <=   classes_df[k,]$dg_max+0.0001) * (focal_map >= classes_df[k,]$dg_min-0.0001)
         }
-
+        
         # if(PLOT_INTERMEDIATE) plot(ras_foc)
         # if(PLOT_INTERMEDIATE) lines(stands[i,])
-
+        
         # remove areas overlapping stand
         #TODO check effect when doing this
         # ras_foc[is.na(hs_crop_unbuffered)] <- NA
-
+        
         # eliminate small clusters in raster
         #TODO may improve performance, but may also worsen results (omit important parts)
         # threshold_nr_pixels = min_size_clump / res_hs^2
@@ -332,23 +332,23 @@ for (i in 1:nrow(stands)){
         # remove 0 values
         ras_foc[ras_foc == 0] <- NA
         # if(PLOT_INTERMEDIATE)  plot(ras_foc)
-
+        
         #### >> create polygon ####
         # create polygons for density zones
         # check if dense cluster cells are present
         if(length(ras_foc[ras_foc==1])>0){
           # raster to polygon
           multipolygon = ras2poly(ras_foc=ras_foc, i=i, class=class, poly_parent=stands[i,])
-
+          
           # check if a non-null polygon is produced
           if(!is.null(multipolygon)){
             # split multipolygon into single polygons and compute area
             new_polys <- st_cast(multipolygon, "POLYGON")
             new_polys$area <- st_area(new_polys)
-
+            
             # filter by size
             new_polys = new_polys[new_polys$area > min_size_clump,]
-
+            
             # check if any remain
             if((nrow(new_polys) > 0)){
               #### >> add attributes to zones ####
@@ -359,7 +359,7 @@ for (i in 1:nrow(stands)){
               new_polys$NH_zone = round(exactextractr::exact_extract(mg,new_polys, fun ="mean"),0)
               new_polys$NH_stand = stands[i,]$NH
               new_polys$hdom_stand = stands[i,]$hdom
-
+              
               #### >> populate attributes for stands ####
               area_class = sum(new_polys$area)
               area_class_pct = area_class / stands[i,]$area_m2
@@ -444,6 +444,8 @@ for (i in 1:nrow(stands)){
 # dev.off()
 
 #### export as vector ####
+dir.create(file.path(DIR_OUTPUT), recursive = TRUE, showWarnings = TRUE)
+
 # write files for polygons
 st_write(st_as_sf(polys), append = FALSE, 
          file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
@@ -470,7 +472,7 @@ tryCatch(expr={
     # write file with new attributes to PATH_OUTPUT
     write_sf(stands, 
              file.path(PATH_TBk_INPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)), NAME_SUFFIX, ".gpkg") ))
-             
+    
     # writeOGR(stands, PATH_TBk_INPUT, layer=paste0(tools::file_path_sans_ext(basename(PATH_SHP)), NAME_SUFFIX),
     #          driver="ESRI Shapefile", overwrite_layer=T)
   }
@@ -479,7 +481,6 @@ tryCatch(expr={
     write_sf(stands, 
              file.path(PATH_TBk_INPUT, PATH_SHP))
   }
-
-  }, error=function(cond) {# optional: print alert # message(paste("")))
+  
+}, error=function(cond) {# optional: print alert # message(paste("")))
 }, silent = TRUE)
-
