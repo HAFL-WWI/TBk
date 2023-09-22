@@ -17,7 +17,7 @@ from osgeo import osr
 import processing
 from qgis.core import *
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 class ClassificationHelper:

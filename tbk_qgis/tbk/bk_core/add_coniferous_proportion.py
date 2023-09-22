@@ -19,7 +19,7 @@ from qgis.core import QgsProject
 import processing
 from qgis.core import *
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_tmp=True):

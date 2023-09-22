@@ -69,7 +69,7 @@ from qgis.core import (QgsProcessing,
                        QgsApplication)
 import processing
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):

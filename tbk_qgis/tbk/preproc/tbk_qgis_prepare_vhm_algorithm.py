@@ -70,7 +70,7 @@ from qgis.analysis import (
                        QgsRasterCalculatorEntry)                       
 import processing
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from .pre_processing_helper import PreProcessingHelper
 

@@ -16,7 +16,7 @@ from qgis.core import QgsProject
 import processing
 from qgis.core import *
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 def clip_to_perimeter(tbk_path, perimeter, del_tmp=True):
     print("--------------------------------------------")

@@ -15,7 +15,7 @@ from qgis.utils import iface
 from qgis.core import *
 from qgis.gui import *
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from shutil import copyfile
 

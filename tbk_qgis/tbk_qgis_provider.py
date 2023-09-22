@@ -39,11 +39,11 @@ import os
 from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
-from tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
-from tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
-from tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
-from tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
-from tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
+from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
+from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
+from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
+from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
+from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
 
 
 class TBkProvider(QgsProcessingProvider):

@@ -49,10 +49,10 @@ import logging, logging.handlers
 import numpy as np
 from datetime import datetime
 
-from tbk.bk_ag.bk_processing import *
-from tbk.bk_ag.perimeter_processing import *
-from tbk.bk_ag.vhm_processing import *
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.bk_ag.bk_processing import *
+from tbk_qgis.tbk.bk_ag.perimeter_processing import *
+from tbk_qgis.tbk.bk_ag.vhm_processing import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 class BkAGAlgorithm(QgsProcessingAlgorithm):

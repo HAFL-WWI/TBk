@@ -61,7 +61,7 @@ from qgis.core import (QgsProcessing,
                        QgsApplication)
 
 #from .resources import *
-#from tbk.utility.tbk_utilities import *
+#from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from .tbk_create_stands import *
 from .post_process import *

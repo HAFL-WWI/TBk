@@ -16,7 +16,7 @@ import processing
 import os
 from qgis.core import *
 
-from tbk.utility.tbk_utilities import *
+from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
