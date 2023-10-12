@@ -102,9 +102,11 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
-        #TODO this sometimes throws an error because of "access denied"
-        param = {'INPUT_A':nh_raster,'BAND_A':1,'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':'A*(B>0)','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_layer_os_nh}
+        formula = "A*B"
+        param = {'INPUT_A':nh_raster,'BAND_A':1,
+                 'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,
+                 'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
+                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
