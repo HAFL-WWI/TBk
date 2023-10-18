@@ -1,13 +1,14 @@
+@echo off
 rem This script sets Environment variables for your Python interpreter
 rem It is only useful when working with an IDE that supports code inspection/auto completion/...
 rem in order for it to find all Python modules (QGIS and Plugin)
 
-rem The script is based on the python-qgis-ltr.bat (which calls o4w_env.bat) adjusted to be called from here
+rem The script is based on the python-qgis-ltr.bat (which calls o4w_env.bat) 
+rem adjusted to be called from the plugin dev directory
 rem If the original scripts change with updates, this might need to be updated as well.
 
 rem author: Hannes Horneber, 2023-10-12
 
-@echo off
 rem ------------------------------------------------
 rem Original contents of python-qgis-ltr.bat
 

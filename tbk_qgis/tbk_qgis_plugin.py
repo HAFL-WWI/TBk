@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 """
 /***************************************************************************
     TBk - QGIS plugin
@@ -8,7 +7,7 @@
     ----------------------------------------------------------------------
     begin                : 2023-01-07
     copyright            : (C) 2022 by Berner Fachhochschule HAFL
-    email                : hannes.horneber@bfh.ch, christian.rosset@bfh.chcd C:\local_data\TBk_QGIS_Plugin\tbk_qgis
+    email                : hannes.horneber@bfh.ch, christian.rosset@bfh.ch
  ***************************************************************************/
 
 /***************************************************************************
@@ -19,8 +18,6 @@
  *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
-
-
 """
 
 __author__ = 'Berner Fachhochschule HAFL'
