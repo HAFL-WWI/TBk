@@ -89,9 +89,9 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
                                               getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
-    # QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"ESRI Shapefile")
+    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"ESRI Shapefile")
 
     ########################################
     # Simplify
@@ -142,7 +142,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
     del tmp_simplified_layer
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_simplified_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_simplified_path, ctc,
                                               getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
 
     ########################################
@@ -163,7 +163,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
                                               getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
 
     ########################################
@@ -174,7 +174,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     del tmp_simplified_layer
-    # QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
 
     ########################################
     # Calculate hmax and hdom for remainders
@@ -223,7 +223,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
         delete_fields(mLayer, fields)
 
     shape_out_path = os.path.join(workspace, shape_out)
-    QgsVectorFileWriter.writeAsVectorFormatV2(mLayer, shape_out_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(mLayer, shape_out_path, ctc,
                                               getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
 
     # print("write neighbors TXT...")
@@ -244,7 +244,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     #         mLayer.updateFields()
 
     # neighbors_path = os.path.join(workspace,neighbors_out) 
-    # QgsVectorFileWriter.writeAsVectorFormatV2(mLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV3(mLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
 
     ########################################
     # Approximate the arcpy Neighbors tool
@@ -266,7 +266,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # Build a spatial index
     index = QgsSpatialIndex()
     for f in feature_dict.values():
-        index.insertFeature(f)
+        index.addFeature(f)
 
     neighbors_tmp = []
 
@@ -341,7 +341,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
         neighborLayer.commitChanges()
 
-    QgsVectorFileWriter.writeAsVectorFormatV2(neighborLayer, neighbors_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(neighborLayer, neighbors_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
     # QgsProject.instance().removeMapLayer(neighborLayer.id())
     # QgsProject.instance().removeMapLayer(simplified_layer.id())
 

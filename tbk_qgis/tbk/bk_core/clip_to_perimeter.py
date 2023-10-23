@@ -117,7 +117,7 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV2(algoOutput['OUTPUT'],output_shape_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],output_shape_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
 
     ########################################
     # Delete gaps not possible to eliminate

@@ -36,7 +36,7 @@ def calc_attributes(tbk_path, del_tmp=True):
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")
     
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV2(in_layer,shape_out,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(in_layer,shape_out,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
     out_layer = QgsVectorLayer(shape_out, "stands in", "ogr")
 
     with edit(out_layer):
