@@ -50,7 +50,7 @@ library(progress)
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_diverse/2023-01_Volketswil/tbk2018/20230125-0942" # 2022-01-05
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_JU/Dev/DG_split/data_aoi" # 2023-08-14
 # PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_JU/tbk_2022/20230530-1332_arcpy" # 2023-08-14
-PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/tbk_2022/20230530-1332_arcpy" # 2023-09-20
+PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-10_Limmattal/tbk_2022/20231019-1105" # 2023-09-20
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
@@ -60,7 +60,7 @@ PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
 
 # the path to the mg layers to compute NH per area
 # PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
-PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail_100.tif")
+PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 
 # the path to the dg layers (relative or absolute) 
 # default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
@@ -69,7 +69,7 @@ PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output - if left empty (""), input .shp will be overwritten
-NAME_SUFFIX = "_v7_6c"
+NAME_SUFFIX = ""
 
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
@@ -121,31 +121,35 @@ classes_df <- data.frame(class = numeric(),
 # boolean (0/1) whether to use a large moving window
 # and a color to plot the class here in R
 classes_df[nrow(classes_df)+1, ] <- list(1,   1, 0.85, 0, 'red')
-classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
-classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
-classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
+# classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
+# classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
+# classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
 classes_df[nrow(classes_df)+1, ] <- list(5,0.25, 0   , 0, 'blue')
 
 classes_df[nrow(classes_df)+1, ] <- list(0,   1, 0.60, 1, 'orangered')
 
-
+as_units(min_size_stand)
 ####_________________________####
 ####       INITIALIZE        ####
 #-------------------------------#
+
+if(VERBOSE) print("----------------------------------")
+if(VERBOSE) print("----- START LOCAL DENSITIES ------")
+if(VERBOSE) print("----------------------------------")
+
 if(VERBOSE) print("Initialize: Load data from:")
 if(VERBOSE) print(PATH_SHP)
 
+#### load data #### 
 # load dg raster "DG" (Hauptschicht = hs) and vector data
 hs = rast(PATH_DG)
 mg = rast(PATH_MG)
-stands = st_read(PATH_SHP)
+stands_all = st_read(PATH_SHP)
 
 # store resolution
 res_hs <- set_units(res(hs)[1], "m")
 
-
-#### init functions ####
-
+#### init function ####
 # function ras2poly: creates a polygon from a raster and adds attributes from parent
 ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   # raster to polygon
@@ -213,12 +217,14 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
 ####_________________________####
 ####          MAIN           ####
 #-------------------------------#
-if(VERBOSE) print("Initialize: Loaded data")
+print("----------------------------------")
+if(VERBOSE) print("Done loading data")
 
 # init statstable for attributes
 statstable <- data.frame()
 # init iteration variables
-j <- 0
+j <- n_errors <- 0
+ID_errors = c()
 
 # optional plot output
 # uncommend dev.off() after for loop when activating these lines
@@ -226,11 +232,13 @@ j <- 0
 #par(mfrow=c(3,2), oma = c(0, 0, 2, 0))
 
 # Filter stands that are too small
-if(VERBOSE) print(paste0("Loaded ", nrow(stands), " stands."))
-stands_selected = stands[set_units(stands$area_m2, "m^2") > min_size_stand, ]
-if(VERBOSE) print(paste0("Processing ", nrow(stands_selected), " stands that are large enough."))
-stands = stands_selected
+if(VERBOSE) print(paste0("Loaded ", nrow(stands_all), " stands."))
+stands = stands[set_units(stands$area_m2, "m^2") > min_size_stand, ]
+if(VERBOSE) print(paste0("Processing ", nrow(stands), " stands that are larger than ", min_size_stand, " ", units(min_size_stand), "."))
 
+### ******************** ####
+### iterate over stands/polygons ####
+if(VERBOSE) print("----------------------------------")
 if(VERBOSE) print("Iterate over stands.")
 
 # init progress bar
@@ -242,23 +250,22 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
                        clear = FALSE,    # If TRUE, clears the bar when finish
                        width = 100)      # Width of the progress bar
 
-### *iterate over stands/polygons* ####
 for (i in 1:nrow(stands)){
   # debug lines to check single stands
   # PLOT_INTERMEDIATE = T # for detailed visual output during processing
   # for (i in 215){
-  # for (i in 1:4){
+  # for (i in 1:7){
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
   # initialize stand stats row with named columns
   stats <- t(setNames(c(stands[i,]$ID, i), c("stand_ID", "proc_ID")))
   
-  tryCatch(expr={
+  error_with_stand = tryCatch(expr={
     # buffer stand to have look at surrounding pixels for focal window
     # stand_buffered = raster::buffer(stands[i,], width= mw_rad_large) # deprecated raster package
     stand_buffered = sf::st_buffer(stands[i,], dist = mw_rad_large)
-    
+
     # crop and mask hs layer to stand shape
     hs_extent <- crop(hs,stand_buffered)
     hs_mask <- mask(hs_extent,stand_buffered)
@@ -300,13 +307,13 @@ for (i in 1:nrow(stands)){
     # init 
     # basic check whether stand area is bigger than focal window (otherwise skip stand)
     if (nrow(hs_crop) >= nrow(fw) & ncol(hs_crop) >= ncol(fw)){
+      ### ** ** ** ** ** ** ** ####
       ### > iterate over classes   ####
       flag_polys_created_class <- F
       
       # run for each class
       for(k in 1:nrow(classes_df)) {
         class = classes_df[k,]$class
-        
         
         # use different focal windows for different zone types
         # adding small constants since focal results are not always exactly aligned to 0.0 - 1.0
@@ -387,20 +394,18 @@ for (i in 1:nrow(stands)){
         # append to stands stats vector
         stats <- cbind(stats, area_class, area_class_pct, dg_class, nh_class)
       } # end for-loop through class
-      
-      statstable <- rbind(statstable,stats)
+      ### ** ** ** ** ** ** ** ####
       
       #### >> TODO: solve intersections orange <> red  ####
       # remove intersections
-      
       # calc attributes afterwards
       
-      
-      #### > plot results ####
+      #### > plot results (optional) ####
       # plot results for visual plausibility check
       if(PLOT_RESULTS){
+        # try - failed plotting shouldn't fail the processing
         try(expr={
-          plot(hs_crop, main=paste0(i, ": (standID:", stands[i,]$ID, " | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
+          plot(hs_crop, main=paste0(i, " ", flag_polys_created_stand, ": (standID:", stands[i,]$ID, " | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
           lines(stands[i,])
           # lines(stands[i,], col='green')
           if(flag_polys_created_stand){
@@ -415,43 +420,56 @@ for (i in 1:nrow(stands)){
         })
       }
     } else {
-      # no dense/sparse areas
-      #TODO populate row with total dense area per stand and append to list
-      # dg_dense <- area_dense <- dg_sparse <- area_sparse <- dg_other <- clumpy <- NA
-      # no dense/sparse areas
-      dg_dense <- area_dense <- dg_sparse <- area_sparse <- dg_other <- clumpy <- NA
-      
-      
-      # fill statstable with attributes
-      stats <- c(area_dense, dg_dense, area_sparse, dg_sparse, dg_other, clumpy)
-      statstable <- rbind(statstable,stats)
+      # no dense/sparse areas because too small
+      # create stats row anyways to indicate that stand_ID was processed without finding density zones
+      # set proc_ID to negative to indicate no find
+      stats <- t(setNames(c(stands[i,]$ID, -i), c("stand_ID", "proc_ID")))
+      for(k in 1:nrow(classes_df)) {
+        area_class <- area_class_pct <- dg_class <- nh_class <- NA
+        stats <- cbind(stats, area_class, area_class_pct, dg_class, nh_class)
+      }
     }
-  }, error=function(cond) {
-    # optional: print alert if negative buffer melts polygon
-    message(paste("Problem with :", i, " class ", class))
     
-    # create stats row anyways so that number of rows matches stands
-    # set proc_ID to negative to indicate error
-    stats <- t(setNames(c(stands[i,]$ID, -i), c("stand_ID", "proc_ID")))
-    for(k in 1:nrow(classes_df)) {
-      area_class <- area_class_pct <- dg_class <- nh_class <- NA
-      stats <- cbind(stats, area_class, area_class_pct, dg_class, nh_class)
-    }
+    # set proc_ID to negative to indicate no find
+    if(!flag_polys_created_stand) stats[,"proc_ID"] = -i
+    
     # append to stands stats vector
     statstable <- rbind(statstable,stats)
+    
+    
+  }, error=function(cond) {
+    message(paste("Problem with stand: ", i))
+    # optional: print error message
+    # message(cond)
+    return(n_errors + 1)
   })
+  
+  # keep list of errors
+  if(!is.null(error_with_stand)){
+    n_errors = n_errors + 1
+    ID_errors = cbind(ID_errors, i)
+  }
 }
+### ******************** ####
+if(VERBOSE) print("") # empty line
+if(VERBOSE) print("Finished iteration over stands.")
+if(VERBOSE) print(paste0("Errors: ", n_errors, " (out of ", nrow(stands), " processed)"))
 # dev.off()
 
-#### export as vector ####
-dir.create(file.path(DIR_OUTPUT), recursive = TRUE, showWarnings = TRUE)
+#### write gpkg local density zones ####
+if(VERBOSE) print("----------------------------------")
+if(VERBOSE) print(paste0("write local density zones to: "))
+if(VERBOSE) print(PATH_OUTPUT)
+dir.create(file.path(PATH_OUTPUT), recursive = TRUE, showWarnings = TRUE)
 
 # write files for polygons
 st_write(st_as_sf(polys), append = FALSE, 
          file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
 
 
-# TODO: add attributes to TBk_bestandesgrenzen input
+#### append attributes to input ####
+# and export to file
+
 # add names to table
 col_names <- t(c("stand_ID", "proc_ID"))
 for(k in 1:nrow(classes_df)) {
@@ -461,26 +479,30 @@ for(k in 1:nrow(classes_df)) {
   name_nh_class <- paste0("z",classes_df[k,]$class, "_", "nh") 
   col_names <- cbind(col_names, name_area_class, name_area_class_pct, name_dg_class, name_nh_class)
 }
-
 names(statstable) <- col_names
 
 #TODO: Sometimes result attributes have a varying amount of rows and can't be merged to original table
 tryCatch(expr={
-  # connect statstable with existing attributetable/geometry
-  stands <- cbind(stands, statstable)
+  if(VERBOSE) print("----------------------------------")
+  if(VERBOSE) print(paste0("append ", nrow(statstable), " attribute rows to ", nrow(stands)," input geometries (stands)"))
+  
+  # connect statstable with existing attributetable/geometry (left outer join)
+  stands_out = merge(x = stands_all, y = statstable, by.x = "ID", by.y = "stand_ID", all.x = TRUE)
+  
   if(!OVERWRITE_ORIGINAL_TBK){
+    if(VERBOSE) print(paste0("write input geometries with appendes attributes to folder: ", PATH_OUTPUT))
     # write file with new attributes to PATH_OUTPUT
-    write_sf(stands, 
-             file.path(PATH_TBk_INPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)), NAME_SUFFIX, ".gpkg") ))
-    
-    # writeOGR(stands, PATH_TBk_INPUT, layer=paste0(tools::file_path_sans_ext(basename(PATH_SHP)), NAME_SUFFIX),
-    #          driver="ESRI Shapefile", overwrite_layer=T)
+    write_sf(stands_out, file.path(PATH_OUTPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities_", NAME_SUFFIX, ".gpkg") ))
   }
   if(OVERWRITE_ORIGINAL_TBK){
-    # write file with new attributes to PATH_OUTPUT
-    write_sf(stands, 
-             file.path(PATH_TBk_INPUT, PATH_SHP))
+    if(VERBOSE) print(paste0("attempt to overwrite input geometries with appendend attributes: ", PATH_SHP))
+    # write file with new attributes to 
+    write_sf(stands_out, file.path(PATH_SHP))
   }
-  
 }, error=function(cond) {# optional: print alert # message(paste("")))
 }, silent = TRUE)
+
+
+if(VERBOSE) print("----------------------------------")
+if(VERBOSE) print("------------   DONE   ------------")
+if(VERBOSE) print("----------------------------------")
