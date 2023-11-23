@@ -80,7 +80,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         nh_sum_table = os.path.join(output_tmp_folder, "nh_sum_table")
 
         # Resample os layer to 1m
-        param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
+        param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
         algoOutput = processing.run("gdal:warpreproject", param)
         
         # Aggregate os sum per 10m Sentinel-2 pixel
@@ -98,7 +98,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         # Reclassify
         condition_string = "(A < {0})*1".format(str(cover))
         param = {'INPUT_A':dg_layer_os_10m_sum,'BAND_A':1,'INPUT_B':None,'BAND_B':-1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
+                'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
@@ -106,7 +106,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         param = {'INPUT_A':nh_raster,'BAND_A':1,
                  'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,
                  'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_layer_os_nh}
+                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS

@@ -114,52 +114,52 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     meta_data = get_raster_metadata(vhm)
     extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0],meta_data["extent"][2],meta_data["extent"][1],meta_data["extent"][3],meta_data["epsg"]) 
 
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ks_max','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ks}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ks_max','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ks}
     #algoOutput = processing.run("gdal:rasterize", param)
     #
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_us_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_us}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_us_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_us}
     #algoOutput = processing.run("gdal:rasterize", param)
     #
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ms_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ms}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ms_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ms}
     #algoOutput = processing.run("gdal:rasterize", param)
     #
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_os_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_os}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_os_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_os}
     #algoOutput = processing.run("gdal:rasterize", param)
     #
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ueb_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ueb}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_ueb_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_ueb}
     #algoOutput = processing.run("gdal:rasterize", param)
     #
-    #param = {'INPUT':stands_shapefile,'FIELD':'dg_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_dg}
+    #param = {'INPUT':stands_shapefile,'FIELD':'dg_min','BURN':0,'UNITS':1,'WIDTH':meta_data["xResolution"],'HEIGHT':meta_data["yResolution"],'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':tmp_lim_dg}
     #algoOutput = processing.run("gdal:rasterize", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_ks_max','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_ks_max','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ks}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ks}
     processing.run("gdal:warpreproject", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_us_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_us_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_us}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_us}
     processing.run("gdal:warpreproject", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_ms_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_ms_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ms}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ms}
     processing.run("gdal:warpreproject", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_os_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_os_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_os}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_os}
     processing.run("gdal:warpreproject", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_ueb_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_ueb_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ueb}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_ueb}
     processing.run("gdal:warpreproject", param)
 
-    param = {'INPUT':stands_shapefile,'FIELD':'dg_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
+    param = {'INPUT':stands_shapefile,'FIELD':'dg_min','BURN':0,'UNITS':1,'WIDTH':10,'HEIGHT':10,'EXTENT':extent,'NODATA':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':5,'INIT':None,'INVERT':False,'EXTRA':'','OUTPUT':'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("gdal:rasterize", param)
-    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_dg}
+    param = {'INPUT':algoOutput["OUTPUT"],'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':meta_data["xResolution"],'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':tmp_lim_dg}
     processing.run("gdal:warpreproject", param)
 
 
@@ -206,27 +206,27 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     print("classify stand layers...")
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_ks,'BAND_B':1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-             'FORMULA':'((A<B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_ks_classified}
+             'FORMULA':'((A<B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_ks_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_us,'BAND_B':1,'INPUT_C':tmp_lim_ms,'BAND_C':1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-            'FORMULA':'((A>=B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_us_classified}
+            'FORMULA':'((A>=B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_us_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_ms,'BAND_B':1,'INPUT_C':tmp_lim_os,'BAND_C':1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-            'FORMULA':'((A>B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_ms_classified}
+            'FORMULA':'((A>B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_ms_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_os,'BAND_B':1,'INPUT_C':tmp_lim_ueb,'BAND_C':1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-            'FORMULA':'((A>B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_os_classified}
+            'FORMULA':'((A>B) & (A<=C))*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_os_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_ueb,'BAND_B':1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-             'FORMULA':'((A>B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_ueb_classified}
+             'FORMULA':'((A>B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_ueb_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     param = {'INPUT_A':vhm,'BAND_A':1,'INPUT_B':tmp_lim_dg,'BAND_B':1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-             'FORMULA':'((A>B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'','EXTRA':'','OUTPUT':dg_classified}
+             'FORMULA':'((A>B) & True)*1','NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_classified}
     algoOutput = processing.run("gdal:rastercalculator", param)
 
     # Calculate DG per stand and per layer
