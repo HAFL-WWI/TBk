@@ -44,12 +44,12 @@ QgsApplication.processingRegistry().addProvider(provider)
 # Main call of the algorithm
 # paths to files are exemplary here and need to be adjusted to the local system
 processing.run("TBk:Generate BK",
-               {'vhm_10m':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/TBk_main/vhm_10m.tif',
-                'vhm_150cm':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/TBk_main/vhm_150cm.tif',
-                'coniferous_raster':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/TBk_main/MG.tif',
-                'coniferous_raster_for_classification':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/TBk_main/MG.tif',
-                'perimeter':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/perimeter_test_waldgebiet.gpkg',
-                'output_root':'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\TBk_main',
+               {'vhm_10m':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_10m.tif',
+                'vhm_150cm':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_150cm.tif',
+                'coniferous_raster':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m.tif',
+                'coniferous_raster_for_classification':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m_binary.tif',
+                'perimeter':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/perimeter_test_waldgebiet.gpkg',
+                'output_root':'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_main',
                 'useConiferousRasterForClassification':True,
                 'logfile_name':'tbk_processing.log',
                 'description':'TBk dataset',

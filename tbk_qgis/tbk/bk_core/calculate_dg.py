@@ -44,10 +44,10 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     scratchWorkspace = tbk_path
 
     # Use half of the cores on the machine.
-    #arcpy.env.parallelProcessingFactor = "50%"
+    # arcpy.env.parallelProcessingFactor = "50%"
 
     # TBk shapefile
-    stands_shapefile = os.path.join(tbk_path,"stands_clipped.shp")
+    stands_shapefile = os.path.join(tbk_path, "stands_clipped.shp")
 
     # Create dg layer output directory
     dg_layers_dir = os.path.join(tbk_path, "dg_layers")
@@ -69,7 +69,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     tmp_lim_os = os.path.join(dg_layers_dir, "dg_lim_os.tif")
     tmp_lim_ueb = os.path.join(dg_layers_dir, "dg_lim_ueb.tif")
     tmp_lim_dg = os.path.join(dg_layers_dir, "dg_lim_dg.tif")
-    
+
     # Layer threshold values (based on NFI definition, www.lfi.ch)
     max_height_ks = 1.0
     min_height_us = 1.0
@@ -108,42 +108,67 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
             else:
                 f["dg_min"] = f["dg_os_min"]
 
-            stands_layer.updateFeature(f)  
+            stands_layer.updateFeature(f)
+
+
+
 
     field_file_pairs = [
-        ['dg_ks_', 'dg_ks_max' , tmp_lim_ks, dg_ks_classified],
-        ['dg_us_','dg_us_min' , tmp_lim_us, dg_us_classified],
-        ['dg_ms_','dg_ms_min', tmp_lim_ms, dg_ms_classified],
-        ['dg_os_','dg_os_min', tmp_lim_os, dg_os_classified],
-        ['dg_ueb_','dg_ueb_min', tmp_lim_ueb, dg_ueb_classified],
-        ['dg_','dg_min', tmp_lim_dg, dg_classified]
+        ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
+        ['dg_os_', 'dg_os_min', tmp_lim_os, tmp_lim_ueb, dg_os_classified, '((A>B) & (A<=C))*1'],
+        ['dg_ms_', 'dg_ms_min', tmp_lim_ms, tmp_lim_os, dg_ms_classified, '((A>B) & (A<=C))*1'],
+        ['dg_us_', 'dg_us_min', tmp_lim_us, tmp_lim_ms, dg_us_classified, '((A>=B) & (A<=C))*1'],
+        ['dg_ks_', 'dg_ks_max', tmp_lim_ks, tmp_lim_us, dg_ks_classified, '((A<B) & True)*1'],
+        ['dg_', 'dg_min', tmp_lim_dg, tmp_lim_ks, dg_classified, '((A>B) & True)*1']
     ]
 
     # Produce final "1" / "0" raster for each layer
     print("classify stand layers...")
-    # A: CreateCopy > rasterize over > calc/compress
-    for column_prefix, dg_lim_field, dg_tmp_file, dg_layer_file in field_file_pairs:
+    # CreateCopy > rasterize over > calc/compress
+    for column_prefix, \
+            dg_lim_field, \
+            dg_tmp_file_B, \
+            dg_tmp_file_C, \
+            dg_layer_file, \
+            formula \
+            in field_file_pairs:
         start_time = time.time()
-        # print(dg_lim_field, "->", dg_tmp_file, "->", dg_layer_file)
-        # create an empty DG layer based on vhm extents for each layer
-        create_empty_copy(vhm, dg_tmp_file)
-        # burn vector value into raster
-        processing.run("gdal:rasterize_over", {
-            'INPUT': stands_shapefile,
-            'INPUT_RASTER': dg_tmp_file,
-            'FIELD': dg_lim_field,
-            'ADD': False, 'EXTRA': ''})
-        # classify raster
-        processing.run("gdal:rastercalculator", {
-            'INPUT_A': vhm, 'BAND_A': 1, 'INPUT_B': dg_tmp_file, 'BAND_B': 1, 'INPUT_C': None, 'BAND_C': -1,
-            'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
-            'FORMULA': '((A<B) & True)*1', 'NO_DATA': None, 'RTYPE': 0,
-            'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1', 'EXTRA': '', 'OUTPUT': dg_layer_file})
-        # clean up temp files
+        # print(dg_lim_field, "->", dg_tmp_file_B, "->", dg_layer_file)
+        if (column_prefix == 'dg_'):
+            # DG Layer can be created by using OS and UEB
+            processing.run("gdal:rastercalculator", {
+                'INPUT_A': dg_os_classified,
+                'BAND_A': 1,
+                'INPUT_B': dg_ueb_classified,
+                'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
+                'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
+                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                'OUTPUT': dg_layer_file})
+        else:
+            # create an empty DG layer based on vhm extents for each layer
+            create_empty_copy(vhm, dg_tmp_file_B)
+            # burn vector value into raster
+            processing.run("gdal:rasterize_over", {
+                'INPUT': stands_shapefile,
+                'INPUT_RASTER': dg_tmp_file_B,
+                'FIELD': dg_lim_field,
+                'ADD': False, 'EXTRA': ''})
+            # classify raster
+            processing.run("gdal:rastercalculator", {
+                'INPUT_A': vhm, 'BAND_A': 1,
+                'INPUT_B': dg_tmp_file_B, 'BAND_B': 1,
+                'INPUT_C': dg_tmp_file_C, 'BAND_C': 1,
+                'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
+                'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
+                'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1', 'EXTRA': '', 'OUTPUT': dg_layer_file})
+
+        # clean up temp files as soon as possible
         if del_tmp:
-            delete_raster(dg_tmp_file)
-            if os.path.exists(dg_tmp_file + ".aux.xml"):
-                os.remove(dg_tmp_file + ".aux.xml")
+            if dg_tmp_file_C is not None:
+                if os.path.exists(dg_tmp_file_C):
+                    delete_raster(dg_tmp_file_C)
+                if os.path.exists(dg_tmp_file_C + ".aux.xml"):
+                    os.remove(dg_tmp_file_C + ".aux.xml")
 
         end_time = time.time()
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
@@ -151,7 +176,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     # Calculate DG per stand and per layer
     print("zonal statistics...")
 
-    for column_prefix, dg_lim_field, dg_tmp_file, dg_layer_file in field_file_pairs:
+    for column_prefix, x, x, x, dg_layer_file, x in field_file_pairs:
         start_time = time.time()
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
                  'INPUT_VECTOR': stands_shapefile,
@@ -173,16 +198,16 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
 
         # Calculate DG per stand
         for f in stands_layer.getFeatures():
-            f["DG_ks"] = round(f["dg_ks_mean"]*100) if f["dg_ks_mean"] != core.NULL else f["dg_ks_mean"]
-            f["DG_us"] = round(f["dg_us_mean"]*100) if f["dg_us_mean"] != core.NULL else f["dg_us_mean"]
-            f["DG_ms"] = round(f["dg_ms_mean"]*100) if f["dg_ms_mean"] != core.NULL else f["dg_ms_mean"]
-            f["DG_os"] = round(f["dg_os_mean"]*100) if f["dg_os_mean"] != core.NULL else f["dg_os_mean"]
-            f["DG_ueb"] = round(f["dg_ueb_mea"]*100) if f["dg_ueb_mea"] != core.NULL else f["dg_ueb_mea"]
-            f["DG"] = round(f["dg_mean"]*100) if f["dg_mean"] != core.NULL else f["dg_mean"]
+            f["DG_ks"] = round(f["dg_ks_mean"] * 100) if f["dg_ks_mean"] != core.NULL else f["dg_ks_mean"]
+            f["DG_us"] = round(f["dg_us_mean"] * 100) if f["dg_us_mean"] != core.NULL else f["dg_us_mean"]
+            f["DG_ms"] = round(f["dg_ms_mean"] * 100) if f["dg_ms_mean"] != core.NULL else f["dg_ms_mean"]
+            f["DG_os"] = round(f["dg_os_mean"] * 100) if f["dg_os_mean"] != core.NULL else f["dg_os_mean"]
+            f["DG_ueb"] = round(f["dg_ueb_mea"] * 100) if f["dg_ueb_mea"] != core.NULL else f["dg_ueb_mea"]
+            f["DG"] = round(f["dg_mean"] * 100) if f["dg_mean"] != core.NULL else f["dg_mean"]
 
-            stands_layer.updateFeature(f)  
+            stands_layer.updateFeature(f)
 
-    # Delete temporary fields
+            # Delete temporary fields
     if del_tmp:
         delete_fields(stands_layer,
                       ["dg_ks_max", "dg_us_min", "dg_ms_min", "dg_os_min", "dg_ueb_min", "dg_min", "dissolve",
@@ -190,7 +215,5 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
                        'dg_ks_coun', 'dg_ks_sum', 'dg_us_coun', 'dg_us_sum', 'dg_ms_coun', 'dg_ms_sum', 'dg_os_coun',
                        'dg_os_sum', 'dg_ueb_cou', 'dg_ueb_sum', 'dg_count', 'dg_sum',
                        ])
-    
+
     print("DONE!")
-
-
