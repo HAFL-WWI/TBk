@@ -41,7 +41,8 @@ if __name__ == "__main__":  # this will be invoked if this module is being run d
 
 import os
 from shutil import copyfile
-from datetime import datetime, time, timedelta
+from datetime import timedelta
+import time
 import logging, logging.handlers
 import sys
 
@@ -113,6 +114,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     VHM_150CM = "vhm_150cm"
     # Coniferous raster to calculate stand mean                                  
     CONIFEROUS_RASTER = "coniferous_raster"
+    # Coniferous raster to be used during stand delineation
+    CONIFEROUS_RASTER_FOR_CLASSIFICATION = "coniferous_raster_for_classification"
     # Perimeter shapefile to clip final result                                 
     PERIMETER = "perimeter"
 
@@ -122,6 +125,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Default log file name
     # Will be stored in the result directory
     LOGFILE_NAME = "logfile_name"
+
+    #--- Advanced Parameters
 
     # Main TBk parameters (for details see run_stand_classification function)
     # If to consider it for classification
@@ -151,7 +156,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Simplification tolerance                                                   
     SIMPLIFICATION_TOLERANCE = "simplification_tolerance"
 
-
     # Additional parameters
     # Min. area to eliminate small stands
     MIN_AREA_M2 = "min_area_m2"
@@ -161,7 +165,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel"
     # Also calc coniferous prop. for main layer                          
     CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
-    #Delete temporary files and fields
+    # Delete temporary files and fields
     DEL_TMP ="del_tmp"
 
     #------- List of Algorithm Parameters -------#
@@ -170,84 +174,113 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
-        ## Directory containing the input files
-        #"working_root": r'C:\school\hafl\TBk-master_20200608\test_dataset',
-
-        # VHM 10m as main TBk input       
-        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M, self.tr("VHM 10m as main TBk input  (.tif)")))
+        # VHM 10m as main TBk input
+        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M,
+                                                            self.tr("VHM 10m as main TBk input  (.tif)")))
         # VHM 150cm to calculate DG                                  
-        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_150CM, self.tr("VHM 150cm to calculate DG (.tif)")))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_150CM,
+                                                            self.tr("VHM 150cm to calculate DG (.tif)")))
         # Coniferous raster to calculate stand mean                                  
-        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER, self.tr("Coniferous raster to calculate stand mean (.tif)"), optional=True))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER,
+                                                            self.tr("Coniferous raster to calculate stand mean (.tif)"),
+                                                            optional=True))
         # Coniferous raster to calculate stand mean
-        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER, self.tr("Coniferous raster to calculate stand mean (.tif)"), optional=True))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
+                                                            self.tr("Coniferous raster to be used during stand delineation (.tif)"
+                                                                "\nA simplified binarized raster may achieve better results (optional)"),
+                                                            optional=True))
         # Perimeter shapefile to clip final result                                 
-        self.addParameter(QgsProcessingParameterFeatureSource(self.PERIMETER,self.tr("Perimeter shapefile to clip final result"),[QgsProcessing.TypeVectorPolygon]))
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(self.PERIMETER, self.tr("Perimeter shapefile to clip final result"),
+                                                [QgsProcessing.TypeVectorPolygon]))
 
-        # Folder for algo output
-        self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
+        # Folder for algorithm output
+        self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT, self.tr('Output folder')))
 
-        parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION, self.tr("Consider coniferous raster for classification"), defaultValue=True)
+        #--- Advanced Parameters
+        parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION,
+                                                  self.tr("Consider coniferous raster for classification"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
         # Zone raster
-        parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),optional=True)
+        parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),
+                                                      optional=True)
         self.addHiddenParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.LOGFILE_NAME, self.tr("Log File Name (.log)"), defaultValue = "tbk_processing.log")
+        parameter = QgsProcessingParameterString(self.LOGFILE_NAME, self.tr("Log File Name (.log)"),
+                                                 defaultValue="tbk_processing.log")
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.DESCRIPTION, self.tr("Short description"),defaultValue = "TBk dataset")
+        parameter = QgsProcessingParameterString(self.DESCRIPTION, self.tr("Short description"),
+                                                 defaultValue="TBk dataset")
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_TOL, self.tr("Relative min tolerance"), type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+        parameter = QgsProcessingParameterNumber(self.MIN_TOL, self.tr("Relative min tolerance"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_TOL, self.tr("Relative max tolerance"), type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+        parameter = QgsProcessingParameterNumber(self.MAX_TOL, self.tr("Relative max tolerance"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_CORR, self.tr("Extension of the range down [m]"), type=QgsProcessingParameterNumber.Double, defaultValue=4)
+        parameter = QgsProcessingParameterNumber(self.MIN_CORR, self.tr("Extension of the range down [m]"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_CORR, self.tr("Extension of the range up [m]"), type=QgsProcessingParameterNumber.Double, defaultValue=4)
+        parameter = QgsProcessingParameterNumber(self.MAX_CORR, self.tr("Extension of the range up [m]"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS, self.tr("Minimum relative amount of valid cells"), type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
+        parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS,
+                                                 self.tr("Minimum relative amount of valid cells"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, self.tr("Minimum cells per stand"), type=QgsProcessingParameterNumber.Integer, defaultValue=10)
+        parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, self.tr("Minimum cells per stand"),
+                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=10)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND, self.tr("Minimum cells for pure mixture stands"), type=QgsProcessingParameterNumber.Integer, defaultValue=30)
+        parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND,
+                                                 self.tr("Minimum cells for pure mixture stands"),
+                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=30)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, self.tr("VHM minimum height"), type=QgsProcessingParameterNumber.Double, defaultValue=0)
+        parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, self.tr("VHM minimum height"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, self.tr("VHM maximum height"), type=QgsProcessingParameterNumber.Double, defaultValue=60)
+        parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, self.tr("VHM maximum height"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=60)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.SIMPLIFICATION_TOLERANCE, self.tr("Simplification tolerance [m]"), type=QgsProcessingParameterNumber.Double, defaultValue=8)
+        parameter = QgsProcessingParameterNumber(self.SIMPLIFICATION_TOLERANCE, self.tr("Simplification tolerance [m]"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=8)
         self.addAdvancedParameter(parameter)
 
-#    # Additional parameters
-        parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, self.tr("Min. area to eliminate small stands"), type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
+        #    # Additional parameters
+        parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, self.tr("Min. area to eliminate small stands"),
+                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2, self.tr("Min. area to merge similar stands"), type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
+        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
+                                                 self.tr("Min. area to merge similar stands"),
+                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL, self.tr("hdom relative diff to merge similar stands"), type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
+        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
+                                                 self.tr("hdom relative diff to merge similar stands"),
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER, self.tr("Also calc coniferous prop. for main layer"), defaultValue=True)
+        parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER,
+                                                  self.tr("Also calc coniferous prop. for main layer"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files and fields"), defaultValue=True)
+        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files and fields"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
-
-        # parameter = QgsProcessingParameterBoolean(self.CLIP_VHM_BEFORE, self.tr("Clip VHM before classification"), defaultValue=False)
-        # self.addAdvancedParameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -277,8 +310,24 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             coniferous_raster = str(coniferous_raster_layer.source())
         if coniferous_raster and (not os.path.splitext(coniferous_raster)[1].lower() in (".tif",".tiff")):
             raise QgsProcessingException("coniferous_raster must be a TIFF file")
-        if useConiferousRaster and coniferous_raster == None:
-            raise QgsProcessingException("coniferous_raster is not not specified")
+
+        # init coniferous_raster_for_classification and read from parameters if provided
+        coniferous_raster_for_classification = None
+        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER_FOR_CLASSIFICATION, context)
+        if coniferous_raster_for_classification_layer:
+            coniferous_raster_for_classification = str(coniferous_raster_for_classification_layer.source())
+        if coniferous_raster_for_classification and (not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif",".tiff")):
+            raise QgsProcessingException("coniferous_raster_for_classification must be a TIFF file")
+
+        # if no explicit coniferous_raster_for_classification is provided, try using coniferous_raster, else complain
+        if useConiferousRaster and coniferous_raster_for_classification is None:
+            if coniferous_raster is None:
+                coniferous_raster_for_classification = coniferous_raster
+                feedback.pushInfo("Using coniferous raster for classification.")
+            else:
+                raise QgsProcessingException("coniferous_raster is not not specified")
+        else:
+            feedback.pushInfo("Using coniferous raster for classification.")
 
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
@@ -289,7 +338,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             zoneRasterFile = str(zoneRasterFile_layer.source())
         if zoneRasterFile and (not os.path.splitext(zoneRasterFile)[1].lower() in (".tif",".tiff")):
             raise QgsProcessingException("zoneRasterFile must be a TIFF file")
-        if (not zoneRasterFile) or (zoneRasterFile == "") or zoneRasterFile == None:
+        if (not zoneRasterFile) or (zoneRasterFile == "") or zoneRasterFile is None:
             zoneRasterFile = "null"
 
         logfile_name = str(self.parameterAsString(parameters, self.LOGFILE_NAME, context))
@@ -314,14 +363,13 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         min_area_m2 = self.parameterAsInt(parameters, self.MIN_AREA_M2, context)
         similar_neighbours_min_area = self.parameterAsInt(parameters, self.SIMILAR_NEIGHBOURS_MIN_AREA_M2, context)
-        similar_neighbours_hdom_diff_rel = self.parameterAsDouble(parameters, self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL, context)
+        similar_neighbours_hdom_diff_rel = self.parameterAsDouble(parameters, self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
+                                                                  context)
         calc_mixture_for_main_layer = self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER, context)
         if calc_mixture_for_main_layer and coniferous_raster == None:
-            raise QgsProcessingException("coniferous_raster is not not specified")
+            raise QgsProcessingException("No coniferous_raster specified")
 
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
-
-        # clip_vhm_before = self.parameterAsBool(parameters, self.CLIP_VHM_BEFORE, context)
 
         ensure_dir(output_root)
         working_root = output_root
@@ -347,29 +395,23 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # Run TBk
         start_time = time.time()
 
-        coniferous_raster_for_classification = 'null'
-        if (useConiferousRaster):
-            coniferous_raster_for_classification = coniferous_raster
-
-        # if clip_vhm_before:
-        #     rootLogger.info('Clipping VHM 10m before stand delineation')
-        #     vhm_10m = clip_vhm_to_perimeter(working_root,vhm_10m,perimeter,"vhm_10m_clipped.tiff")
-
         #--- Stand delineation (Main)
         rootLogger.info('Stand delineation')
-        tbk_result_dir = run_stand_classification(working_root, vhm_10m, coniferous_raster_for_classification, zoneRasterFile, description,
-                                                min_tol, max_tol,
-                                                min_corr, max_corr,
-                                                min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
-                                                vhm_min_height, vhm_max_height)
+        tbk_result_dir = run_stand_classification(working_root, vhm_10m, coniferous_raster_for_classification,
+                                                  zoneRasterFile, description,
+                                                  min_tol, max_tol,
+                                                  min_corr, max_corr,
+                                                  min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
+                                                  vhm_min_height, vhm_max_height)
 
-        #--- Simplify & Eliminate
+        # --- Simplify & Eliminate
         rootLogger.info('Simplify & Eliminate')
         post_process(tbk_result_dir, min_area_m2, simplification_tolerance=simplification_tolerance, del_tmp=del_tmp)
 
-        #--- Merge similar neighbours
+        # --- Merge similar neighbours
         rootLogger.info('Merge similar neighbours')
-        merge_similar_neighbours(tbk_result_dir, similar_neighbours_min_area, similar_neighbours_hdom_diff_rel, del_tmp=del_tmp)
+        merge_similar_neighbours(tbk_result_dir, similar_neighbours_min_area, similar_neighbours_hdom_diff_rel,
+                                 del_tmp=del_tmp)
 
         #--- Clip to perimeter and eliminate gaps
         rootLogger.info('Clip to perimeter and eliminate gaps')
@@ -403,16 +445,12 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # Repair geometry
         # Add incremental field (sort based on ID)
 
-        if del_tmp:
-            del_fields = ["FID_orig","OBJECTID"]
-            result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.shp")
-            delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
-
         #--- Create default Project
         rootLogger.info('Create default Project')
         # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\post_processing_arcpy\\create_mxd.py" +
         #           " " + tbk_result_dir + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)
-       #Run Script in separate process since otherwise the current project would be unloaded
+
+        # Run Script in separate process since otherwise the current project would be unloaded
         qgisPath = QgsApplication.prefixPath()
         qgisPythonPath = os.path.join(qgisPath,"python")
         if "PYTHONPATH" in os.environ:
@@ -421,9 +459,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             os.environ["PYTHONPATH"] = qgisPythonPath
         script_path = os.path.join(tbk_tool_path, "create_project.py")
 
-        command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" + tbk_result_dir.replace("\\", "/") + "\" \"" \
-                  + tbk_tool_path.replace("\\", "/") + "\" \"" + working_root.replace("\\", "/") + "\" \"" \
-                  + vhm_10m + "\" \"" + vhm_150cm + "\""
+        command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" \
+                  + tbk_result_dir.replace("\\", "/") + "\" \"" \
+                  + tbk_tool_path.replace("\\", "/") + "\" \"" \
+                  + working_root.replace("\\", "/") + "\" \"" \
+                  + vhm_10m + "\" \"" + vhm_150cm + "\" \"" + coniferous_raster + "\""
 
         rootLogger.info(command)
         os.system(command)
