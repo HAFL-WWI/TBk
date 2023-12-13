@@ -135,7 +135,8 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
     CONVERT_TO_BYTE = "convert_to_byte"
 
     # advanced params
-    RECLASSIFY_MG_VALUES = "reclassify_mg_values"
+    MG_RESCALE_FACTOR = "100"
+    MG_RECLASSIFY_VALUES = "reclassify_mg_values"
     MIN_LH = "min_lh"
     MAX_LH = "max_lh"
     MIN_NH = "min_nh"
@@ -168,10 +169,10 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterString(self.VHM_150CM, self.tr("VHM 150cm output name (.tif)"), defaultValue = "VHM_150cm.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.MG_10M, self.tr("Mixing degree 10m binary output name (.tif)"), defaultValue = "MG_10m_binary.tif")
+        parameter = QgsProcessingParameterString(self.MG_10M, self.tr("Mixing degree 10m  output name (.tif)"), defaultValue = "MG_10m.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.MG_10M_BINARY, self.tr("Mixing degree 10m output name (.tif)"), defaultValue = "MG_10m.tif")
+        parameter = QgsProcessingParameterString(self.MG_10M_BINARY, self.tr("Binary Mixing degree 10m output name (.tif) (optional)"), defaultValue = "MG_10m_binary.tif")
         self.addParameter(parameter)
 
         #--- Advanced Parameters (Tool UI) ---
@@ -199,19 +200,24 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         # advanced params (WMG reclassify values)
-        parameter = QgsProcessingParameterBoolean(self.RECLASSIFY_MG_VALUES, self.tr("Reclassify MG Values"), defaultValue=True)
+        parameter = QgsProcessingParameterNumber(self.MG_RESCALE_FACTOR,
+                                                  self.tr("Rescale MG Values (set to 1 to do nothing)."+
+                                                          "\nDefault (100) is optimized for WSL layer with values 0 - 10'000"), defaultValue=100.0)
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(self.MG_RECLASSIFY_VALUES, self.tr("Create Binary MG Layer (reclassify to 0 and 100) for simplfied stand delineation."), defaultValue=True)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Decidious (Laubholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=1)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Decidious (Laubholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=5000)
+        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Decidious (Laubholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=50)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=5000)
+        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=50)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=10000)
+        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=100)
         self.addAdvancedParameter(parameter)
 
 
@@ -225,27 +231,25 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         settings_path = QgsApplication.qgisSettingsDirPath()
         feedback.pushInfo(settings_path)
 
-        tbk_tool_path = os.path.join(settings_path, "python/plugins/tbk_qgis")
+        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
+        # advanced params
         # vhm range
         vMin = self.parameterAsDouble(parameters, self.VMIN, context)
         vMax = self.parameterAsDouble(parameters, self.VMAX, context)
-
-        # advanced params
         vNA = self.parameterAsInt(parameters, self.VNA, context)
-        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
         convert_to_byte = self.parameterAsBool(parameters, self.CONVERT_TO_BYTE, context)
         crop_vhm = self.parameterAsBool(parameters, self.CROP_VHM, context)
         # rasterize_mask = self.parameterAsBool(parameters, self.RASTERIZE_MASK, context)
 
-        # reclassify values
+        # advanced params mg reclassify values
+        mg_rescale_factor = self.parameterAsDouble(parameters, self.MG_RESCALE_FACTOR, context)
+        mg_reclassify_values = self.parameterAsBool(parameters, self.MG_RECLASSIFY_VALUES, context)
+
         min_lh = self.parameterAsInt(parameters, self.MIN_LH, context)
         max_lh = self.parameterAsInt(parameters, self.MAX_LH, context)
         min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
         max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
-
-        reclassify_mg_values = self.parameterAsBool(parameters, self.RECLASSIFY_MG_VALUES, context)
-        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
         # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
@@ -294,7 +298,7 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("mg_10m must be TIFF file")
 
         mg_10m_binary = str(self.parameterAsString(parameters, self.MG_10M_BINARY, context))
-        if reclassify_mg_values:
+        if mg_reclassify_values:
             if (not mg_10m_binary) or mg_10m_binary == "":
                 raise QgsProcessingException("no MG binary output file name specified")
             if not os.path.splitext(mg_10m_binary)[1].lower() in (".tif", ".tiff"):
@@ -310,9 +314,10 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         mg_10m_binary = os.path.join(output_root, mg_10m_binary)
 
         # tmp files
-        tmp_byte = os.path.join(output_root, "vhm_byte.tif")
-        tmp_cropped = os.path.join(output_root, "vhm_cropped.tif")
-        tmp_mask = os.path.join(output_root, "vhm_mask.tif")
+        tmp_vhm_byte = os.path.join(output_root, "vhm_byte.tif")
+        tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
+        tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
+        tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.tif")
 
         # remove existing rasters
         self.deleteRasterIfExists(vhm_detail)
@@ -321,9 +326,10 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(mg_10m)
         self.deleteRasterIfExists(mg_10m_binary)
         # remove existing tmp rasters
-        self.deleteRasterIfExists(tmp_byte)
-        self.deleteRasterIfExists(tmp_cropped)
-        self.deleteRasterIfExists(tmp_mask)
+        self.deleteRasterIfExists(tmp_vhm_byte)
+        self.deleteRasterIfExists(tmp_vhm_cropped)
+        self.deleteRasterIfExists(tmp_vhm_mask)
+        self.deleteRasterIfExists(tmp_mg_aligned)
 
         #--- Process VHM
         start_time = time.time()
@@ -336,10 +342,10 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             param = {'INPUT':vhm_input,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,
             'NODATA':vNA,'TARGET_RESOLUTION':None,'OPTIONS':'','DATA_TYPE':1,
             'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':True,
-            'EXTRA':'-co COMPRESS=LZW -co BIGTIFF=YES','OUTPUT':tmp_byte}
+            'EXTRA':'-co COMPRESS=LZW -co BIGTIFF=YES','OUTPUT':tmp_vhm_byte}
             algoOutput = processing.run("gdal:warpreproject", param)
-            #os.system("gdalwarp -of GTiff -ot Byte -dstnodata " + str(vNA) + " -co COMPRESS=LZW -co BIGTIFF=YES " + vhm_input + " " + tmp_byte)
-            vhm_input = tmp_byte
+            #os.system("gdalwarp -of GTiff -ot Byte -dstnodata " + str(vNA) + " -co COMPRESS=LZW -co BIGTIFF=YES " + vhm_input + " " + tmp_vhm_byte)
+            vhm_input = tmp_vhm_byte
 
         if crop_vhm:
             feedback.pushInfo("mask vhm...")
@@ -348,14 +354,14 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             'SET_RESOLUTION':False,'X_RESOLUTION':0, 'Y_RESOLUTION':0, 'MULTITHREADING':False,
             'OPTIONS':'', 'DATA_TYPE':0,
             'EXTRA':'-multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES  -wo \"CUTLINE_ALL_TOUCHED=TRUE\"',
-            'OUTPUT':tmp_cropped}
+            'OUTPUT':tmp_vhm_cropped}
             processing.run("gdal:cliprasterbymasklayer", param)
             #os.system("gdalwarp -of GTiff -cutline " + mask + " -crop_to_cutline -wo \"CUTLINE_ALL_TOUCHED=TRUE\"" +
             #        " -tr " + str(xRes) + " " + str(yRes) + " -dstnodata " + str(vNA) +
             #        " -multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES " +  # large raster processing
-            #        vhm_input + " " + tmp_cropped)
+            #        vhm_input + " " + tmp_vhm_cropped)
 
-            vhm_input = tmp_cropped
+            vhm_input = tmp_vhm_cropped
 
         feedback.pushInfo("reclassify vhm outliers...")
         if not os.path.exists(os.path.dirname(vhm_detail)):
@@ -385,38 +391,52 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("Continue with MG processing")
         feedback.pushInfo("====================================================================")
 
+        #--- Process MG
+
         feedback.pushInfo("match VHM<>MG extent, align pixels...")
         xmin, ymin, xmax, ymax = PreProcessingHelper.get_raster_extent(vhm_10m)
         meta_data = get_raster_metadata(vhm_10m)
         extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0], meta_data["extent"][2],
                                                      meta_data["extent"][1], meta_data["extent"][3], meta_data["epsg"])
-
         param = {'INPUT': mg_input,
                  'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None, 'TARGET_RESOLUTION': 10,
                  'OPTIONS': '',
                  'DATA_TYPE': 0, 'TARGET_EXTENT': extent, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False,
-                 'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES', 'OUTPUT': mg_10m}
+                 'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES', 'OUTPUT': tmp_mg_aligned}
         processing.run("gdal:warpreproject", param)
-        # os.system("gdalwarp -tr 10 10 -te {0} {1} {2} {3}".format(xmin, ymin, xmax, ymax) + " " + mg_input + " " + tmp_mg_aligned)
 
-        if reclassify_mg_values:
+        if mg_rescale_factor != 1.0:
+            feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
+            param = {
+            'INPUT_A': tmp_mg_aligned,
+            'BAND_A': 1, 'INPUT_B': None, 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None,
+            'BAND_D': None, 'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'A/' + str(mg_rescale_factor),
+            'NO_DATA': None, 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+            'EXTRA': '',
+            'OUTPUT': mg_10m}
+            processing.run("gdal:rastercalculator", param)
+        else:
+            feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
+            copy_raster_tiff(tmp_mg_aligned, mg_10m)
+
+        if mg_reclassify_values:
             feedback.pushInfo(
                 "{0}; {1}; {2}; {3}; {4}; {5};".format(mg_10m, mg_10m_binary, min_lh, max_lh, min_nh, max_nh))
             feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")
             PreProcessingHelper.reclassify_mixture(mg_10m, mg_10m_binary, min_lh, max_lh, min_nh, max_nh)
-        # else:
-        #     copy_raster_tiff(mg_10m, mg_10m_binary)
 
         if del_tmp:
             feedback.pushInfo("clean up...")
-            if os.path.exists(tmp_byte):
-                os.remove(tmp_byte)
-            if os.path.exists(tmp_cropped):
-                os.remove(tmp_cropped)
-                for filename in glob.glob(os.path.splitext(tmp_cropped)[0] + "*"):
+            if os.path.exists(tmp_vhm_byte):
+                os.remove(tmp_vhm_byte)
+            if os.path.exists(tmp_vhm_cropped):
+                os.remove(tmp_vhm_cropped)
+                for filename in glob.glob(os.path.splitext(tmp_vhm_cropped)[0] + "*"):
                     os.remove(filename)
-            if os.path.exists(tmp_mask):
-                os.remove(tmp_mask)
+            if os.path.exists(tmp_vhm_mask):
+                os.remove(tmp_vhm_mask)
+            if os.path.exists(tmp_mg_aligned):
+                os.remove(tmp_mg_aligned)
 
         # finished
         feedback.pushInfo("====================================================================")
@@ -425,6 +445,8 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("====================================================================")
 
         return {self.OUTPUT: working_root}
+
+    #--- Algorithm ID, Name
 
     def name(self):
         """
