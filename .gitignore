@@ -20,6 +20,9 @@ data/tbk_qgis_data.qgz
 # ignore pycaches
 **/__pycache__/*
 
+# ignore .Rhistory files
+**/.Rhistory
+
 
 #_________________________________#
 #-----         Stubs         -----#

@@ -27,6 +27,7 @@
 #   (since it is differently calculated for lower stands)
 # - 2023-08-15: redesigned approach, not using clumpy any more. switched to terra/sf.
 # - 2023-08-15: now using classes. Add a row in df for each class to be computed.
+# - 2023-10-23: bugfixes, also add option to calc all DGs for zones
 #
 # (c) by Alexandra Erbach, HAFL, BFH, 2021-10
 # (c) by Hannes Horneber, HAFL, BFH, 2021-11, 2023-01, 2023-08
@@ -50,7 +51,11 @@ library(progress)
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_diverse/2023-01_Volketswil/tbk2018/20230125-0942" # 2022-01-05
 # PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_JU/Dev/DG_split/data_aoi" # 2023-08-14
 # PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_JU/tbk_2022/20230530-1332_arcpy" # 2023-08-14
-PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-10_Limmattal/tbk_2022/20231019-1105" # 2023-09-20
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-10_Limmattal/tbk_2022/20231019-1105" # 2023-09-20
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-09_Toppwald/tbk_2012/20230912-1001" # 2023-10-25
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/_HARA_/tbk_2022/20230530-1332_arcpy" # 2023-11-03
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231031-1501" # 2023-11-05
+PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/_Sierre_visite2/tbk_2021_50a/20231122-1446" # 2023-11-05
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
@@ -59,23 +64,30 @@ PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
 # PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
 
 # the path to the mg layers to compute NH per area
-# PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
+# PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail.tif")
 
 # the path to the dg layers (relative or absolute) 
 # default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
 PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
 
+
+PATH_DG_KS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ks.tif")
+PATH_DG_US = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_us.tif")
+PATH_DG_MS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ms.tif")
+PATH_DG_OS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_os.tif")
+PATH_DG_UEB = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ueb.tif")
+
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
-# optional name suffix for output - if left empty (""), input .shp will be overwritten
-NAME_SUFFIX = ""
+# optional name suffix for output, e.g. "_new"
+NAME_SUFFIX = "_v8"
 
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
 #-------------------------------#
 VERBOSE = TRUE
-PLOT_RESULTS = TRUE # for visual output during processing
+PLOT_RESULTS = FALSE # for visual output during processing
 PLOT_INTERMEDIATE = FALSE # for detailed visual output during processing
 CLIP_TO_STAND_BOUNDARIES = TRUE
 # write original file with new attributes 
@@ -106,6 +118,8 @@ min_size_clump = set_units(1200, "m^2")
 min_size_stand = min_size_clump
 # min_size_stand = set_units(0.3, "ha")
 
+# determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)
+CALC_ALL_DG = TRUE
 
 # Create empty data frame
 classes_df <- data.frame(class = numeric(),
@@ -121,12 +135,12 @@ classes_df <- data.frame(class = numeric(),
 # boolean (0/1) whether to use a large moving window
 # and a color to plot the class here in R
 classes_df[nrow(classes_df)+1, ] <- list(1,   1, 0.85, 0, 'red')
-# classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
-# classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
-# classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
+classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
+classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
+classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
 classes_df[nrow(classes_df)+1, ] <- list(5,0.25, 0   , 0, 'blue')
 
-classes_df[nrow(classes_df)+1, ] <- list(0,   1, 0.60, 1, 'orangered')
+classes_df[nrow(classes_df)+1, ] <- list(12,   1, 0.60, 1, 'orangered')
 
 as_units(min_size_stand)
 ####_________________________####
@@ -143,6 +157,14 @@ if(VERBOSE) print(PATH_SHP)
 #### load data #### 
 # load dg raster "DG" (Hauptschicht = hs) and vector data
 hs = rast(PATH_DG)
+# load other dg rasters (needed only to determine dgs per zone)
+if(CALC_ALL_DG){
+  dg_ks = rast(PATH_DG_KS)
+  dg_us = rast(PATH_DG_US)
+  dg_ms = rast(PATH_DG_MS)
+  dg_os = rast(PATH_DG_OS)
+  dg_ueb = rast(PATH_DG_UEB)
+}
 mg = rast(PATH_MG)
 stands_all = st_read(PATH_SHP)
 
@@ -224,7 +246,7 @@ if(VERBOSE) print("Done loading data")
 statstable <- data.frame()
 # init iteration variables
 j <- n_errors <- 0
-ID_errors = c()
+ID_errors = cbind("i", "stand_ID", "error_message")
 
 # optional plot output
 # uncommend dev.off() after for loop when activating these lines
@@ -233,7 +255,7 @@ ID_errors = c()
 
 # Filter stands that are too small
 if(VERBOSE) print(paste0("Loaded ", nrow(stands_all), " stands."))
-stands = stands[set_units(stands$area_m2, "m^2") > min_size_stand, ]
+stands = stands_all[set_units(stands_all$area_m2, "m^2") > min_size_stand, ]
 if(VERBOSE) print(paste0("Processing ", nrow(stands), " stands that are larger than ", min_size_stand, " ", units(min_size_stand), "."))
 
 ### ******************** ####
@@ -253,15 +275,16 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
 for (i in 1:nrow(stands)){
   # debug lines to check single stands
   # PLOT_INTERMEDIATE = T # for detailed visual output during processing
-  # for (i in 215){
-  # for (i in 1:7){
+  # for (i in 42:47){
+  
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
   # initialize stand stats row with named columns
   stats <- t(setNames(c(stands[i,]$ID, i), c("stand_ID", "proc_ID")))
   
-  error_with_stand = tryCatch(expr={
+  error_message = NULL # reset
+  error_message = tryCatch(expr={
     # buffer stand to have look at surrounding pixels for focal window
     # stand_buffered = raster::buffer(stands[i,], width= mw_rad_large) # deprecated raster package
     stand_buffered = sf::st_buffer(stands[i,], dist = mw_rad_large)
@@ -275,7 +298,7 @@ for (i in 1:nrow(stands)){
     if (length(hs_mask[!is.na(hs_mask)])>0) {
       # Trim (shrink) a Raster* object by removing outer rows and columns that all have the same value (e.g. NA). 
       # hs_crop <- raster::trim(hs_mask,values=NA)
-      hs_crop <- terra::trim(hs_mask, value=NA) #TODO switch to terra
+      hs_crop <- terra::trim(hs_mask, value=NA)
     } else {
       hs_crop <- hs_mask
     }
@@ -292,21 +315,21 @@ for (i in 1:nrow(stands)){
     # fw <- raster::focalWeight(hs_crop, mw_rad, type='circle')
     # fw_2 <- raster::focalWeight(hs_crop, mw_rad_large, type='circle')
     
-    # focal: each map contains the degree of cover of neighboring cells (in mw_rad radius)
-    focal_map = focal(hs_crop, w=fw, na.rm=TRUE, na.policy="omit")
-    focal_map_2 = focal(hs_crop, w=fw_2, na.rm=TRUE, na.policy="omit")
-    
-    # writeRaster(focal_map, file.path(PATH_OUTPUT, paste0("focal_map", NAME_SUFFIX, ".tif")))
-    #TODO check effect of na.rm = FALSE
-    # focal_map = focal(hs_crop, w=fw, na.rm=FALSE, na.policy="omit")
-    if(PLOT_INTERMEDIATE) plot(focal_map)
-    if(PLOT_INTERMEDIATE) lines(stands[i,])
-    if(PLOT_INTERMEDIATE) plot(focal_map_2)
-    if(PLOT_INTERMEDIATE) lines(stands[i,])
-    
-    # init 
+    # init focal map
     # basic check whether stand area is bigger than focal window (otherwise skip stand)
-    if (nrow(hs_crop) >= nrow(fw) & ncol(hs_crop) >= ncol(fw)){
+    if (nrow(hs_crop) >= 2*nrow(fw) & ncol(hs_crop) >= 2*ncol(fw)){
+      # focal: each map contains the degree of cover of neighboring cells (in mw_rad radius)
+      focal_map = focal(hs_crop, w=fw, na.rm=TRUE, na.policy="omit")
+      focal_map_2 = focal(hs_crop, w=fw_2, na.rm=TRUE, na.policy="omit")
+      
+      # writeRaster(focal_map, file.path(PATH_OUTPUT, paste0("focal_map", NAME_SUFFIX, ".tif")))
+      #TODO check effect of na.rm = FALSE
+      # focal_map = focal(hs_crop, w=fw, na.rm=FALSE, na.policy="omit")
+      if(PLOT_INTERMEDIATE) plot(focal_map)
+      if(PLOT_INTERMEDIATE) lines(stands[i,])
+      if(PLOT_INTERMEDIATE) plot(focal_map_2)
+      if(PLOT_INTERMEDIATE) lines(stands[i,])
+      
       ### ** ** ** ** ** ** ** ####
       ### > iterate over classes   ####
       flag_polys_created_class <- F
@@ -346,11 +369,15 @@ for (i in 1:nrow(stands)){
         if(length(ras_foc[ras_foc==1])>0){
           # raster to polygon
           multipolygon = ras2poly(ras_foc=ras_foc, i=i, class=class, poly_parent=stands[i,])
-          
+          # multipolygon = poly_final
+
           # check if a non-null polygon is produced
           if(!is.null(multipolygon)){
             # split multipolygon into single polygons and compute area
-            new_polys <- st_cast(multipolygon, "POLYGON")
+            
+            # it can happen that the resulting geometry contains not only polygons but linestrings/points (probably result of intersect)
+            new_polys <- st_collection_extract(multipolygon, type = "POLYGON")
+            new_polys <- st_cast(new_polys, "POLYGON")
             new_polys$area <- st_area(new_polys)
             
             # filter by size
@@ -361,11 +388,25 @@ for (i in 1:nrow(stands)){
               #### >> add attributes to zones ####
               # add DG attribute
               new_polys$area_pct = round(new_polys$area / new_polys$standArea, 2)
-              new_polys$DG_zone = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean"),2)*100
+              new_polys$DG = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean"),2)*100
               new_polys$DG_stand = stands[i,]$DG
-              new_polys$NH_zone = round(exactextractr::exact_extract(mg,new_polys, fun ="mean"),0)
+              
+              if(CALC_ALL_DG){
+                new_polys$DG_ks = round(exactextractr::exact_extract(dg_ks,new_polys, fun ="mean"),2)*100
+                new_polys$DG_us = round(exactextractr::exact_extract(dg_us,new_polys, fun ="mean"),2)*100
+                new_polys$DG_ms = round(exactextractr::exact_extract(dg_ms,new_polys, fun ="mean"),2)*100
+                new_polys$DG_os = round(exactextractr::exact_extract(dg_os,new_polys, fun ="mean"),2)*100
+                new_polys$DG_ueb = round(exactextractr::exact_extract(dg_ueb,new_polys, fun ="mean"),2)*100
+
+                new_polys$DG_ks_stand = stands[i,]$DG_ks
+                new_polys$DG_us_stand = stands[i,]$DG_us
+                new_polys$DG_ms_stand = stands[i,]$DG_ms
+                new_polys$DG_os_stand = stands[i,]$DG_os
+                new_polys$DG_ueb_stand = stands[i,]$DG_ueb
+              }
+              new_polys$NH = round(exactextractr::exact_extract(mg,new_polys, fun ="mean"),0)
               new_polys$NH_stand = stands[i,]$NH
-              new_polys$hdom_stand = stands[i,]$hdom
+              new_polys$hdom = stands[i,]$hdom
               
               #### >> populate attributes for stands ####
               area_class = sum(new_polys$area)
@@ -435,19 +476,18 @@ for (i in 1:nrow(stands)){
     
     # append to stands stats vector
     statstable <- rbind(statstable,stats)
-    
-    
   }, error=function(cond) {
     message(paste("Problem with stand: ", i))
     # optional: print error message
     # message(cond)
-    return(n_errors + 1)
+    return(cond)
   })
   
   # keep list of errors
-  if(!is.null(error_with_stand)){
+  if(any(class(error_message) == "error")){
     n_errors = n_errors + 1
-    ID_errors = cbind(ID_errors, i)
+    error_and_message = cbind(i, stands$ID[i], error_message$message)
+    ID_errors = rbind(ID_errors, error_and_message)
   }
 }
 ### ******************** ####
@@ -455,6 +495,13 @@ if(VERBOSE) print("") # empty line
 if(VERBOSE) print("Finished iteration over stands.")
 if(VERBOSE) print(paste0("Errors: ", n_errors, " (out of ", nrow(stands), " processed)"))
 # dev.off()
+
+#### write error proc IDs ####
+if(!is.null(ID_errors) && n_errors > 0){
+  #TODO change this to output not proc IDs (list IDs) but the actual stand ID 
+  capture.output(ID_errors, file = file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, "_errors_proc_ID.txt")))
+} 
+
 
 #### write gpkg local density zones ####
 if(VERBOSE) print("----------------------------------")
@@ -471,7 +518,7 @@ st_write(st_as_sf(polys), append = FALSE,
 # and export to file
 
 # add names to table
-col_names <- t(c("stand_ID", "proc_ID"))
+col_names <- t(c("stand_ID", "local_densities_proc_ID"))
 for(k in 1:nrow(classes_df)) {
   name_area_class <- paste0("z",classes_df[k,]$class, "_", "area")
   name_area_class_pct <- paste0("z",classes_df[k,]$class, "_", "area_pct") 
@@ -484,7 +531,8 @@ names(statstable) <- col_names
 #TODO: Sometimes result attributes have a varying amount of rows and can't be merged to original table
 tryCatch(expr={
   if(VERBOSE) print("----------------------------------")
-  if(VERBOSE) print(paste0("append ", nrow(statstable), " attribute rows to ", nrow(stands)," input geometries (stands)"))
+  if(VERBOSE) print(paste0("left join attribute rows to input geometries (stands)"))
+  if(VERBOSE) print(paste0(nrow(statstable), " of ", nrow(stands_all), " were processed (check proc_ID, others are NA)."))
   
   # connect statstable with existing attributetable/geometry (left outer join)
   stands_out = merge(x = stands_all, y = statstable, by.x = "ID", by.y = "stand_ID", all.x = TRUE)
@@ -492,7 +540,7 @@ tryCatch(expr={
   if(!OVERWRITE_ORIGINAL_TBK){
     if(VERBOSE) print(paste0("write input geometries with appendes attributes to folder: ", PATH_OUTPUT))
     # write file with new attributes to PATH_OUTPUT
-    write_sf(stands_out, file.path(PATH_OUTPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities_", NAME_SUFFIX, ".gpkg") ))
+    write_sf(stands_out, file.path(PATH_OUTPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities", NAME_SUFFIX, ".gpkg") ))
   }
   if(OVERWRITE_ORIGINAL_TBK){
     if(VERBOSE) print(paste0("attempt to overwrite input geometries with appendend attributes: ", PATH_SHP))
