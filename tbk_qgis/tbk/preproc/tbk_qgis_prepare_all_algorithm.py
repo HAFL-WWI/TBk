@@ -40,12 +40,12 @@ import os
 from shutil import copyfile
 import time
 from datetime import datetime, timedelta
-import logging, logging.handlers
-import sys
 
 import glob
 
-from osgeo.gdalnumeric import *
+from osgeo import gdal
+from osgeo import gdal_array
+# from osgeo.gdalnumeric import *
 
 
 from qgis.PyQt.QtCore import QCoreApplication
@@ -96,13 +96,12 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
     def deleteRasterIfExists (self, raster_path):
         if os.path.exists(raster_path):
             delete_raster(raster_path)
-            
+
+    #--- Parameters (Class) ---
 
     # Constants used to refer to parameters and outputs. They will be
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
-
-    #--- Parameters (Class) ---
 
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
@@ -115,11 +114,11 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
     MASK = "mask"
 
     # output
-    VHM_DETAIL = "VHM_detail"
-    VHM_10M = "VHM_10m"
-    VHM_150CM = "VHM_150cm"
-    MG_10M = "MG_10m"
-    MG_10M_BINARY = "MG_10m_binary"
+    VHM_DETAIL = "vhm_detail"
+    VHM_10M = "vhm_10m"
+    VHM_150CM = "vhm_150cm"
+    MG_10M = "mg_10m"
+    MG_10M_BINARY = "mg_10m_binary"
 
     #--- Advanced Parameters (Class) ---
 
@@ -127,12 +126,12 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
     DEL_TMP = "del_tmp"
 
     # advanced params
+    MASK_VHM = "mask_vhm"
+    VHM_RECLASSIFY = "vhm_reclassify"
+    VHM_CONVERT_TO_BYTE = "vhm_convert_to_byte"
     VMIN = "vMin"
     VMAX = "vMax"
     VNA = "vNA"
-    CROP_VHM = "crop_vhm"
-    # RASTERIZE_MASK ="rasterize_mask"
-    CONVERT_TO_BYTE = "convert_to_byte"
 
     # advanced params
     MG_RESCALE_FACTOR = "100"
@@ -141,7 +140,6 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
     MAX_LH = "max_lh"
     MIN_NH = "min_nh"
     MAX_NH = "max_nh"
-    DEL_TMP ="del_tmp"
 
     def initAlgorithm(self, config):
         """
@@ -152,72 +150,115 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         #--- Parameters (Tool UI) ---
 
         # input
-        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_INPUT, self.tr("Detailed input VHM (.tif)")))                                
-        self.addParameter(QgsProcessingParameterRasterLayer(self.MG_INPUT, self.tr("Forest mixture degree 10m input (.tif)")))
-        self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,self.tr("Polygon mask to clip final result"),[QgsProcessing.TypeVectorPolygon]))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_INPUT,
+                                                            self.tr("Detailed input VHM (.tif)")))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.MG_INPUT,
+                                                            self.tr("Forest mixture degree 10m input (.tif)")))
+        self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,
+                                                              self.tr("Polygon mask to clip final result"),
+                                                              [QgsProcessing.TypeVectorPolygon]))
 
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
 
         ## output
-        parameter = QgsProcessingParameterString(self.VHM_DETAIL, self.tr("VHM detail output name (.tif)"), defaultValue = "VHM_detail.tif")
+        parameter = QgsProcessingParameterString(self.VHM_DETAIL,
+                                                 self.tr("VHM detail output name (.tif)"),
+                                                 defaultValue = "VHM_detail.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.VHM_10M, self.tr("VHM 10m output name (.tif)"), defaultValue = "VHM_10m.tif")
+        parameter = QgsProcessingParameterString(self.VHM_10M,
+                                                 self.tr("VHM 10m output name (.tif)"),
+                                                defaultValue = "VHM_10m.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.VHM_150CM, self.tr("VHM 150cm output name (.tif)"), defaultValue = "VHM_150cm.tif")
+        parameter = QgsProcessingParameterString(self.VHM_150CM,
+                                                 self.tr("VHM 150cm output name (.tif)"),
+                                                 defaultValue = "VHM_150cm.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.MG_10M, self.tr("Mixing degree 10m  output name (.tif)"), defaultValue = "MG_10m.tif")
+        parameter = QgsProcessingParameterString(self.MG_10M,
+                                                 self.tr("Mixing degree 10m  output name (.tif)"),
+                                                 defaultValue = "MG_10m.tif")
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterString(self.MG_10M_BINARY, self.tr("Binary Mixing degree 10m output name (.tif) (optional)"), defaultValue = "MG_10m_binary.tif")
+        parameter = QgsProcessingParameterString(self.MG_10M_BINARY,
+                                                 self.tr("Binary Mixing degree 10m output name (.tif) (optional)"),
+                                                 defaultValue = "MG_10m_binary.tif")
         self.addParameter(parameter)
 
         #--- Advanced Parameters (Tool UI) ---
 
-        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files"), defaultValue=True)
+        parameter = QgsProcessingParameterBoolean(self.DEL_TMP,
+                                                  self.tr("Delete temporary files"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
         # advanced params (VHM)
-        parameter = QgsProcessingParameterNumber(self.VMIN, self.tr("VHM min value"), type=QgsProcessingParameterNumber.Double, defaultValue=0)
+        parameter = QgsProcessingParameterBoolean(self.MASK_VHM,
+                                                  self.tr("Crop VHM to mask"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.VMAX, self.tr("VHM max value"), type=QgsProcessingParameterNumber.Double, defaultValue=60)
+        parameter = QgsProcessingParameterBoolean(self.VHM_CONVERT_TO_BYTE,
+                                                  self.tr("Convert VHM to BYTE datatype " +
+                                                          "(will do nothing if already BYTE)"),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.VNA, self.tr("VHM NA value"), type=QgsProcessingParameterNumber.Integer, defaultValue=255)
+        parameter = QgsProcessingParameterBoolean(self.VHM_RECLASSIFY,
+                                                  self.tr("Reclassify VHM to min/max/NA values"),
+                                                  defaultValue=False)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(self.CROP_VHM, self.tr("Crop VHM to mask"), defaultValue=True)
+        parameter = QgsProcessingParameterNumber(self.VMIN, self.tr("VHM min value"),
+                                                 type=QgsProcessingParameterNumber.Double,
+                                                 defaultValue=0)
         self.addAdvancedParameter(parameter)
 
-        # parameter = QgsProcessingParameterBoolean(self.RASTERIZE_MASK, self.tr("Rasterize mask"), defaultValue=False)
-        # self.addAdvancedParameter(parameter)
+        parameter = QgsProcessingParameterNumber(self.VMAX, self.tr("VHM max value"),
+                                                 type=QgsProcessingParameterNumber.Double,
+                                                 defaultValue=60)
+        self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(self.CONVERT_TO_BYTE, self.tr("Convert VHM to BYTE datatype"), defaultValue=True)
+        parameter = QgsProcessingParameterNumber(self.VNA, self.tr("VHM NA value"),
+                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 defaultValue=255)
         self.addAdvancedParameter(parameter)
 
         # advanced params (WMG reclassify values)
         parameter = QgsProcessingParameterNumber(self.MG_RESCALE_FACTOR,
-                                                  self.tr("Rescale MG Values (set to 1 to do nothing)."+
-                                                          "\nDefault (100) is optimized for WSL layer with values 0 - 10'000"), defaultValue=100.0)
+                                                  self.tr("Rescale MG Values (set to 1 to do nothing)." +
+                                                          "\nDefault (100) is optimized for WSL layer with " +
+                                                          "values 0 - 10'000"),
+                                                 defaultValue=100.0)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(self.MG_RECLASSIFY_VALUES, self.tr("Create Binary MG Layer (reclassify to 0 and 100) for simplfied stand delineation."), defaultValue=True)
+        parameter = QgsProcessingParameterBoolean(self.MG_RECLASSIFY_VALUES,
+                                                  self.tr("Create Binary MG Layer (reclassify to 0 and 100) " +
+                                                          "for simplfied stand delineation." +
+                                                          "\n (applied to rescaled values if rescale factor is not 1)."),
+                                                  defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Decidious (Laubholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=1)
+        parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Decidious (Laubholz) value"),
+                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 defaultValue=1)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Decidious (Laubholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=50)
+        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Decidious (Laubholz) value"),
+                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 defaultValue=50)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=50)
+        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Coniferous (Nadelholz) value"),
+                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 defaultValue=50)
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Coniferous (Nadelholz) value"), type=QgsProcessingParameterNumber.Integer, defaultValue=100)
+        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Coniferous (Nadelholz) value"),
+                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 defaultValue=100)
         self.addAdvancedParameter(parameter)
 
 
@@ -235,11 +276,12 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
 
         # advanced params
         # vhm range
+        mask_vhm = self.parameterAsBool(parameters, self.MASK_VHM, context)
+        vhm_convert_to_byte = self.parameterAsBool(parameters, self.VHM_CONVERT_TO_BYTE, context)
+        vhm_reclassify = self.parameterAsBool(parameters, self.VHM_RECLASSIFY, context)
         vMin = self.parameterAsDouble(parameters, self.VMIN, context)
         vMax = self.parameterAsDouble(parameters, self.VMAX, context)
         vNA = self.parameterAsInt(parameters, self.VNA, context)
-        convert_to_byte = self.parameterAsBool(parameters, self.CONVERT_TO_BYTE, context)
-        crop_vhm = self.parameterAsBool(parameters, self.CROP_VHM, context)
         # rasterize_mask = self.parameterAsBool(parameters, self.RASTERIZE_MASK, context)
 
         # advanced params mg reclassify values
@@ -334,20 +376,24 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         #--- Process VHM
         start_time = time.time()
 
-        # get input raster resolution
-        xRes, yRes = PreProcessingHelper.get_raster_resolution(vhm_input)
+        if vhm_convert_to_byte:
+            feedback.pushInfo("Checking vhm input raster...")
+            vhm_input_raster = gdal.Open(vhm_input)
+            feedback.pushInfo(f"DataType Code: {vhm_input_raster.GetRasterBand(1).DataType}  "
+                              f"(1: Byte, 3: Int16, 6: Float32)")
 
-        if convert_to_byte:
-            feedback.pushInfo("convert vhm raster to byte...")
-            param = {'INPUT':vhm_input,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,
-            'NODATA':vNA,'TARGET_RESOLUTION':None,'OPTIONS':'','DATA_TYPE':1,
-            'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':True,
-            'EXTRA':'-co COMPRESS=LZW -co BIGTIFF=YES','OUTPUT':tmp_vhm_byte}
-            algoOutput = processing.run("gdal:warpreproject", param)
-            #os.system("gdalwarp -of GTiff -ot Byte -dstnodata " + str(vNA) + " -co COMPRESS=LZW -co BIGTIFF=YES " + vhm_input + " " + tmp_vhm_byte)
-            vhm_input = tmp_vhm_byte
+            if vhm_input_raster.GetRasterBand(1).DataType == 1:
+                feedback.pushInfo("vhm raster is already byte, not converting...")
+            else:
+                feedback.pushInfo("convert vhm raster to byte...")
+                param = {'INPUT':vhm_input,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,
+                'NODATA':vNA,'TARGET_RESOLUTION':None,'OPTIONS':'','DATA_TYPE':1,
+                'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':True,
+                'EXTRA':'-co COMPRESS=LZW -co BIGTIFF=YES','OUTPUT':tmp_vhm_byte}
+                algoOutput = processing.run("gdal:warpreproject", param)
+                vhm_input = tmp_vhm_byte
 
-        if crop_vhm:
+        if mask_vhm:
             feedback.pushInfo("mask vhm...")
             param = {'INPUT':vhm_input,'MASK':mask,'SOURCE_CRS':None,'TARGET_CRS':None,'NODATA':vNA,
             'ALPHA_BAND':False,'CROP_TO_CUTLINE':True, 'KEEP_RESOLUTION':False,
@@ -356,17 +402,17 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             'EXTRA':'-multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES  -wo \"CUTLINE_ALL_TOUCHED=TRUE\"',
             'OUTPUT':tmp_vhm_cropped}
             processing.run("gdal:cliprasterbymasklayer", param)
-            #os.system("gdalwarp -of GTiff -cutline " + mask + " -crop_to_cutline -wo \"CUTLINE_ALL_TOUCHED=TRUE\"" +
-            #        " -tr " + str(xRes) + " " + str(yRes) + " -dstnodata " + str(vNA) +
-            #        " -multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES " +  # large raster processing
-            #        vhm_input + " " + tmp_vhm_cropped)
 
             vhm_input = tmp_vhm_cropped
 
-        feedback.pushInfo("reclassify vhm outliers...")
-        if not os.path.exists(os.path.dirname(vhm_detail)):
-            os.makedirs(os.path.dirname(vhm_detail))
-        PreProcessingHelper.reclassify_min_max(vhm_input, vhm_detail, min_value=vMin, max_value=vMax)
+        if vhm_reclassify:
+            feedback.pushInfo("reclassify vhm outliers...")
+            if not os.path.exists(os.path.dirname(vhm_detail)):
+                os.makedirs(os.path.dirname(vhm_detail))
+            PreProcessingHelper.reclassify_min_max(vhm_input, vhm_detail, min_value=vMin, max_value=vMax)
+        else:
+            feedback.pushInfo("copy as vhm detail...")
+            copy_raster_tiff(vhm_input, vhm_detail)
 
         feedback.pushInfo("aggregate vhm to 10m...")
         if not os.path.exists(os.path.dirname(vhm_10m)):
@@ -410,7 +456,8 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             param = {
             'INPUT_A': tmp_mg_aligned,
             'BAND_A': 1, 'INPUT_B': None, 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None,
-            'BAND_D': None, 'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'A/' + str(mg_rescale_factor),
+            'BAND_D': None, 'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None,
+            'FORMULA': 'A/' + str(mg_rescale_factor),
             'NO_DATA': None, 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
             'EXTRA': '',
             'OUTPUT': mg_10m}
@@ -425,23 +472,34 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")
             PreProcessingHelper.reclassify_mixture(mg_10m, mg_10m_binary, min_lh, max_lh, min_nh, max_nh)
 
+        # delete all temporary files, including .tif.aux.xml files that are occasionally
         if del_tmp:
             feedback.pushInfo("clean up...")
             if os.path.exists(tmp_vhm_byte):
                 os.remove(tmp_vhm_byte)
+            if os.path.exists(tmp_vhm_byte + ".aux.xml"):
+                os.remove(tmp_vhm_byte + ".aux.xml")
+
             if os.path.exists(tmp_vhm_cropped):
                 os.remove(tmp_vhm_cropped)
                 for filename in glob.glob(os.path.splitext(tmp_vhm_cropped)[0] + "*"):
                     os.remove(filename)
             if os.path.exists(tmp_vhm_mask):
                 os.remove(tmp_vhm_mask)
+
             if os.path.exists(tmp_mg_aligned):
                 os.remove(tmp_mg_aligned)
+            if os.path.exists(tmp_mg_aligned + ".aux.xml"):
+                os.remove(tmp_mg_aligned + ".aux.xml")
+
+            if os.path.exists(vhm_detail + ".aux.xml"):
+                os.remove(vhm_detail + ".aux.xml")
 
         # finished
         feedback.pushInfo("====================================================================")
         feedback.pushInfo("FINISHED")
-        feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
+        feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" %
+                          str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
 
         return {self.OUTPUT: working_root}
