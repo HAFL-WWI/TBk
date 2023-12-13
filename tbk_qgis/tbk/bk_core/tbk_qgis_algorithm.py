@@ -178,9 +178,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # VHM 150cm to calculate DG                                  
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_150CM, self.tr("VHM 150cm to calculate DG (.tif)")))
         # Coniferous raster to calculate stand mean                                  
-        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER, self.tr("Coniferous raster to calculate stand mean (.tif)"),optional=True))
+        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER, self.tr("Coniferous raster to calculate stand mean (.tif)"), optional=True))
+        # Coniferous raster to calculate stand mean
+        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER, self.tr("Coniferous raster to calculate stand mean (.tif)"), optional=True))
         # Perimeter shapefile to clip final result                                 
-        self.addParameter(QgsProcessingParameterFeatureSource(self.PERIMETER,self.tr("Perimeter shapefile to clip final result (.shp)"),[QgsProcessing.TypeVectorPolygon]))
+        self.addParameter(QgsProcessingParameterFeatureSource(self.PERIMETER,self.tr("Perimeter shapefile to clip final result"),[QgsProcessing.TypeVectorPolygon]))
 
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
@@ -280,15 +282,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
-
-        if "|layername=" in perimeter.lower():
-            perimeter = perimeter.split("|")[0]
-
-        #if not os.path.splitext(perimeter)[1].lower() in (".shp"):
-        #if not (".shp" in perimeter.lower()):
-        #TODO remove .shp restriction
-        if not os.path.splitext(perimeter)[1].lower() in (".shp"):
-            raise QgsProcessingException("perimeter must be a ESRI Shape file")
 
         zoneRasterFile_layer = self.parameterAsRasterLayer(parameters, self.ZONE_RASTER_FILE, context)
         zoneRasterFile = None
@@ -399,6 +392,17 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         calc_attributes(tbk_result_dir, del_tmp=del_tmp)
 
         #--- Clean up unneeded fields
+        if del_tmp:
+            del_fields = ["FID_orig","OBJECTID"]
+            result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.shp")
+            delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
+
+        #TODO:
+        # Delete stands < 100 m2
+        # Delete stands without geometry
+        # Repair geometry
+        # Add incremental field (sort based on ID)
+
         if del_tmp:
             del_fields = ["FID_orig","OBJECTID"]
             result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.shp")

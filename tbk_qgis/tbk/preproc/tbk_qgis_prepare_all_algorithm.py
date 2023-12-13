@@ -303,13 +303,8 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("mg_input must be TIFF file")
 
         mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
-        if "|layername=" in mask.lower():
-            mask = mask.split("|")[0]
 
         #TODO check geometry validity
-
-        # if not os.path.splitext(mask)[1].lower() in (".shp"):
-        #     raise QgsProcessingException("Mask must be a Shape file")
 
         # Folder for algo output
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
