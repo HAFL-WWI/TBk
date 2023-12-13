@@ -27,6 +27,22 @@ def delete_fields(layer, field_names):
             layer.dataProvider().deleteAttributes([fIndex]) 
             layer.updateFields()
 
+# Remove fields from QGIS layer
+def keep_only_specific_fields(layer, fields_to_keep):
+    # all_names = [field.name() for field in layer.dataProvider().fields()]
+    fields_to_delete = []
+    prov = layer.dataProvider()
+    for field in prov.fields():
+        if not field.name() in fields_to_keep:
+            fields_to_delete.append(field.name())
+
+    for f in fields_to_delete:
+        fIndex = layer.fields().lookupField(f)
+        if fIndex >= 0:
+            layer.dataProvider().deleteAttributes([fIndex])
+            layer.updateFields()
+    # all_names_after = [field.name() for field in layer.dataProvider().fields()]
+
 def get_raster_metadata(raster):
     data = gdal.Open(raster, gdal.GA_ReadOnly)
     geoTransform = data.GetGeoTransform()
@@ -67,9 +83,21 @@ def delete_raster(raster):
 def copy_raster_tiff(in_raster, out_raster):
     driver = gdal.GetDriverByName('GTiff')
     in_ds = gdal.Open(in_raster)
-    out_ds = driver.CreateCopy(out_raster, in_ds, 0)
+    out_ds = driver.CreateCopy(out_raster, in_ds, 0, options=["COMPRESS=ZSTD"])
     in_ds = None
     out_ds = None
+
+#Function to create and empty copy of a GeoTIFF raster
+def create_empty_copy(input_raster, output_raster):
+    in_ds = gdal.Open(input_raster)
+    driver = in_ds.GetDriver()
+    out_ds = driver.Create(output_raster, in_ds.RasterXSize, in_ds.RasterYSize, in_ds.RasterCount,
+                       in_ds.GetRasterBand(1).DataType)
+    out_ds.SetGeoTransform(in_ds.GetGeoTransform())
+    out_ds.SetProjection(in_ds.GetProjection())
+    ds = None
+    out_ds = None
+
 
 # Delete files
 # Code basing on https://gis.stackexchange.com/a/190435
