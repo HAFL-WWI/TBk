@@ -20,7 +20,7 @@ from tbk.utility.tbk_utilities import *
 from shutil import copyfile
 
 
-def create_project(result_dir, tool_path, root_dir, vhm_10m, vhm_150cm):
+def create_project(result_dir, tool_path, root_dir, vhm_10m, vhm_150cm, coniferous_raster):
     print("--------------------------------------------")
     print("START Create Project...")
 
@@ -72,27 +72,39 @@ def create_project(result_dir, tool_path, root_dir, vhm_10m, vhm_150cm):
 
     print("QGIS Project: Replace VHM paths...")
     #Replace VHM paths
-    layer = QgsProject.instance().mapLayersByName("VHM detail")[0]
-    base_name = layer.name()
-    provider = layer.providerType()
-    options = layer.dataProvider().ProviderOptions()
-    layer.setDataSource(
-        vhm_150cm,
-        base_name,
-        provider,
-        options
-    )
+    # layer = QgsProject.instance().mapLayersByName("Vegetationshöhe (VHM) 150cm")[0]
+    # base_name = layer.name()
+    # provider = layer.providerType()
+    # options = layer.dataProvider().ProviderOptions()
+    # layer.setDataSource(
+    #     vhm_150cm,
+    #     base_name,
+    #     provider,
+    #     options
+    # )
+    #
+    # layer = QgsProject.instance().mapLayersByName("Vegetationshöhe (VHM) 10m")[0]
+    # base_name = layer.name()
+    # provider = layer.providerType()
+    # options = layer.dataProvider().ProviderOptions()
+    # layer.setDataSource(
+    #     vhm_10m,
+    #     base_name,
+    #     provider,
+    #     options
+    # )
+    #
+    # layer = QgsProject.instance().mapLayersByName("Nadelholzanteil (WMG) 10m")[0]
+    # base_name = layer.name()
+    # provider = layer.providerType()
+    # options = layer.dataProvider().ProviderOptions()
+    # layer.setDataSource(
+    #     coniferous_raster,
+    #     base_name,
+    #     provider,
+    #     options
+    # )
 
-    layer = QgsProject.instance().mapLayersByName("VHM 10m")[0]
-    base_name = layer.name()
-    provider = layer.providerType()
-    options = layer.dataProvider().ProviderOptions()
-    layer.setDataSource(
-        vhm_10m,
-        base_name,
-        provider,
-        options
-    )
 
     print("QGIS Project: Update Layout extents...")
     def setLayoutExtent(name, bb):
@@ -144,6 +156,7 @@ if __name__ == "__main__":
     working_root = str(sys.argv[3])
     vhm_10m = str(sys.argv[4])
     vhm_150cm = str(sys.argv[5])
+    coniferous_raster = str(sys.argv[6])
 
     # run create project function
-    create_project(tbk_path, tbk_tool_path, working_root, vhm_10m, vhm_150cm)
+    create_project(tbk_path, tbk_tool_path, working_root, vhm_10m, vhm_150cm, coniferous_raster)

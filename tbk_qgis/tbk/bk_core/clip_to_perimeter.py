@@ -112,7 +112,7 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     union_layer = QgsVectorLayer(union_tmp_path, "union_tmp", "ogr")
     union_layer.selectByExpression(expression)
 
-    ##Does not persist results when writing directly to file
+    #TODO Does not persist results when writing directly to file
     param = {'INPUT':union_layer,'MODE':2,'OUTPUT':'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
@@ -124,6 +124,7 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     print("delete remaining gaps completely...")
     expression = 'FID_orig IS NULL OR to_int(area($geometry))=0'
 
+    # Delete Fields and keep only major ones
     fields_to_delete = ["ID_2","GRIDCODE","FID_stands","FID_gaps_s","Id_1","ORIG_FID"]
     fields_to_keep = ["OBJECTID","area_m2","hmax_eff","hp80","FID_orig","ID","hmax","hdom","type"]
 
@@ -134,9 +135,8 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
             fields_to_delete.append(field.name())
 
     out_layer.selectByExpression(expression)
-    if len(out_layer.selectedFeatureIds())>0:
+    if len(out_layer.selectedFeatureIds()) > 0:
         with edit(out_layer):
-
             out_layer.deleteSelectedFeatures()
     
     # Delete fields

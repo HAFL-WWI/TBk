@@ -125,8 +125,9 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     algoOutput = processing.run("grass7:v.generalize", param)
 
     tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_reduced", "ogr")
-    # Delete unimportant fields
 
+    # Delete unimportant fields
+    # apparently these are some dummy fields created by grass
     fields = ['cat', 'cat_', 'foo']
     delete_fields(tmp_simplified_layer, fields)
 
