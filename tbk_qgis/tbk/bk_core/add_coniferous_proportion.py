@@ -6,7 +6,6 @@
 # (C) Dominique Weber, Christoph Schaller, HAFL, BFH
 ######################################################################
 
-# Import arcpy module
 import sys
 import os
 import shutil
@@ -31,11 +30,13 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
     
     print("loading files...")
     if coniferous_raster == 'null' or coniferous_raster == None:
+        print("No coniferous raster found.")
         return
     nh_raster = coniferous_raster
     stands_shapefile = os.path.join(tbk_path,"stands_clipped.shp")
 
     print("calc mean coniferous proportion...")
+
 
     param ={'INPUT_RASTER':nh_raster,'RASTER_BAND':1,'INPUT_VECTOR':stands_shapefile,'COLUMN_PREFIX':'nh_','STATS':[2]}
     processing.run("qgis:zonalstatistics", param)
@@ -48,13 +49,13 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         provider.addAttributes([QgsField("NH", QVariant.Int)])
         stands_layer.updateFields()
 
-        # Calculate NH per stand
+        # Write NH attribute per stand
         for f in stands_layer.getFeatures():
             f["NH"] = f["nh_mean"]
             stands_layer.updateFeature(f)  
     
     if del_tmp:
-        delete_fields(stands_layer, ["nh_mean"])
+        delete_fields(stands_layer, ["nh_mean", 'nh_count', 'nh_sum'])
     del stands_layer
 
     # NH OS
@@ -79,8 +80,8 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         nh_mean_table = os.path.join(output_tmp_folder, "nh_mean_table")
         nh_sum_table = os.path.join(output_tmp_folder, "nh_sum_table")
 
-        # Resample os layer to 1m
-        param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
+        # Resample os layer to 1m to align with 10m raster
+        param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
         algoOutput = processing.run("gdal:warpreproject", param)
         
         # Aggregate os sum per 10m Sentinel-2 pixel
@@ -98,7 +99,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         # Reclassify
         condition_string = "(A < {0})*1".format(str(cover))
         param = {'INPUT_A':dg_layer_os_10m_sum,'BAND_A':1,'INPUT_B':None,'BAND_B':-1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
+                'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
@@ -106,7 +107,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         param = {'INPUT_A':nh_raster,'BAND_A':1,
                  'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,
                  'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_nh}
+                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1','EXTRA':'','OUTPUT':dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
@@ -126,20 +127,18 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
                                     QgsField("NH_OS_PIX", QVariant.Int)])
             stands_layer.updateFields()
 
-            # Calculate NH fields per stand         
+            # Write NH_OS attribute per stand
             for f in stands_layer.getFeatures():
-                if f["NH_OS"] > 0:
+                f["NH_OS_PIX"] = f["nhm_sum"]
+                if f["NH_OS_PIX"] > 0:
                     f["NH_OS"] = f["nh_mean"]
-                    f["NH_OS_PIX"] = f["nhm_sum"]
                 else:
                     # set value to -1 if no NH_OS pixels
                     f["NH_OS"] = -1
-                    f["NH_OS_PIX"] = f["nhm_sum"]
                 stands_layer.updateFeature(f)  
 
-
         if del_tmp:
-            delete_fields(stands_layer, ["nh_mean","nhm_sum"])
+            delete_fields(stands_layer, ["nh_mean", "nhm_sum", 'nh_count', 'nh_sum', 'nhm_count', 'nhm_mean', 'NH_OS_PIX'])
 
         # Delete tmp files
         if del_tmp:
