@@ -14,9 +14,9 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 import sys
 from qgis.core import (
-     QgsApplication,
-     QgsProcessingFeedback,
-     QgsVectorLayer
+    QgsApplication,
+    QgsProcessingFeedback,
+    QgsVectorLayer
 )
 
 # The path to the plugin is environment specific
@@ -43,20 +43,37 @@ QgsApplication.processingRegistry().addProvider(provider)
 
 # Main call of the algorithm
 # paths to files are exemplary here and need to be adjusted to the local system
+
+# TBk HAFL (BE)
 processing.run("TBk:Generate BK",
-               {'vhm_10m':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_10m.tif',
-                'vhm_150cm':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_150cm.tif',
-                'coniferous_raster':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m.tif',
-                'coniferous_raster_for_classification':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m_binary.tif',
-                'perimeter':'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/perimeter_test_waldgebiet.gpkg',
-                'output_root':'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_main',
-                'useConiferousRasterForClassification':True,
-                'logfile_name':'tbk_processing.log',
-                'description':'TBk dataset',
-                'min_tol':0.1,'max_tol':0.1,'min_corr':4,'max_corr':4,
-                'min_valid_cells':0.5,'min_cells_per_stand':10,'min_cells_per_pure_stand':30,
-                'vhm_min_height':0,'vhm_max_height':60,
-                'simplification_tolerance':8,'min_area_m2':1000,
-                'similar_neighbours_min_area':2000,'similar_neighbours_hdom_diff_rel':0.15,
-                'calc_mixture_for_main_layer':True,
-                'del_tmp':True})
+               {'vhm_10m': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/VHM_10m.tif',
+                'vhm_150cm': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/MG_10m.tif',
+                'coniferous_raster': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/MG_10m.tif',
+                'coniferous_raster_for_classification': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/MG_10m_binary.tif',
+                'perimeter': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
+                'output_root': 'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_hafl\\tbk2012_v02',
+                'useConiferousRasterForClassification': True, 'logfile_name': 'tbk_processing.log',
+                'description': 'TBk dataset', 'min_tol': 0.1, 'max_tol': 0.1, 'min_corr': 4, 'max_corr': 4,
+                'min_valid_cells': 0.5, 'min_cells_per_stand': 10, 'min_cells_per_pure_stand': 30, 'vhm_min_height': 0,
+                'vhm_max_height': 60, 'simplification_tolerance': 8, 'min_area_m2': 1000,
+                'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
+                'calc_mixture_for_main_layer': True, 'del_tmp': True})
+
+# TBk Suhret (AG)
+# processing.run("TBk:Generate BK",
+#                {'vhm_10m': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_10m.tif',
+#                 'vhm_150cm': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/vhm_150cm.tif',
+#                 'coniferous_raster': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m.tif',
+#                 'coniferous_raster_for_classification': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/MG_10m_binary.tif',
+#                 'perimeter': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_main/perimeter_test_waldgebiet.gpkg',
+#                 'output_root': 'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_main',
+#                 'useConiferousRasterForClassification': True,
+#                 'logfile_name': 'tbk_processing.log',
+#                 'description': 'TBk dataset',
+#                 'min_tol': 0.1, 'max_tol': 0.1, 'min_corr': 4, 'max_corr': 4,
+#                 'min_valid_cells': 0.5, 'min_cells_per_stand': 10, 'min_cells_per_pure_stand': 30,
+#                 'vhm_min_height': 0, 'vhm_max_height': 60,
+#                 'simplification_tolerance': 8, 'min_area_m2': 1000,
+#                 'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
+#                 'calc_mixture_for_main_layer': True,
+#                 'del_tmp': True})
