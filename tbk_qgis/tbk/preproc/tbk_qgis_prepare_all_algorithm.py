@@ -398,6 +398,10 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             'OUTPUT':tmp_vhm_cropped}
             processing.run("gdal:cliprasterbymasklayer", param)
 
+            #TODO this does nothing if no masking is necessary, resulting in no output generated
+            # and the following command failing
+            # solution: check for output, otherwise WARNING and proceed without cropping
+
             vhm_input = tmp_vhm_cropped
 
         if vhm_reclassify:
