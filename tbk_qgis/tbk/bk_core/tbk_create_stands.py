@@ -69,14 +69,15 @@ def run_stand_classification(workingRoot,
     outputShapefile = 'stand_boundaries.shp' # shapefile, generated from raster (after polygonize)
     logfile = 'tbk_log.log' # name of the logfile (config params)
 
-    # Add the trailing slash if it's not already there.
-    workingRoot = os.path.join(workingRoot, '')
+    # # Add the trailing slash if it's not already there.
+    # workingRoot = os.path.join(workingRoot, '')
+    #
+    # # Creating a new directory for the current classification
+    # currentDatetime = datetime.now().strftime("%Y%m%d-%H%M")
+    # outputDirectory = currentDatetime
+    # out_path = workingRoot + outputDirectory
+    out_path = workingRoot
 
-    # Creating a new directory for the current classification
-    currentDatetime = datetime.now().strftime("%Y%m%d-%H%M")
-    outputDirectory = currentDatetime
-    out_path = workingRoot + outputDirectory
-    #out_path = workingRoot
     out_path = os.path.join(out_path, '')
     if not os.path.isdir(out_path):
         os.makedirs(out_path)
