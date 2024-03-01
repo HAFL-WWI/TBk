@@ -53,7 +53,7 @@ from tbk_qgis.tbk.bk_ag.bk_processing import *
 from tbk_qgis.tbk.bk_ag.perimeter_processing import *
 from tbk_qgis.tbk.bk_ag.vhm_processing import *
 from tbk_qgis.tbk.utility.tbk_utilities import *
-
+from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
 
 class BkAGAlgorithm(QgsProcessingAlgorithm):
     """
