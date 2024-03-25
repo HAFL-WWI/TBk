@@ -30,7 +30,7 @@
 # - 2023-10-23: bugfixes, also add option to calc all DGs for zones
 #
 # (c) by Alexandra Erbach, HAFL, BFH, 2021-10
-# (c) by Hannes Horneber, HAFL, BFH, 2021-11, 2023-01, 2023-08
+# (c) by Hannes Horneber, HAFL, BFH, 2021-11, 2023-01, 2023-08, 2024-02
 #------------------------------------------------------------------------------#
 
 library(terra)
@@ -54,21 +54,27 @@ library(progress)
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-10_Limmattal/tbk_2022/20231019-1105" # 2023-09-20
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-09_Toppwald/tbk_2012/20230912-1001" # 2023-10-25
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/_HARA_/tbk_2022/20230530-1332_arcpy" # 2023-11-03
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231031-1501" # 2023-11-05
-PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/_Sierre_visite2/tbk_2021_50a/20231122-1446" # 2023-11-05
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/_Sierre_visite2/tbk_2021_50a/20231122-1446" # 2023-11-05
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231213-2351_50a" # 2023-12-15
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231215-0746_10a" # 2024-01-15
+# PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_VS/TBk_2022/20231215-0746_10a" # 2024-01-18
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2019/20220420-0202" # 2024-02-13
+PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
-# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
-PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
+# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
+PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
+# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
 # PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
 
 # the path to the mg layers to compute NH per area
+# PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
 PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 # PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail.tif")
 
-# the path to the dg layers (relative or absolute) 
-# default is PATH_TBk_INPUT/dg_layers/dg_layer_XX.tif
+# the path to the dg layers (relative or absolute)
+# default is PATH_TBk_INPUT/dg_layers/dg_layer.tif
 PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
 
 
