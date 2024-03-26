@@ -21,6 +21,7 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 __revision__ = '$Format:%H$'
 
 import os
+import qgis.core
 import time
 from datetime import datetime, timedelta
 import logging, logging.handlers
@@ -80,6 +81,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
 
     DEFAULT_SITE_CATEOGRY = "default_site_category"
     FIELD_FOREST_SITE_CATEGORY = "field_forest_site_category"
+    DEFAULT_TREE_SPECIES_FIELD = "NH"
     FIELD_P100 = "field_p100"
     FIELD_P120 = "field_p120"
     FIELD_P140 = "field_p140"
@@ -132,6 +134,11 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                                    "Default site category (will be used when no field/layer is provided or if field is 0 / empty / NULL)"),
                                                                defaultValue="7a"))
 
+        self.addAdvancedParameter(QgsProcessingParameterString(self.DEFAULT_TREE_SPECIES_FIELD,
+                                                               self.tr(
+                                                                   "Default tree species attribute (will be used for p100 / p410 if none other is provided or if provided field not found)"),
+                                                               defaultValue="NH"))
+
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P100,
                                                                self.tr("p100 tree species Field Name\n" +
                                                                        "If none provided, NH will be used."),
@@ -146,11 +153,11 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                                self.tr("p160 tree species Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P390,
-                                                               self.tr("p390 tree species Field Name\n" +
-                                                                       "If none provided, 100 - NH will be used."),
+                                                               self.tr("390 tree species Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P410,
-                                                               self.tr("p410 tree species Field Name"),
+                                                               self.tr("p410 tree species Field Name\n" +
+                                                                       "If none provided, 100 - NH will be used."),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P420,
                                                                self.tr("p420 tree species Field Name"),
@@ -193,16 +200,44 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
 
         default_site_category = str(self.parameterAsString(parameters, self.DEFAULT_SITE_CATEOGRY, context))
         field_forest_site_category = str(self.parameterAsString(parameters, self.FIELD_FOREST_SITE_CATEGORY, context))
+        default_tree_species_field = str(self.parameterAsString(parameters, self.DEFAULT_TREE_SPECIES_FIELD, context))
         field_p100 = str(self.parameterAsString(parameters, self.FIELD_P100, context))
+        field_p410 = str(self.parameterAsString(parameters, self.FIELD_P410, context))
+
         field_p120 = str(self.parameterAsString(parameters, self.FIELD_P120, context))
         field_p140 = str(self.parameterAsString(parameters, self.FIELD_P140, context))
         field_p160 = str(self.parameterAsString(parameters, self.FIELD_P160, context))
         field_p390 = str(self.parameterAsString(parameters, self.FIELD_P390, context))
-        field_p410 = str(self.parameterAsString(parameters, self.FIELD_P410, context))
         field_p420 = str(self.parameterAsString(parameters, self.FIELD_P420, context))
         field_p430 = str(self.parameterAsString(parameters, self.FIELD_P430, context))
         field_p440 = str(self.parameterAsString(parameters, self.FIELD_P440, context))
         field_p800 = str(self.parameterAsString(parameters, self.FIELD_P800, context))
+
+        fields_tree_species = [
+            str(self.parameterAsString(parameters, self.FIELD_P100, context)), # Fichte
+            str(self.parameterAsString(parameters, self.FIELD_P120, context)), # Tanne
+            str(self.parameterAsString(parameters, self.FIELD_P140, context)), # Foehre
+            str(self.parameterAsString(parameters, self.FIELD_P160, context)), # LA
+            str(self.parameterAsString(parameters, self.FIELD_P390, context)), # AN
+            str(self.parameterAsString(parameters, self.FIELD_P410, context)), # Buche
+            str(self.parameterAsString(parameters, self.FIELD_P420, context)), # Eiche
+            str(self.parameterAsString(parameters, self.FIELD_P430, context)), # EA
+            str(self.parameterAsString(parameters, self.FIELD_P440, context)), # Ahorn
+            str(self.parameterAsString(parameters, self.FIELD_P800, context))  # AL
+        ]
+
+        fields_pX_tree_species = {
+            "p100": str(self.parameterAsString(parameters, self.FIELD_P100, context)), # Fichte
+            "p120": str(self.parameterAsString(parameters, self.FIELD_P120, context)), # Tanne
+            "p140": str(self.parameterAsString(parameters, self.FIELD_P140, context)), # Foehre
+            "p160": str(self.parameterAsString(parameters, self.FIELD_P160, context)), # LA
+            "p390": str(self.parameterAsString(parameters, self.FIELD_P390, context)), # AN
+            "p410": str(self.parameterAsString(parameters, self.FIELD_P410, context)), # Buche
+            "p420": str(self.parameterAsString(parameters, self.FIELD_P420, context)), # Eiche
+            "p430": str(self.parameterAsString(parameters, self.FIELD_P430, context)), # EA
+            "p440": str(self.parameterAsString(parameters, self.FIELD_P440, context)), # Ahorn
+            "p800": str(self.parameterAsString(parameters, self.FIELD_P800, context))  # AL
+        }
 
         delete_tmp = self.parameterAsBoolean(parameters, self.DELETE_TMP, context)
         tmp_joined_layer = ""
@@ -306,6 +341,51 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                 field_forest_site_category = "siteCategory_" + field_forest_site_category
 
         # ------- MAIN PROCESSING -------#
+
+        # --- set tree species fields
+        print("Tree Species Fields")
+        feedback.pushInfo("Tree Species Fields")
+
+        # if field is provided, check if field exists, else use NH
+        for pkey, pfield in fields_pX_tree_species.items():
+            # check if provided fields are found, if not set to empty string
+            if pfield != "":
+                if not stands_layer.fields().indexFromName(pfield) == -1:
+                    # case a: field found
+                    print(f"For {pkey} use field: {pfield}")
+                    feedback.pushInfo(f"For {pkey} use field: {pfield}")
+                else:
+                    # case b: field not found
+                    print(f"Provided field \'{pfield}\' for {pkey} not found and won't be used for tree species.")
+                    feedback.pushWarning(f"Provided field \'{pfield}\' for {pkey} not found and won't be used for tree species.")
+
+                    fields_pX_tree_species[pkey] = ""
+            else:
+                if not pkey == "p100" and not pkey == "p410":
+                    # case: no field provided
+                    print(f"No field provided for {pkey} (will be set to 0)")
+                    feedback.pushInfo(f"No field provided for {pkey} (will be set to 0)")
+
+            # check if p100 / p410 are set, assign default fields if not
+            if fields_pX_tree_species[pkey] == "":
+                if pkey == "p100":
+                    # case b1: p100
+                    print(f"Default tree species field will be used for p100: {default_tree_species_field}")
+                    feedback.pushWarning(f"Default tree species field will be used for p100: {default_tree_species_field}")
+                    fields_pX_tree_species[pkey] = default_tree_species_field
+                elif pkey == "p410":
+                    # case b2: p410
+                    print(f"100 - Default tree species field will be used for p410: {default_tree_species_field}")
+                    feedback.pushWarning(f"100 - Default tree species field will be used for p410: {default_tree_species_field}")
+                    fields_pX_tree_species[pkey] = default_tree_species_field
+
+        if stands_layer.fields().indexFromName(default_tree_species_field) == -1:
+            print(f"Provided default tree species field not found: {default_tree_species_field}\n"
+                    "Errors can occur if p100 and p410 have no fields to read from or if NULL values occur in these columns.")
+            feedback.pushWarning(f"Provided default tree species field not found: {default_tree_species_field}\n"
+                    "Errors can occur if p100 and p410 have no fields to read from or if NULL values occur in these columns.")
+
+
         # write stands to XML
         print(f"\nExport to XML file:\n {output_xml}\n")
         feedback.pushInfo(f"\nExport to XML file:\n {output_xml}\n")
@@ -355,84 +435,86 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                     xml_file.write('\t<ddom>' + str(0) + '</ddom>\n')
                     xml_file.write('\t<age>' + str(0) + '</age>\n')
 
-                    # TREE SPECIES: if field is provided, take field, else use NH
-                    if field_p100 == "":
-                        p100 = f["NH"]
-                    else:
-                        p100 = f[(field_p100)]
+                    # TREE SPECIES: init with 0
+                    pX_tree_species_values = {
+                        "p100": 0,  # Fichte
+                        "p120": 0,  # Tanne
+                        "p140": 0,  # Foehre
+                        "p160": 0,  # LA
+                        "p390": 0,  # AN
+                        "p410": 0,  # Buche
+                        "p420": 0, # Eiche
+                        "p430": 0,  # EA
+                        "p440": 0,  # Ahorn
+                        "p800": 0  # AL
+                    }
 
-                    if field_p120 == "":
-                        p120 = 0
-                    else:
-                        p120 = f[(field_p120)]
+                    # init null values flag (used to display one message if any p-Fields other than p100/p410 contain NULL values)
+                    tree_species_null_flag = False
+                    for pkey, pvalue in pX_tree_species_values.items():
+                        # attempt to read value, if not valid set to default (0 or NH/100 - NH)
+                        if not fields_pX_tree_species[pkey] == "":
+                            if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
+                                pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
+                            else:
+                                if pkey == "p100":
+                                    if not f[default_tree_species_field] == qgis.core.NULL:
+                                        # print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using {default_tree_species_field}")
+                                        pX_tree_species_values[pkey] = f[default_tree_species_field]
+                                    else:
+                                        print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. " 
+                                              f"Default (\'{default_tree_species_field}\') is also NULL, using p100 = 100")
+                                        pX_tree_species_values[pkey] = 100
+                                elif pkey == "p410":
+                                    if not f[default_tree_species_field] == qgis.core.NULL:
+                                        # print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using 100 - {default_tree_species_field}")
+                                        pX_tree_species_values[pkey] = 100 - f[default_tree_species_field]
+                                    else:
+                                        print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. " 
+                                              f"Default (\'{default_tree_species_field}\') is also NULL, using p410 = 0")
+                                        pX_tree_species_values[pkey] =                                          0
+                                else:
+                                    tree_species_null_flag = True
 
-                    if field_p140 == "":
-                        p140 = 0
-                    else:
-                        p140 = f[(field_p140)]
-
-                    if field_p160 == "":
-                        p160 = 0
-                    else:
-                        p160 = f[(field_p160)]
-
-                    if field_p390 == "":
-                        p390 = 0
-                    else:
-                        p390 = f[(field_p390)]
-
-                    if field_p410 == "":
-                        p410 = 100 - f["NH"]
-                    else:
-                        p410 = f[(field_p410)]
-
-                    if field_p420 == "":
-                        p420 = 0
-                    else:
-                        p420 = f[(field_p420)]
-
-                    if field_p430 == "":
-                        p430 = 0
-                    else:
-                        p430 = f[(field_p430)]
-
-                    if field_p440 == "":
-                        p440 = 0
-                    else:
-                        p440 = f[(field_p440)]
-
-                    if field_p800 == "":
-                        p800 = 0
-                    else:
-                        p800 = f[(field_p800)]
+                    # if tree_species_null_flag:
+                    #     feedback.pushWarning(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
+                    #     print(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
 
                     # check whether tree species proportions add up to 100, otherwise scale up:
-                    #TODO come up with solution (e.g. scale/normalize values to 100)
-                    sum_tree_species = p100 + p120 + p140 + p160 + p390 + p410 + p420 + p430 + p440 + p800
+                    # TODO come up with solution (e.g. scale/normalize values to 100)
+                    sum_tree_species = sum(pX_tree_species_values.values())
                     if not (sum_tree_species == 100):
-                        feedback.pushWarning(
-                            ' > stand ' + str(f["ID"]) + f': tree species proportions add up to {sum_tree_species}%')
-                        print(' > stand ' + str(f["ID"]) + f': tree species proportions add up to {sum_tree_species}%')
+                        feedback.pushWarning(' > stand ' + str(f["ID"]) + f': tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}')
+                        print(' > stand ' + str(f["ID"]) + f': tree species proportions {pX_tree_species_values.values()} add up to {sum_tree_species}%')
+
+                        if sum_tree_species == 0:
+                            feedback.pushWarning(" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
+                            print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
+                        else:
+                            # multiply all values by factor
+                            pX_tree_species_values.update((pkey, round(pX_tree_species_values[pkey] * (100/sum_tree_species))) for pkey in pX_tree_species_values)
+                            feedback.pushWarning(f" >\t: updated by factor x{100/sum_tree_species}: {pX_tree_species_values.values()}")
+                            print(f" >\t\t updated by factor x{100/sum_tree_species}: {pX_tree_species_values.values()}")
+
+                            # make sure it is now 100 by subtraction / addition
+                            sum_tree_species = sum(pX_tree_species_values.values())
+                            if not (sum_tree_species == 100):
+                                for pkey, pvalue in pX_tree_species_values.items():
+                                    if pvalue > 0:
+                                        print(f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
+                                        pX_tree_species_values[pkey] = pX_tree_species_values[pkey] - (sum_tree_species - 100)
+                                        break
 
                     # write tree species proportions to XML
-                    xml_file.write('\t<p100>' + str(p100) + '</p100>\n')
-                    xml_file.write('\t<p120>' + str(p120) + '</p120>\n')
-                    xml_file.write('\t<p140>' + str(p140) + '</p140>\n')
-                    xml_file.write('\t<p160>' + str(p160) + '</p160>\n')
-                    xml_file.write('\t<p390>' + str(p390) + '</p390>\n')
-                    xml_file.write('\t<p410>' + str(p410) + '</p410>\n')
-                    xml_file.write('\t<p420>' + str(p420) + '</p420>\n')
-                    xml_file.write('\t<p430>' + str(p430) + '</p430>\n')
-                    xml_file.write('\t<p440>' + str(p440) + '</p440>\n')
-                    xml_file.write('\t<p800>' + str(p800) + '</p800>\n')
-
+                    for pkey, pvalue in pX_tree_species_values.items():
+                        xml_file.write('\t<' + pkey + '>' + str(pvalue) + '</' + pkey + '>\n')
 
                     # SITE CATEGORY: use default if no field is provided
                     if field_forest_site_category == "":
                         xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                     else:
                         # replace NULL / 0 values with Default value
-                        if not f[(field_forest_site_category)]:
+                        if f[(field_forest_site_category)] == qgis.core.NULL or f[(field_forest_site_category)] == "" or f[(field_forest_site_category)] == 0:
                             xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                         else:
                             xml_file.write(
