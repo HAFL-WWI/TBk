@@ -488,7 +488,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         print(' > stand ' + str(f["ID"]) + f': tree species proportions {pX_tree_species_values.values()} add up to {sum_tree_species}%')
 
                         if sum_tree_species == 0:
-                            feedback.pushWarning(" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
+                            feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
                             print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
                         else:
                             # multiply all values by factor
@@ -501,6 +501,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                             if not (sum_tree_species == 100):
                                 for pkey, pvalue in pX_tree_species_values.items():
                                     if pvalue > 0:
+                                        feedback.pushWarning(f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
                                         print(f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
                                         pX_tree_species_values[pkey] = pX_tree_species_values[pkey] - (sum_tree_species - 100)
                                         break
