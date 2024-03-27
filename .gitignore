@@ -19,6 +19,7 @@ data/tbk_qgis_data.qgz
 #_________________________________#
 # ignore pycaches
 **/__pycache__/*
+*.py.debug
 
 # ignore .Rhistory files
 **/.Rhistory
