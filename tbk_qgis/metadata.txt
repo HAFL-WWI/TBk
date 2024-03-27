@@ -3,11 +3,11 @@
 # This file should be included when you package your plugin.# Mandatory items:
 
 [general]
-name=Toolkit Bestandeskarte for QGIS 3.28
+name=Toolkit Bestandeskarte for QGIS 3.34
 # name=Toolkit Bestandeskarte [TBk]
 qgisMinimumVersion=3.10
 description=Toolkit for the generation of forest stand maps
-version=0.2
+version=0.3
 author=Berner Fachhochschule HAFL
 email=hannes.horneber@bfh.ch
 

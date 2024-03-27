@@ -35,19 +35,19 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     eArea = "{0}".format("to_int(area($geometry))")
 
     # File names
-    shape_in = "stand_boundaries.shp"
-    tmp_stands_buf = "tmp_stand_boundaries_buf0.shp"
-    shape_out = "stands_simplified.shp"
-    tmp_reduced = "tmp_reduced.shp"
-    tmp_smoothed = "tmp_smoothed.shp"
-    tmp_smoothed_error = "tmp_smoothed_error.shp"
-    tmp_simplified = "tmp_simplified.shp"
-    tmp_simplified_error = "tmp_simplified_error.shp"
+    shape_in = "stand_boundaries.gpkg"
+    tmp_stands_buf = "tmp_stand_boundaries_buf0.gpkg"
+    shape_out = "stands_simplified.gpkg"
+    tmp_reduced = "tmp_reduced.gpkg"
+    tmp_smoothed = "tmp_smoothed.gpkg"
+    tmp_smoothed_error = "tmp_smoothed_error.gpkg"
+    tmp_simplified = "tmp_simplified.gpkg"
+    tmp_simplified_error = "tmp_simplified_error.gpkg"
     tempLayer = "tmp"
     neighbors_out = "neighbors"
 
     highest_raster_in = "hmax.tif"
-    highest_point_out = "stands_highest_tree_tmp.shp"
+    highest_point_out = "stands_highest_tree_tmp.gpkg"
 
     ########################################
     # Vectorize highest trees
@@ -90,8 +90,8 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
     ctc = QgsProject.instance().transformContext()
     QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
-                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
-    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"ESRI Shapefile")
+                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"GPKG")
 
     ########################################
     # Simplify
@@ -144,7 +144,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     del tmp_simplified_layer
 
     QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_simplified_path, ctc,
-                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
+                                              getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # Redo elimination of small polygons
@@ -165,7 +165,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
-                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
+                                              getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # Recalculate area
@@ -175,7 +175,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     algoOutput = processing.run("qgis:fieldcalculator", param)
 
     del tmp_simplified_layer
-    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('GPKG','utf-8'))
 
     ########################################
     # Calculate hmax and hdom for remainders
@@ -225,7 +225,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
     shape_out_path = os.path.join(workspace, shape_out)
     QgsVectorFileWriter.writeAsVectorFormatV3(mLayer, shape_out_path, ctc,
-                                              getVectorSaveOptions('ESRI Shapefile', 'utf-8'))
+                                              getVectorSaveOptions('GPKG', 'utf-8'))
 
     # print("write neighbors TXT...")
     # # arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")

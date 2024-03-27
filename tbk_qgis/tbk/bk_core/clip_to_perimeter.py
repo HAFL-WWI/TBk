@@ -22,21 +22,22 @@ def clip_to_perimeter(tbk_path, perimeter, del_tmp=True):
     print("--------------------------------------------")
     print("START Clip to perimeter...")
 
-    stands_merged_path = os.path.join(tbk_path,"stands_merged.shp")
-    stands_clip_path = os.path.join(tbk_path,"stands_clip_tmp.shp")
+    stands_merged_path = os.path.join(tbk_path,"stands_merged.gpkg")
+    stands_clip_path = os.path.join(tbk_path,"stands_clip_tmp.gpkg")
 
     # Clip to forest mask
     param = {'INPUT':stands_merged_path,'OVERLAY':perimeter,'OUTPUT':stands_clip_path}
     processing.run("native:clip", param)
 
     #Clip highest trees
-    highest_point_path = os.path.join(tbk_path,"stands_highest_tree_tmp.shp")
-    highest_point_clip_path = os.path.join(tbk_path,"stands_highest_tree.shp")
+    highest_point_path = os.path.join(tbk_path,"stands_highest_tree_tmp.gpkg")
+    highest_point_clip_path = os.path.join(tbk_path,"stands_highest_tree.gpkg")
     param = {'INPUT':highest_point_path,'OVERLAY':perimeter,'OUTPUT':highest_point_clip_path}
     processing.run("native:clip", param)
 
     if del_tmp:
         delete_shapefile(highest_point_path)
+        delete_geopackage(highest_point_path)
 
 def clip_vhm_to_perimeter(tbk_path, vhm_input, perimeter, vhm_output_name):
     print("--------------------------------------------")
@@ -74,12 +75,12 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     perimeter_shape = perimeter
 
     # File names
-    in_shape_path = os.path.join(tbk_path,"stands_clip_tmp.shp")
-    output_shape_path = os.path.join(tbk_path,"stands_clipped.shp")
-    gaps_tmp_path = os.path.join(tbk_path,"gaps_tmp.shp")
-    gaps_single_tmp_path = os.path.join(tbk_path,"gaps_single_tmp.shp")
-    union_tmp_path = os.path.join(tbk_path,"stands_gaps_union_tmp.shp")
-    union_tmp_buf_path = os.path.join(tbk_path,"stands_gaps_union_tmp_buf0.shp")
+    in_shape_path = os.path.join(tbk_path,"stands_clip_tmp.gpkg")
+    output_shape_path = os.path.join(tbk_path,"stands_clipped.gpkg")
+    gaps_tmp_path = os.path.join(tbk_path,"gaps_tmp.gpkg")
+    gaps_single_tmp_path = os.path.join(tbk_path,"gaps_single_tmp.gpkg")
+    union_tmp_path = os.path.join(tbk_path,"stands_gaps_union_tmp.gpkg")
+    union_tmp_buf_path = os.path.join(tbk_path,"stands_gaps_union_tmp_buf0.gpkg")
 
     ########################################
     # Find gaps
@@ -117,7 +118,7 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],output_shape_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],output_shape_path,ctc,getVectorSaveOptions('GPKG','utf-8'))
 
     ########################################
     # Delete gaps not possible to eliminate

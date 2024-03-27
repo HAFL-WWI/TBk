@@ -31,8 +31,8 @@ class ClassificationHelper:
         dataList = list()
         for y in range(rows):
             for x in range(cols):
-                if (data[y,x] > 0):
-                    dataList.append([data[y,x],y,x])
+                if (data[y, x] > 0):
+                    dataList.append([data[y, x], y, x])
         dataList.sort(reverse=True)
         return dataList[:count]
 
@@ -67,7 +67,7 @@ class ClassificationHelper:
         srs = osr.SpatialReference(wkt=prj)
 
         # Create shapefile and layer
-        drv = ogr.GetDriverByName("ESRI Shapefile")
+        drv = ogr.GetDriverByName("GPKG")
         dst_ds = drv.CreateDataSource(output_file)
         dst_layer = dst_ds.CreateLayer("Polygonized", srs)
 
@@ -80,17 +80,16 @@ class ClassificationHelper:
         mask_band = band
 
         # polygonize raster data to shape layer
-        #gdal.Polygonize(band, mask_band, dst_layer, dst_field, callback=gdal.TermProgress)
+        # gdal.Polygonize(band, mask_band, dst_layer, dst_field, callback=gdal.TermProgress)
         gdal.Polygonize(band, mask_band, dst_layer, dst_field, callback=None)
-        print("File %s saved" %output_file)
+        print("File %s saved" % output_file)
 
     ################################################
     # Add stand attributes to polygon shapefile
     @staticmethod
-    def add_stand_attributes(shapefile_path, stand_list, remainder_stand_id):
-        # open stand polygon shapefile
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        dataSource = driver.Open(shapefile_path, 1)
+    def add_stand_attributes(vector_file_path, stand_list, remainder_stand_id):
+        # open stand polygon file
+        dataSource = gdal.OpenEx(vector_file_path, 1)
         layer = dataSource.GetLayer()
 
         # add stand attribute fields
@@ -106,7 +105,7 @@ class ClassificationHelper:
         for feature in layer:
             # get current stand ID
             current_id = feature.GetField("ID")
-            objectid_counter+=1
+            objectid_counter += 1
 
             # set stand attributes
             feature.SetField('OBJECTID', objectid_counter)
@@ -123,30 +122,33 @@ class ClassificationHelper:
             # store information
             layer.SetFeature(feature)
 
-        dataSource.Destroy()
+        dataSource.Close()
 
 
     ################################################
     # Add hmax effective and 80th percentile (zonal stats)
     @staticmethod
-    def add_vhm_stats(shapefile_path, vhm):        
+    def add_vhm_stats(vector_file_path, vhm):
         # get max VHM value and 80 percentile per polygon
-        shapefile_path_stat_path = shapefile_path.replace(".shp","_stat.gpkg")
-        param = {'map':shapefile_path,'raster':vhm,'column_prefix':'rs','method':[2,12],'percentile':80,'output':shapefile_path_stat_path,'GRASS_REGION_PARAMETER':None,'GRASS_REGION_CELLSIZE_PARAMETER':0,'GRASS_SNAP_TOLERANCE_PARAMETER':-1,'GRASS_MIN_AREA_PARAMETER':0.0001,'GRASS_OUTPUT_TYPE_PARAMETER':0,'GRASS_VECTOR_DSCO':'','GRASS_VECTOR_LCO':'','GRASS_VECTOR_EXPORT_NOCAT':False}
+        vectorfile_path_stat_path = vector_file_path.replace(".gpkg", "_stat.gpkg")
+        param = {'map': vector_file_path, 'raster': vhm, 'column_prefix': 'rs', 'method': [2, 12], 'percentile': 80,
+                 'output': vectorfile_path_stat_path, 'GRASS_REGION_PARAMETER': None,
+                 'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1,
+                 'GRASS_MIN_AREA_PARAMETER': 0.0001, 'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '',
+                 'GRASS_VECTOR_LCO': '', 'GRASS_VECTOR_EXPORT_NOCAT': False}
         algoOutput = processing.run("grass7:v.rast.stats", param)
-        
-        statLayer = QgsVectorLayer(shapefile_path_stat_path, 'stats', 'ogr')
+
+        statLayer = QgsVectorLayer(vectorfile_path_stat_path, 'stats', 'ogr')
         stats = {}
         counter = 0
         for feature in statLayer.getFeatures():
-            stats[feature["OBJECTID"]] = {"max": feature["rs_maximum"],"percentile_80": feature["rs_percentile_80"] }
+            stats[feature["OBJECTID"]] = {"max": feature["rs_maximum"], "percentile_80": feature["rs_percentile_80"]}
             counter += 1
-        
+
         # print(stats)
 
-        # open stand polygon shapefile
-        driver = ogr.GetDriverByName("ESRI Shapefile")
-        dataSource = driver.Open(shapefile_path, 1)
+        # open stand polygon file
+        dataSource = gdal.OpenEx(vector_file_path, 1)
         layer = dataSource.GetLayer()
 
         # add stand attribute fields
@@ -158,11 +160,11 @@ class ClassificationHelper:
         for feature in layer:
             fid = feature.GetField("OBJECTID")
             hmax_eff = 0
-            if stats[fid].get('max') is not None and stats[fid].get('max')!=NULL:
+            if stats[fid].get('max') is not None and stats[fid].get('max') != NULL:
                 hmax_eff = stats[fid].get('max')
-        
+
             hp80 = 0
-            if stats[fid].get('percentile_80') is not None and stats[fid].get('percentile_80')!=NULL:
+            if stats[fid].get('percentile_80') is not None and stats[fid].get('percentile_80') != NULL:
                 hp80 = stats[fid].get('percentile_80')
 
             # set and store hmax_eff
@@ -171,9 +173,8 @@ class ClassificationHelper:
             layer.SetFeature(feature)
             counter += 1
 
-        #delete_geopackage(shapefile_path_stat_path)
-        dataSource.Destroy()
-
+        dataSource.Close()
+        # delete_geopackage(vectorfile_path_stat_path)
 
     ################################################
     # get hmax by stand ID
@@ -213,31 +214,32 @@ class ClassificationHelper:
     @staticmethod
     def sieveFilter(raster_file, output_file):
         print("starting with sieve filter")
-        #Opening the raster file
-        src_ds = gdal.Open(raster_file, GA_ReadOnly )
-        #Getting Band 1
+        # Opening the raster file
+        src_ds = gdal.Open(raster_file, GA_ReadOnly)
+        # Getting Band 1
         srcband = src_ds.GetRasterBand(1)
-        
-        #Getting driver
+
+        # Getting driver
         drv = gdal.GetDriverByName("GTiff")
 
-        #Create file
-        dst_ds = drv.Create( output_file,src_ds.RasterXSize, src_ds.RasterYSize,1,
-                         srcband.DataType )
+        # Create file
+        dst_ds = drv.Create(output_file, src_ds.RasterXSize, src_ds.RasterYSize, 1,
+                            srcband.DataType)
         wkt = src_ds.GetProjection()
         if wkt != '':
-            dst_ds.SetProjection( wkt )
-        dst_ds.SetGeoTransform( src_ds.GetGeoTransform() )
-  
+            dst_ds.SetProjection(wkt)
+        dst_ds.SetGeoTransform(src_ds.GetGeoTransform())
+
         dstband = dst_ds.GetRasterBand(1)
 
         maskband = None
         prog_func = None
-        result = gdal.SieveFilter( srcband, maskband, dstband, 10, 4, callback = prog_func ) #min. 10 cells for a valid polygon
+        result = gdal.SieveFilter(srcband, maskband, dstband, 10, 4,
+                                  callback=prog_func)  # min. 10 cells for a valid polygon
 
-        print("File %s saved" %output_file)
+        print("File %s saved" % output_file)
 
-        #Clean up
+        # Clean up
         srcband = None
         src_ds = None
         dst_ds = None
@@ -295,11 +297,11 @@ class ClassificationHelper:
     @staticmethod
     def get_block(data, r, c, block_size):
         block = []
-        relativeStartPos = int(block_size/2)*-1
+        relativeStartPos = int(block_size / 2) * -1
         for rp in range(block_size):
             for cp in range(block_size):
-                rTmp = r+rp+relativeStartPos
-                cTmp = c+cp+relativeStartPos
+                rTmp = r + rp + relativeStartPos
+                cTmp = c + cp + relativeStartPos
                 # add to block if valid cell (not outside matrix extent)
                 if (rTmp >= 0) and (rTmp < data.shape[0]) and (cTmp >= 0) and (cTmp < data.shape[1]):
                     block.append(data[rTmp][cTmp])
@@ -394,6 +396,5 @@ class ClassificationHelper:
         ds2 = gdal.Open(raster_file_2, GA_ReadOnly)
 
         return (ds1.GetProjection() == ds2.GetProjection()) and \
-               (ds1.GetGeoTransform() == ds2.GetGeoTransform()) and \
-               (ds1.RasterXSize == ds2.RasterXSize) and (ds1.RasterYSize == ds2.RasterYSize)
-
+            (ds1.GetGeoTransform() == ds2.GetGeoTransform()) and \
+            (ds1.RasterXSize == ds2.RasterXSize) and (ds1.RasterYSize == ds2.RasterYSize)

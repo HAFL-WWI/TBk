@@ -29,14 +29,14 @@ def calc_attributes(tbk_path, del_tmp=True):
     tbk_path
 
     # Filenames
-    shape_in = os.path.join(tbk_path, "stands_clipped.shp")
-    shape_out = os.path.join(tbk_path, "TBk_Bestandeskarte.shp")
+    shape_in = os.path.join(tbk_path, "stands_clipped.gpkg")
+    shape_out = os.path.join(tbk_path, "TBk_Bestandeskarte.gpkg")
 
     # Copy shapefile
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")
     
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(in_layer,shape_out,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(in_layer,shape_out,ctc,getVectorSaveOptions('GPKG','utf-8'))
     out_layer = QgsVectorLayer(shape_out, "stands in", "ogr")
 
     with edit(out_layer):

@@ -66,7 +66,7 @@ def run_stand_classification(workingRoot,
     outputRasterFileSmooth2 = 'classified_smooth_2.tif' # output filename, smoothing for all pixels
     outputRasterFileHmax = 'hmax.tif'  # output filename for Hmax (initial tree of each stand)
     outputRasterFileHdom = 'hdom.tif'  # output filename for Hdom (mean height per stand -> before smoothing)
-    outputShapefile = 'stand_boundaries.shp' # shapefile, generated from raster (after polygonize)
+    outputVectorfile = 'stand_boundaries.gpkg' # shapefile, generated from raster (after polygonize)
     logfile = 'tbk_log.log' # name of the logfile (config params)
 
     # # Add the trailing slash if it's not already there.
@@ -89,7 +89,7 @@ def run_stand_classification(workingRoot,
     outputRawFilePath = os.path.join(out_path, outputRasterFileRaw)
     outputSmooth1FilePath = os.path.join(out_path, outputRasterFileSmooth1)
     outputSmooth2FilePath = os.path.join(out_path, outputRasterFileSmooth2)
-    outputShapefilePath = os.path.join(out_path, outputShapefile)
+    outputVectorFilePath = os.path.join(out_path, outputVectorfile)
     outputHmaxPath = os.path.join(out_path, outputRasterFileHmax)
     outputHdomPath = os.path.join(out_path, outputRasterFileHdom)
 
@@ -209,17 +209,17 @@ def run_stand_classification(workingRoot,
 
     #------- POLYGONIZE, ADD ATTRIBUTES -------#
 
-    # polygonize the raster -> to ESRI Shapefile
-    CH.polygonize(outputSmooth2FilePath, outputShapefilePath)
-    print("--- %s minutes, shapefile saved ---" % round((time.time() - start_time)/60, 2))
+    # polygonize the raster -> to vector file
+    CH.polygonize(outputSmooth2FilePath, outputVectorFilePath)
+    print("--- %s minutes, vector file saved ---" % round((time.time() - start_time)/60, 2))
 
-    # add stand information to polygon shapefile
-    CH.add_stand_attributes(outputShapefilePath, standList, standNbr)
+    # add stand information to polygon vector file
+    CH.add_stand_attributes(outputVectorFilePath, standList, standNbr)
     print("--- %s minutes, stand attributes added ---" % round((time.time() - start_time)/60, 2))
 
     # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
     print("stats input file path", inputFilePath)
-    CH.add_vhm_stats(outputShapefilePath, inputFilePath)
+    CH.add_vhm_stats(outputVectorFilePath, inputFilePath)
     print("--- %s minutes, vhm stats calculated ---" % round((time.time() - start_time)/60, 2))
 
     # DONE

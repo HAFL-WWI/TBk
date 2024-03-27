@@ -456,11 +456,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                  min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
                                  vhm_min_height, vhm_max_height)
 
-        # --- Simplify & Eliminate
+        #--- Simplify & Eliminate
         log.info('Simplify & Eliminate')
         post_process(tbk_result_dir, min_area_m2, simplification_tolerance=simplification_tolerance, del_tmp=del_tmp)
 
-        # --- Merge similar neighbours
+        #--- Merge similar neighbours
         log.info('Merge similar neighbours')
         merge_similar_neighbours(tbk_result_dir, similar_neighbours_min_area, similar_neighbours_hdom_diff_rel,
                                  del_tmp=del_tmp)
@@ -488,7 +488,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         #--- Clean up unneeded fields
         if del_tmp:
             del_fields = ["FID_orig","OBJECTID"]
-            result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.shp")
+            result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.gpkg")
             delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
 
         #TODO:

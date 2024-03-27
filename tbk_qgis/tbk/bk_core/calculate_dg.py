@@ -47,7 +47,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     # arcpy.env.parallelProcessingFactor = "50%"
 
     # TBk shapefile
-    stands_shapefile = os.path.join(tbk_path, "stands_clipped.shp")
+    stands_shapefile = os.path.join(tbk_path, "stands_clipped.gpkg")
 
     # Create dg layer output directory
     dg_layers_dir = os.path.join(tbk_path, "dg_layers")
@@ -111,8 +111,6 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
             stands_layer.updateFeature(f)
 
 
-
-
     field_file_pairs = [
         ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
         ['dg_os_', 'dg_os_min', tmp_lim_os, tmp_lim_ueb, dg_os_classified, '((A>B) & (A<=C))*1'],
@@ -142,7 +140,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
                 'INPUT_B': dg_ueb_classified,
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
-                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1', 'EXTRA': '',
                 'OUTPUT': dg_layer_file})
         else:
             # create an empty DG layer based on vhm extents for each layer
@@ -202,7 +200,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
             f["DG_us"] = round(f["dg_us_mean"] * 100) if f["dg_us_mean"] != core.NULL else f["dg_us_mean"]
             f["DG_ms"] = round(f["dg_ms_mean"] * 100) if f["dg_ms_mean"] != core.NULL else f["dg_ms_mean"]
             f["DG_os"] = round(f["dg_os_mean"] * 100) if f["dg_os_mean"] != core.NULL else f["dg_os_mean"]
-            f["DG_ueb"] = round(f["dg_ueb_mea"] * 100) if f["dg_ueb_mea"] != core.NULL else f["dg_ueb_mea"]
+            f["DG_ueb"] = round(f["dg_ueb_mean"] * 100) if f["dg_ueb_mean"] != core.NULL else f["dg_ueb_mean"]
             f["DG"] = round(f["dg_mean"] * 100) if f["dg_mean"] != core.NULL else f["dg_mean"]
 
             stands_layer.updateFeature(f)

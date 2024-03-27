@@ -33,7 +33,7 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
         print("No coniferous raster found.")
         return
     nh_raster = coniferous_raster
-    stands_shapefile = os.path.join(tbk_path,"stands_clipped.shp")
+    stands_shapefile = os.path.join(tbk_path,"stands_clipped.gpkg")
 
     print("calc mean coniferous proportion...")
 

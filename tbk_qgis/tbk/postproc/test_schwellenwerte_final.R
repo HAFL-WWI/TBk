@@ -166,6 +166,6 @@ names(statstable) <- c("area.d", "dg.dense", "area.sp", "dg.sparse", "dg.other",
 
 # export as shapefile
 stands@data <- cbind(stands@data, statstable)
-writeOGR(stands, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("stands_",name,"_new",sep=""),driver="ESRI Shapefile", overwrite_layer=T)
-writeOGR(poly_dense, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("dense_",name,sep=""),driver="ESRI Shapefile", overwrite_layer=T)
-writeOGR(poly_sparse, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("sparse_",name,sep=""),driver="ESRI Shapefile", overwrite_layer=T)
+writeOGR(stands, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("stands_",name,"_new",sep=""),driver="GPKG", overwrite_layer=T)
+writeOGR(poly_dense, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("dense_",name,sep=""),driver="GPKG", overwrite_layer=T)
+writeOGR(poly_sparse, "C:/Temp/BGB_TBk/clumpy_results",layer=paste("sparse_",name,sep=""),driver="GPKG", overwrite_layer=T)

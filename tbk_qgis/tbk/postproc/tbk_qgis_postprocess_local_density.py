@@ -380,7 +380,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         #output results
         shape_out = os.path.join(output_folder,"stands_{0}_new.shp".format(name))
         ctc = QgsProject.instance().transformContext()
-        QgsVectorFileWriter.writeAsVectorFormatV2(stands,shape_out,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+        QgsVectorFileWriter.writeAsVectorFormatV2(stands,shape_out,ctc,getVectorSaveOptions('GPKG','utf-8'))
         out_layer = QgsVectorLayer(shape_out, "stands in", "ogr")
 
         with edit(out_layer):
@@ -445,7 +445,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             mem_layer.commitChanges()
     
         ctc = QgsProject.instance().transformContext()
-        QgsVectorFileWriter.writeAsVectorFormatV2(mem_layer,out_path,ctc,getVectorSaveOptions('ESRI Shapefile','utf-8'))
+        QgsVectorFileWriter.writeAsVectorFormatV2(mem_layer,out_path,ctc,getVectorSaveOptions('GPKG','utf-8'))
         del mem_layer
         
     #Works, provided that the raster uner the specified path is already properly written to disk -> gdal gotcha! 
@@ -504,7 +504,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         srs.ImportFromWkt(raster.GetProjection())
         srcband = raster.GetRasterBand(1)
 
-        drv = ogr.GetDriverByName("ESRI Shapefile")
+        drv = ogr.GetDriverByName("GPKG")
         dst_ds = drv.CreateDataSource(tmp_shape)
         dst_layer = dst_ds.CreateLayer("poly" , srs = srs, geom_type=ogr.wkbMultiPolygon)
         newField = ogr.FieldDefn('DN', ogr.OFTReal)

@@ -29,8 +29,8 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     scratchWorkspace = tbk_path
 
     # files
-    shape_in_path = os.path.join(tbk_path,"stands_simplified.shp") 
-    shape_out_path = os.path.join(tbk_path,"stands_merged.shp") 
+    shape_in_path = os.path.join(tbk_path,"stands_simplified.gpkg")
+    shape_out_path = os.path.join(tbk_path,"stands_merged.gpkg")
 
     ######################################################################
     # TBk post-process. Prepare polygons to dissolve by specific criterias.
@@ -41,7 +41,7 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     # load TBk shapefile
     simplified_layer = QgsVectorLayer(shape_in_path, "stand_boundaries_simplified", "ogr")
 
-    dissolve_layer_path = os.path.join(tbk_path,"stands_final_dissolve_field.shp")
+    dissolve_layer_path = os.path.join(tbk_path, "stands_final_dissolve_field.gpkg")
     simplified_layer.selectAll()
 
     param = {'INPUT': simplified_layer,'OUTPUT': dissolve_layer_path}
@@ -99,7 +99,7 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     print(len(dissolve_FID), "polygons to dissolve!")
 
     # metainfo: shapefile with polygons to dissolve
-    dissolve_polygon_path = os.path.join(tbk_path,"polygons_to_dissolve.shp")
+    dissolve_polygon_path = os.path.join(tbk_path,"polygons_to_dissolve.gpkg")
     param = {'INPUT': dissolve_layer,'OUTPUT': dissolve_polygon_path}
     algoOutput = processing.run("native:saveselectedfeatures", param)
 
