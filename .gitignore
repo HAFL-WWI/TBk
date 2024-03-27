@@ -24,6 +24,8 @@ data/tbk_qgis_data.qgz
 # ignore .Rhistory files
 **/.Rhistory
 
+# ignore link files (they usually contain absolute paths)
+*.lnk
 
 #_________________________________#
 #-----         Stubs         -----#
