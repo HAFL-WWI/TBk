@@ -457,7 +457,7 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
             'BAND_A': 1, 'INPUT_B': None, 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None,
             'BAND_D': None, 'INPUT_E': None, 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None,
             'FORMULA': 'A/' + str(mg_rescale_factor),
-            'NO_DATA': None, 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1',
+            'NO_DATA': None, 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
             'EXTRA': '',
             'OUTPUT': mg_10m}
             processing.run("gdal:rastercalculator", param)

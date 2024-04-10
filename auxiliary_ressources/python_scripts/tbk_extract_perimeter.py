@@ -159,7 +159,7 @@ for i, ds in enumerate(tbk_raster_datasets):
             'MASK': temp_extraction_perimeter_raster,
             'MULTITHREADING': True,
             'NODATA': None,
-            'OPTIONS':'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1',
+            'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
             'SET_RESOLUTION': False,
             'SOURCE_CRS': None,
             'TARGET_CRS': None,

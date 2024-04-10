@@ -140,7 +140,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
                 'INPUT_B': dg_ueb_classified,
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
-                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1', 'EXTRA': '',
+                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
                 'OUTPUT': dg_layer_file})
         else:
             # create an empty DG layer based on vhm extents for each layer
@@ -158,7 +158,7 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
                 'INPUT_C': dg_tmp_file_C, 'BAND_C': 1,
                 'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
-                'OPTIONS': 'COMPRESS=ZSTD|PREDICTOR=2|ZLEVEL=1', 'EXTRA': '', 'OUTPUT': dg_layer_file})
+                'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '', 'OUTPUT': dg_layer_file})
 
         # clean up temp files as soon as possible
         if del_tmp:
