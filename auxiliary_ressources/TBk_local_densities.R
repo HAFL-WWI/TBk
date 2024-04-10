@@ -70,8 +70,8 @@ PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
 # PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
 
 # the path to the mg layers to compute NH per area
-# PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
-PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
+PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
+# PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 # PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail.tif")
 
 # the path to the dg layers (relative or absolute)
