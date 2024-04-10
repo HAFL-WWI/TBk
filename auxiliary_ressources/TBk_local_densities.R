@@ -177,6 +177,7 @@ if(CALC_ALL_DG){
 }
 mg = rast(PATH_MG)
 stands_all = st_read(PATH_SHP)
+stands_all$ID_TMP = 1:nrow(stands_all) # unique ID for each geometry
 st_agr(stands_all) = "constant" # avoid later warnings
 
 # store resolution
@@ -187,7 +188,7 @@ res_hs <- set_units(res(hs)[1], "m")
 ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   # raster to polygon
   poly <- st_as_sf(as.polygons(ras_foc == 1, dissolve=TRUE))
-  if(PLOT_INTERMEDIATE) plot(ras_foc, col='red', main=paste0(i, ": (standID:", poly_parent$ID, " class ", class, ")"))
+  if(PLOT_INTERMEDIATE) plot(ras_foc, col='red', main=paste0(i, ": (standID:", poly_parent$ID, "  | ID_TMP:", poly_parent$ID_TMP, " class ", class, ")"))
   if(PLOT_INTERMEDIATE) lines(poly_parent)
   if(PLOT_INTERMEDIATE) lines(poly)
   
@@ -242,6 +243,7 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   poly_final$class <- class
   # poly_final$area <- st_area(poly_final)
   if(!is.null(poly_parent)){
+    poly_final$ID_TMP  <- poly_parent$ID_TMP
     poly_final$standID <- poly_parent$ID
     poly_final$standArea <- st_area(poly_parent) %>% as.numeric() %>% round()
   }
@@ -287,13 +289,13 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
 for (i in 1:nrow(stands)){
   # debug lines to check single stands
   # PLOT_INTERMEDIATE = T # for detailed visual output during processing
-  # for (i in 42:47){
+# for (i in 42:47){
   
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
   # initialize stand stats row with named columns
-  stats <- t(setNames(c(stands[i,]$ID, i), c("stand_ID", "proc_ID")))
+  stats <- t(setNames(c(stands[i,]$ID, stands[i,]$ID_TMP, i), c("stand_ID", "ID_TMP", "proc_ID")))
   
   error_message = NULL # reset
   error_message = tryCatch(expr={
@@ -458,7 +460,7 @@ for (i in 1:nrow(stands)){
       if(PLOT_RESULTS){
         # try - failed plotting shouldn't fail the processing
         try(expr={
-          plot(hs_crop, main=paste0(i, " ", flag_polys_created_stand, ": (standID:", stands[i,]$ID, " | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
+          plot(hs_crop, main=paste0(i, " ", flag_polys_created_stand, ": (standID:", stands[i,]$ID, "  | ID_TMP:", stands[i,]$ID_TMP, "  | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
           lines(stands[i,])
           # lines(stands[i,], col='green')
           if(flag_polys_created_stand){
@@ -476,7 +478,7 @@ for (i in 1:nrow(stands)){
       # no dense/sparse areas because too small
       # create stats row anyways to indicate that stand_ID was processed without finding density zones
       # set proc_ID to negative to indicate no find
-      stats <- t(setNames(c(stands[i,]$ID, -i), c("stand_ID", "proc_ID")))
+      stats <- t(setNames(c(stands[i,]$ID, stands[i,]$ID_TMP, -i), c("stand_ID", "ID_TMP" ,"proc_ID")))
       for(k in 1:nrow(classes_df)) {
         area_class <- area_class_pct <- dg_class <- nh_class <- NA
         stats <- cbind(stats, area_class, area_class_pct, dg_class, nh_class)
@@ -498,7 +500,7 @@ for (i in 1:nrow(stands)){
   # keep list of errors
   if(any(class(error_message) == "error")){
     n_errors = n_errors + 1
-    error_and_message = cbind(i, stands$ID[i], error_message$message)
+    error_and_message = cbind(i, stands$ID_TMP[i], error_message$message)
     ID_errors = rbind(ID_errors, error_and_message)
   }
 }
@@ -522,6 +524,7 @@ if(VERBOSE) print(PATH_OUTPUT)
 dir.create(file.path(PATH_OUTPUT), recursive = TRUE, showWarnings = TRUE)
 
 # write files for polygons
+polys$ID_TMP <- NULL # tmp. ID is not part of output!
 st_write(st_as_sf(polys), append = FALSE, 
          file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
 
@@ -530,7 +533,7 @@ st_write(st_as_sf(polys), append = FALSE,
 # and export to file
 
 # add names to table
-col_names <- t(c("stand_ID", "local_densities_proc_ID"))
+col_names <- t(c("stand_ID", "ID_TMP", "local_densities_proc_ID"))
 for(k in 1:nrow(classes_df)) {
   name_area_class <- paste0("z",classes_df[k,]$class, "_", "area")
   name_area_class_pct <- paste0("z",classes_df[k,]$class, "_", "area_pct") 
@@ -547,7 +550,9 @@ tryCatch(expr={
   if(VERBOSE) print(paste0(nrow(statstable), " of ", nrow(stands_all), " were processed (check proc_ID, others are NA)."))
   
   # connect statstable with existing attributetable/geometry (left outer join)
-  stands_out = merge(x = stands_all, y = statstable, by.x = "ID", by.y = "stand_ID", all.x = TRUE)
+  stands_out = merge(x = stands_all, y = statstable, by = "ID_TMP", all.x = TRUE)
+  stands_out$ID_TMP <- NULL # tmp. ID is not part of output!
+  stands_out$stand_ID <- NULL # same goes to stand_ID (identical with ID)!
   
   if(!OVERWRITE_ORIGINAL_TBK){
     if(VERBOSE) print(paste0("write input geometries with appendes attributes to folder: ", PATH_OUTPUT))
