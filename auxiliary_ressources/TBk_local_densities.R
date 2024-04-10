@@ -400,15 +400,15 @@ for (i in 1:nrow(stands)){
               #### >> add attributes to zones ####
               # add DG attribute
               new_polys$area_pct = round(new_polys$area / new_polys$standArea, 2)
-              new_polys$DG = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean"),2)*100
+              new_polys$DG = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean", progress = F),2)*100
               new_polys$DG_stand = stands[i,]$DG
               
               if(CALC_ALL_DG){
-                new_polys$DG_ks = round(exactextractr::exact_extract(dg_ks,new_polys, fun ="mean"),2)*100
-                new_polys$DG_us = round(exactextractr::exact_extract(dg_us,new_polys, fun ="mean"),2)*100
-                new_polys$DG_ms = round(exactextractr::exact_extract(dg_ms,new_polys, fun ="mean"),2)*100
-                new_polys$DG_os = round(exactextractr::exact_extract(dg_os,new_polys, fun ="mean"),2)*100
-                new_polys$DG_ueb = round(exactextractr::exact_extract(dg_ueb,new_polys, fun ="mean"),2)*100
+                new_polys$DG_ks = round(exactextractr::exact_extract(dg_ks,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_us = round(exactextractr::exact_extract(dg_us,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_ms = round(exactextractr::exact_extract(dg_ms,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_os = round(exactextractr::exact_extract(dg_os,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_ueb = round(exactextractr::exact_extract(dg_ueb,new_polys, fun ="mean", progress = F),2)*100
 
                 new_polys$DG_ks_stand = stands[i,]$DG_ks
                 new_polys$DG_us_stand = stands[i,]$DG_us
@@ -416,7 +416,7 @@ for (i in 1:nrow(stands)){
                 new_polys$DG_os_stand = stands[i,]$DG_os
                 new_polys$DG_ueb_stand = stands[i,]$DG_ueb
               }
-              new_polys$NH = round(exactextractr::exact_extract(mg,new_polys, fun ="mean"),0)
+              new_polys$NH = round(exactextractr::exact_extract(mg,new_polys, fun ="mean", progress = F),0)
               new_polys$NH_stand = stands[i,]$NH
               new_polys$hdom = stands[i,]$hdom
               
