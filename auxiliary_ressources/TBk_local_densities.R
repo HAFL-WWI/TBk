@@ -177,6 +177,7 @@ if(CALC_ALL_DG){
 }
 mg = rast(PATH_MG)
 stands_all = st_read(PATH_SHP)
+st_agr(stands_all) = "constant" # avoid later warnings
 
 # store resolution
 res_hs <- set_units(res(hs)[1], "m")
@@ -226,6 +227,7 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   if(CLIP_TO_STAND_BOUNDARIES) {
     # clip to stand boundaries
     # poly_final <- raster::intersect(poly_final, poly_parent)
+    st_agr(poly_final) <- "constant" # avoid warnings
     poly_final <- st_intersection(poly_final, poly_parent)
     
     if(is.null(poly_final) || !(nrow(poly_final) > 0)) return(NULL)
@@ -386,8 +388,8 @@ for (i in 1:nrow(stands)){
             # split multipolygon into single polygons and compute area
             
             # it can happen that the resulting geometry contains not only polygons but linestrings/points (probably result of intersect)
-            new_polys <- st_collection_extract(multipolygon, type = "POLYGON")
-            new_polys <- st_cast(new_polys, "POLYGON")
+            new_polys <- suppressWarnings(st_collection_extract(multipolygon, type = "POLYGON")) # avoid warning if all geometries are polygons
+            new_polys <- st_cast(new_polys, "POLYGON", warn = FALSE) # avaoid warning
             new_polys$area <- st_area(new_polys)
             
             # filter by size
