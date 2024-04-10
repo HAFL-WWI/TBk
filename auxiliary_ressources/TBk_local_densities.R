@@ -88,7 +88,7 @@ PATH_DG_UEB = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ueb.tif")
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output, e.g. "_new"
-NAME_SUFFIX = "_v8"
+NAME_SUFFIX = "_v9"
 
 # check paths
 ls(pattern = "^PATH_") %>%
