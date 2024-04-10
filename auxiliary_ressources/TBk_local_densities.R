@@ -90,6 +90,12 @@ PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output, e.g. "_new"
 NAME_SUFFIX = "_v8"
 
+# check paths
+ls(pattern = "^PATH_") %>%
+  sapply(get) %>%
+  sapply(file.exists) %>%
+  data.frame(exists = .)
+
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
 #-------------------------------#
