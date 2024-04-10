@@ -134,26 +134,23 @@ min_size_stand = min_size_clump
 # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)
 CALC_ALL_DG = TRUE
 
-# Create empty data frame
-classes_df <- data.frame(class = numeric(),
-                         dg_max = numeric(),    
-                         dg_min = numeric(),
-                         large_window = numeric(),
-                         color = character(),
-                         stringsAsFactors = FALSE)
-
-# List of classes that are generated
-# each row represents one class
-# config contains class ID, dg_max, dg_min of class, 
-# boolean (0/1) whether to use a large moving window
-# and a color to plot the class here in R
-classes_df[nrow(classes_df)+1, ] <- list(1,   1, 0.85, 0, 'red')
-classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
-classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
-classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
-classes_df[nrow(classes_df)+1, ] <- list(5,0.25, 0   , 0, 'blue')
-
-classes_df[nrow(classes_df)+1, ] <- list(12,   1, 0.60, 1, 'orangered')
+# Table of classes that are generated
+# class:        class ID
+# dg_max:       dg_max of class
+# dg_min:       dg_min of class
+# large_window: boolean (0/1) whether to use a large moving window
+# color:        color to plot the class here in R
+classes_df <-
+  tibble::tribble(
+    ~class, ~dg_max, ~dg_min, ~large_window, ~color,
+    1,       1,       0.85,   0,             'red',
+    2,       0.85,    0.6,    1,             'orange',
+    3,       0.6 ,    0.4,    1,             'green',
+    4,       0.4 ,    0.25,   1,             'lightblue',
+    5,       0.25,    0,      0,             'blue',
+    12,      1,       0.60,   1,             'orangered'
+  ) %>%
+  data.frame()
 
 as_units(min_size_stand)
 ####_________________________####
