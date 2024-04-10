@@ -533,14 +533,12 @@ st_write(st_as_sf(polys), append = FALSE,
 # and export to file
 
 # add names to table
-col_names <- t(c("stand_ID", "ID_TMP", "local_densities_proc_ID"))
+col_names <- c("stand_ID", "ID_TMP", "local_densities_proc_ID")
 for(k in 1:nrow(classes_df)) {
-  name_area_class <- paste0("z",classes_df[k,]$class, "_", "area")
-  name_area_class_pct <- paste0("z",classes_df[k,]$class, "_", "area_pct") 
-  name_dg_class <- paste0("z",classes_df[k,]$class, "_", "dg") 
-  name_nh_class <- paste0("z",classes_df[k,]$class, "_", "nh") 
-  col_names <- cbind(col_names, name_area_class, name_area_class_pct, name_dg_class, name_nh_class)
+  names_4_class_k <- paste0("z", classes_df[k,]$class, "_", c("area", "area_pct", "dg", "nh"))
+  col_names <- c(col_names, names_4_class_k)
 }
+# data.frame(old = names(statstable), new = col_names) # check the renaming
 names(statstable) <- col_names
 
 #TODO: Sometimes result attributes have a varying amount of rows and can't be merged to original table
