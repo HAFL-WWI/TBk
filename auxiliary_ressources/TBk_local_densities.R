@@ -423,10 +423,12 @@ for (i in 1:nrow(stands)){
               new_polys$hdom = stands[i,]$hdom
               
               #### >> populate attributes for stands ####
-              area_class = sum(new_polys$area)
-              area_class_pct = area_class / as.numeric(st_area(stands[i,]))
-              dg_class = mean(new_polys$DG_zone)
-              nh_class = mean(new_polys$NH_zone)
+              area_class = round(sum(new_polys$area))
+              area_class_pct = round(sum(new_polys$area) / as.numeric(st_area(stands[i,])), 2)
+              # dg_class = mean(new_polys$DG_zone)
+              dg_class = round(sum(new_polys$DG * new_polys$area) / sum(new_polys$area))
+              # nh_class = mean(new_polys$NH_zone)
+              nh_class = round(sum(new_polys$NH * new_polys$area) / sum(new_polys$area))
               
               # init or bind to sf polys collection
               if(j>1){
