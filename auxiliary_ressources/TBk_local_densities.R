@@ -59,7 +59,8 @@ library(progress)
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231215-0746_10a" # 2024-01-15
 # PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_VS/TBk_2022/20231215-0746_10a" # 2024-01-18
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2019/20220420-0202" # 2024-02-13
-PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
+PATH_TBk_INPUT = "C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/20240410-1818"
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
