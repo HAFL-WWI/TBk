@@ -241,7 +241,7 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   # poly_final$area <- st_area(poly_final)
   if(!is.null(poly_parent)){
     poly_final$standID <- poly_parent$ID
-    poly_final$standArea <- poly_parent$area_m2
+    poly_final$standArea <- st_area(poly_parent) %>% as.numeric() %>% round()
   }
   return(poly_final)
 }
@@ -265,7 +265,7 @@ ID_errors = cbind("i", "stand_ID", "error_message")
 
 # Filter stands that are too small
 if(VERBOSE) print(paste0("Loaded ", nrow(stands_all), " stands."))
-stands = stands_all[set_units(stands_all$area_m2, "m^2") > min_size_stand, ]
+stands = stands_all[st_area(stands_all) >= min_size_stand, ]
 if(VERBOSE) print(paste0("Processing ", nrow(stands), " stands that are larger than ", min_size_stand, " ", units(min_size_stand), "."))
 
 ### ******************** ####
@@ -420,7 +420,7 @@ for (i in 1:nrow(stands)){
               
               #### >> populate attributes for stands ####
               area_class = sum(new_polys$area)
-              area_class_pct = area_class / stands[i,]$area_m2
+              area_class_pct = area_class / as.numeric(st_area(stands[i,]))
               dg_class = mean(new_polys$DG_zone)
               nh_class = mean(new_polys$NH_zone)
               
