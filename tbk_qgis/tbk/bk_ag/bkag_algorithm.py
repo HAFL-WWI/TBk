@@ -260,10 +260,10 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         perimeter_path = os.path.join(wd_path, 'perimeter')
         os.makedirs(perimeter_path, exist_ok=True)
 
-        perimeter_dissolve_path = os.path.join(perimeter_path, 'perimeter_dissolve.gpkg')
-        perimeter_split_path = os.path.join(perimeter_path, 'perimeter_split.gpkg')
-        perimeter_dissolve_roads_path = os.path.join(perimeter_path, 'perimeter_dissolve_roads.gpkg')
-        perimeter_clean_roads_path = os.path.join(perimeter_path, 'perimeter_clean_roads.gpkg')
+        perimeter_dissolve_path = os.path.join(perimeter_path, 'perimeter_dissolve.shp')
+        perimeter_split_path = os.path.join(perimeter_path, 'perimeter_split.shp')
+        perimeter_dissolve_roads_path = os.path.join(perimeter_path, 'perimeter_dissolve_roads.shp')
+        perimeter_clean_roads_path = os.path.join(perimeter_path, 'perimeter_clean_roads.shp')
 
         vhm_clipped_path = os.path.join(wd_path, 'vhm_tiles')
         os.makedirs(vhm_clipped_path, exist_ok=True)

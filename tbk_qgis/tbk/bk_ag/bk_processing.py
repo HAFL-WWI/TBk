@@ -45,9 +45,9 @@ def get_es(feature_dict):
 
 
 def save_feature_dict (feature_dict, shapefile, shp_out_path):
-    '''Takes a shapefile and its (adapted) feature dictionary. Saves the feature dictionary as a geopackage.'''
+    '''Takes a shapefile and its (adapted) feature dictionary. Saves the feature dictionary as a shapefile.'''
     save_options = QgsVectorFileWriter.SaveVectorOptions()
-    save_options.driverName = "GPKG"
+    save_options.driverName = "ESRI Shapefile"
     save_options.fileEncoding = "UTF-8"
 
     writer = QgsVectorFileWriter.create(
@@ -73,13 +73,13 @@ def simplify_polygons(perimeter_dissolve, source_prefix, dest_prefix, simplify_t
     '''
     for perimeter in perimeter_dissolve.getFeatures():
         id = perimeter['id']
-        name_shp = source_prefix + str(id) + '.gpkg'
+        name_shp = source_prefix + str(id) + '.shp'
 
         # Load shapefile
         shp_temp = QgsVectorLayer(os.path.join(shape_path, name_shp))
 
         # Output path
-        name_shp = dest_prefix + str(id) + '.gpkg'
+        name_shp = dest_prefix + str(id) + '.shp'
         shp_out_path = os.path.join(shape_path, name_shp)
 
         processing.run("grass7:v.generalize", {'input': shp_temp,'type':[0,1,2],'method':0,'threshold':simplify_threshold,'look_ahead':7,
@@ -98,7 +98,7 @@ def merge_small_polygons(perimeter_dissolve, source_prefix, dest_prefix, min_are
     '''
     for perimeter in perimeter_dissolve.getFeatures():
         id = perimeter['id']
-        name_shp = source_prefix + str(id) + '.gpkg'
+        name_shp = source_prefix + str(id) + '.shp'
 
         # Load shapefile
         shp_temp = QgsVectorLayer(os.path.join(shape_path, name_shp))
@@ -152,7 +152,7 @@ def merge_small_polygons(perimeter_dissolve, source_prefix, dest_prefix, min_are
             else:
                 finished = True
 
-        name_shp = dest_prefix + str(id) + '.gpkg'
+        name_shp = dest_prefix + str(id) + '.shp'
         shp_out_path = os.path.join(shape_path, name_shp)
         save_feature_dict(feature_dict, shp_temp, shp_out_path)
 
