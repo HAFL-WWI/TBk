@@ -527,6 +527,8 @@ dir.create(file.path(PATH_OUTPUT), recursive = TRUE, showWarnings = TRUE)
 
 # write files for polygons
 polys$ID_TMP <- NULL # tmp. ID is not part of output!
+polys$area <- round(as.numeric(polys$area))  # drop unit & round to m^2
+polys$area_pct <- as.numeric(polys$area_pct) # drop unit 
 st_write(st_as_sf(polys), append = FALSE, 
          file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
 
