@@ -59,7 +59,8 @@ library(progress)
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231215-0746_10a" # 2024-01-15
 # PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_VS/TBk_2022/20231215-0746_10a" # 2024-01-18
 # PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2019/20220420-0202" # 2024-02-13
-PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
+# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
+PATH_TBk_INPUT = "C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/20240410-1818"
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
@@ -69,8 +70,8 @@ PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
 # PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
 
 # the path to the mg layers to compute NH per area
-# PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
-PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
+PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
+# PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
 # PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail.tif")
 
 # the path to the dg layers (relative or absolute)
@@ -87,7 +88,13 @@ PATH_DG_UEB = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ueb.tif")
 # location of the output dataset
 PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
 # optional name suffix for output, e.g. "_new"
-NAME_SUFFIX = "_v8"
+NAME_SUFFIX = "_v9"
+
+# check paths
+ls(pattern = "^PATH_") %>%
+  sapply(get) %>%
+  sapply(file.exists) %>%
+  data.frame(exists = .)
 
 #-------------------------------#
 ####    SETTINGS OPTIONAL    ####
@@ -127,26 +134,23 @@ min_size_stand = min_size_clump
 # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)
 CALC_ALL_DG = TRUE
 
-# Create empty data frame
-classes_df <- data.frame(class = numeric(),
-                         dg_max = numeric(),    
-                         dg_min = numeric(),
-                         large_window = numeric(),
-                         color = character(),
-                         stringsAsFactors = FALSE)
-
-# List of classes that are generated
-# each row represents one class
-# config contains class ID, dg_max, dg_min of class, 
-# boolean (0/1) whether to use a large moving window
-# and a color to plot the class here in R
-classes_df[nrow(classes_df)+1, ] <- list(1,   1, 0.85, 0, 'red')
-classes_df[nrow(classes_df)+1, ] <- list(2,0.85, 0.6 , 1, 'orange')
-classes_df[nrow(classes_df)+1, ] <- list(3,0.6 , 0.4 , 1, 'green')
-classes_df[nrow(classes_df)+1, ] <- list(4,0.4 , 0.25, 1, 'lightblue')
-classes_df[nrow(classes_df)+1, ] <- list(5,0.25, 0   , 0, 'blue')
-
-classes_df[nrow(classes_df)+1, ] <- list(12,   1, 0.60, 1, 'orangered')
+# Table of classes that are generated
+# class:        class ID
+# dg_max:       dg_max of class
+# dg_min:       dg_min of class
+# large_window: boolean (0/1) whether to use a large moving window
+# color:        color to plot the class here in R
+classes_df <-
+  tibble::tribble(
+    ~class, ~dg_max, ~dg_min, ~large_window, ~color,
+    1,       1,       0.85,   0,             'red',
+    2,       0.85,    0.6,    1,             'orange',
+    3,       0.6 ,    0.4,    1,             'green',
+    4,       0.4 ,    0.25,   1,             'lightblue',
+    5,       0.25,    0,      0,             'blue',
+    12,      1,       0.60,   1,             'orangered'
+  ) %>%
+  data.frame()
 
 as_units(min_size_stand)
 ####_________________________####
@@ -173,6 +177,8 @@ if(CALC_ALL_DG){
 }
 mg = rast(PATH_MG)
 stands_all = st_read(PATH_SHP)
+stands_all$ID_TMP = 1:nrow(stands_all) # unique ID for each geometry
+st_agr(stands_all) = "constant" # avoid later warnings
 
 # store resolution
 res_hs <- set_units(res(hs)[1], "m")
@@ -182,7 +188,7 @@ res_hs <- set_units(res(hs)[1], "m")
 ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   # raster to polygon
   poly <- st_as_sf(as.polygons(ras_foc == 1, dissolve=TRUE))
-  if(PLOT_INTERMEDIATE) plot(ras_foc, col='red', main=paste0(i, ": (standID:", poly_parent$ID, " class ", class, ")"))
+  if(PLOT_INTERMEDIATE) plot(ras_foc, col='red', main=paste0(i, ": (standID:", poly_parent$ID, "  | ID_TMP:", poly_parent$ID_TMP, " class ", class, ")"))
   if(PLOT_INTERMEDIATE) lines(poly_parent)
   if(PLOT_INTERMEDIATE) lines(poly)
   
@@ -222,6 +228,7 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   if(CLIP_TO_STAND_BOUNDARIES) {
     # clip to stand boundaries
     # poly_final <- raster::intersect(poly_final, poly_parent)
+    st_agr(poly_final) <- "constant" # avoid warnings
     poly_final <- st_intersection(poly_final, poly_parent)
     
     if(is.null(poly_final) || !(nrow(poly_final) > 0)) return(NULL)
@@ -236,8 +243,9 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
   poly_final$class <- class
   # poly_final$area <- st_area(poly_final)
   if(!is.null(poly_parent)){
+    poly_final$ID_TMP  <- poly_parent$ID_TMP
     poly_final$standID <- poly_parent$ID
-    poly_final$standArea <- poly_parent$area_m2
+    poly_final$standArea <- st_area(poly_parent) %>% as.numeric() %>% round()
   }
   return(poly_final)
 }
@@ -261,7 +269,7 @@ ID_errors = cbind("i", "stand_ID", "error_message")
 
 # Filter stands that are too small
 if(VERBOSE) print(paste0("Loaded ", nrow(stands_all), " stands."))
-stands = stands_all[set_units(stands_all$area_m2, "m^2") > min_size_stand, ]
+stands = stands_all[st_area(stands_all) >= min_size_stand, ]
 if(VERBOSE) print(paste0("Processing ", nrow(stands), " stands that are larger than ", min_size_stand, " ", units(min_size_stand), "."))
 
 ### ******************** ####
@@ -281,13 +289,13 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
 for (i in 1:nrow(stands)){
   # debug lines to check single stands
   # PLOT_INTERMEDIATE = T # for detailed visual output during processing
-  # for (i in 42:47){
+# for (i in 42:47){
   
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
   # initialize stand stats row with named columns
-  stats <- t(setNames(c(stands[i,]$ID, i), c("stand_ID", "proc_ID")))
+  stats <- t(setNames(c(stands[i,]$ID, stands[i,]$ID_TMP, i), c("stand_ID", "ID_TMP", "proc_ID")))
   
   error_message = NULL # reset
   error_message = tryCatch(expr={
@@ -382,8 +390,8 @@ for (i in 1:nrow(stands)){
             # split multipolygon into single polygons and compute area
             
             # it can happen that the resulting geometry contains not only polygons but linestrings/points (probably result of intersect)
-            new_polys <- st_collection_extract(multipolygon, type = "POLYGON")
-            new_polys <- st_cast(new_polys, "POLYGON")
+            new_polys <- suppressWarnings(st_collection_extract(multipolygon, type = "POLYGON")) # avoid warning if all geometries are polygons
+            new_polys <- st_cast(new_polys, "POLYGON", warn = FALSE) # avaoid warning
             new_polys$area <- st_area(new_polys)
             
             # filter by size
@@ -394,15 +402,15 @@ for (i in 1:nrow(stands)){
               #### >> add attributes to zones ####
               # add DG attribute
               new_polys$area_pct = round(new_polys$area / new_polys$standArea, 2)
-              new_polys$DG = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean"),2)*100
+              new_polys$DG = round(exactextractr::exact_extract(hs_crop_unbuffered,new_polys, fun ="mean", progress = F),2)*100
               new_polys$DG_stand = stands[i,]$DG
               
               if(CALC_ALL_DG){
-                new_polys$DG_ks = round(exactextractr::exact_extract(dg_ks,new_polys, fun ="mean"),2)*100
-                new_polys$DG_us = round(exactextractr::exact_extract(dg_us,new_polys, fun ="mean"),2)*100
-                new_polys$DG_ms = round(exactextractr::exact_extract(dg_ms,new_polys, fun ="mean"),2)*100
-                new_polys$DG_os = round(exactextractr::exact_extract(dg_os,new_polys, fun ="mean"),2)*100
-                new_polys$DG_ueb = round(exactextractr::exact_extract(dg_ueb,new_polys, fun ="mean"),2)*100
+                new_polys$DG_ks = round(exactextractr::exact_extract(dg_ks,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_us = round(exactextractr::exact_extract(dg_us,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_ms = round(exactextractr::exact_extract(dg_ms,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_os = round(exactextractr::exact_extract(dg_os,new_polys, fun ="mean", progress = F),2)*100
+                new_polys$DG_ueb = round(exactextractr::exact_extract(dg_ueb,new_polys, fun ="mean", progress = F),2)*100
 
                 new_polys$DG_ks_stand = stands[i,]$DG_ks
                 new_polys$DG_us_stand = stands[i,]$DG_us
@@ -410,15 +418,17 @@ for (i in 1:nrow(stands)){
                 new_polys$DG_os_stand = stands[i,]$DG_os
                 new_polys$DG_ueb_stand = stands[i,]$DG_ueb
               }
-              new_polys$NH = round(exactextractr::exact_extract(mg,new_polys, fun ="mean"),0)
+              new_polys$NH = round(exactextractr::exact_extract(mg,new_polys, fun ="mean", progress = F),0)
               new_polys$NH_stand = stands[i,]$NH
               new_polys$hdom = stands[i,]$hdom
               
               #### >> populate attributes for stands ####
-              area_class = sum(new_polys$area)
-              area_class_pct = area_class / stands[i,]$area_m2
-              dg_class = mean(new_polys$DG_zone)
-              nh_class = mean(new_polys$NH_zone)
+              area_class = round(sum(new_polys$area))
+              area_class_pct = round(sum(new_polys$area) / as.numeric(st_area(stands[i,])), 2)
+              # dg_class = mean(new_polys$DG_zone)
+              dg_class = round(sum(new_polys$DG * new_polys$area) / sum(new_polys$area))
+              # nh_class = mean(new_polys$NH_zone)
+              nh_class = round(sum(new_polys$NH * new_polys$area) / sum(new_polys$area))
               
               # init or bind to sf polys collection
               if(j>1){
@@ -452,7 +462,7 @@ for (i in 1:nrow(stands)){
       if(PLOT_RESULTS){
         # try - failed plotting shouldn't fail the processing
         try(expr={
-          plot(hs_crop, main=paste0(i, " ", flag_polys_created_stand, ": (standID:", stands[i,]$ID, " | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
+          plot(hs_crop, main=paste0(i, " ", flag_polys_created_stand, ": (standID:", stands[i,]$ID, "  | ID_TMP:", stands[i,]$ID_TMP, "  | size = ",round(set_units(st_area(stands[i,]), "ha"),1), " ha)"))
           lines(stands[i,])
           # lines(stands[i,], col='green')
           if(flag_polys_created_stand){
@@ -470,7 +480,7 @@ for (i in 1:nrow(stands)){
       # no dense/sparse areas because too small
       # create stats row anyways to indicate that stand_ID was processed without finding density zones
       # set proc_ID to negative to indicate no find
-      stats <- t(setNames(c(stands[i,]$ID, -i), c("stand_ID", "proc_ID")))
+      stats <- t(setNames(c(stands[i,]$ID, stands[i,]$ID_TMP, -i), c("stand_ID", "ID_TMP" ,"proc_ID")))
       for(k in 1:nrow(classes_df)) {
         area_class <- area_class_pct <- dg_class <- nh_class <- NA
         stats <- cbind(stats, area_class, area_class_pct, dg_class, nh_class)
@@ -492,7 +502,7 @@ for (i in 1:nrow(stands)){
   # keep list of errors
   if(any(class(error_message) == "error")){
     n_errors = n_errors + 1
-    error_and_message = cbind(i, stands$ID[i], error_message$message)
+    error_and_message = cbind(i, stands$ID_TMP[i], error_message$message)
     ID_errors = rbind(ID_errors, error_and_message)
   }
 }
@@ -516,6 +526,9 @@ if(VERBOSE) print(PATH_OUTPUT)
 dir.create(file.path(PATH_OUTPUT), recursive = TRUE, showWarnings = TRUE)
 
 # write files for polygons
+polys$ID_TMP <- NULL # tmp. ID is not part of output!
+polys$area <- round(as.numeric(polys$area))  # drop unit & round to m^2
+polys$area_pct <- as.numeric(polys$area_pct) # drop unit 
 st_write(st_as_sf(polys), append = FALSE, 
          file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
 
@@ -524,14 +537,12 @@ st_write(st_as_sf(polys), append = FALSE,
 # and export to file
 
 # add names to table
-col_names <- t(c("stand_ID", "local_densities_proc_ID"))
+col_names <- c("stand_ID", "ID_TMP", "local_densities_proc_ID")
 for(k in 1:nrow(classes_df)) {
-  name_area_class <- paste0("z",classes_df[k,]$class, "_", "area")
-  name_area_class_pct <- paste0("z",classes_df[k,]$class, "_", "area_pct") 
-  name_dg_class <- paste0("z",classes_df[k,]$class, "_", "dg") 
-  name_nh_class <- paste0("z",classes_df[k,]$class, "_", "nh") 
-  col_names <- cbind(col_names, name_area_class, name_area_class_pct, name_dg_class, name_nh_class)
+  names_4_class_k <- paste0("z", classes_df[k,]$class, "_", c("area", "area_pct", "dg", "nh"))
+  col_names <- c(col_names, names_4_class_k)
 }
+# data.frame(old = names(statstable), new = col_names) # check the renaming
 names(statstable) <- col_names
 
 #TODO: Sometimes result attributes have a varying amount of rows and can't be merged to original table
@@ -541,7 +552,9 @@ tryCatch(expr={
   if(VERBOSE) print(paste0(nrow(statstable), " of ", nrow(stands_all), " were processed (check proc_ID, others are NA)."))
   
   # connect statstable with existing attributetable/geometry (left outer join)
-  stands_out = merge(x = stands_all, y = statstable, by.x = "ID", by.y = "stand_ID", all.x = TRUE)
+  stands_out = merge(x = stands_all, y = statstable, by = "ID_TMP", all.x = TRUE)
+  stands_out$ID_TMP <- NULL # tmp. ID is not part of output!
+  stands_out$stand_ID <- NULL # same goes to stand_ID (identical with ID)!
   
   if(!OVERWRITE_ORIGINAL_TBK){
     if(VERBOSE) print(paste0("write input geometries with appendes attributes to folder: ", PATH_OUTPUT))
