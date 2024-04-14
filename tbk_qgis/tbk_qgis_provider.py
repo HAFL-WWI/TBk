@@ -46,6 +46,7 @@ from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlg
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
+from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
 
 class TBkProvider(QgsProcessingProvider):
@@ -75,6 +76,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(BkAGAlgorithm())
         # [grpID: postproc]     grpName: 2 Postprocessing
+        self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessLocalDensity())
         self.addAlgorithm(TBkPostprocessWIS2Export())
 
