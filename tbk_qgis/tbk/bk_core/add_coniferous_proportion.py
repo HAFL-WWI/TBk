@@ -94,7 +94,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         processing.run("gdal:assignprojection", param)
 
         # Reclassify
-        condition_string = "(A < {0})*1".format(str(cover))
+        condition_string = "(A > {0})*1".format(str(cover))
         param = {'INPUT_A':dg_layer_os_10m_sum,'BAND_A':1,'INPUT_B':None,'BAND_B':-1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
                 'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
         processing.run("gdal:rastercalculator", param)
