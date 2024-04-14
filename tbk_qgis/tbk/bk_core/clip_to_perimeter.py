@@ -18,20 +18,20 @@ from qgis.core import *
 
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
-def clip_to_perimeter(tbk_path, perimeter, del_tmp=True):
+def clip_to_perimeter(working_root, tmp_output_folder, perimeter, del_tmp=True):
     print("--------------------------------------------")
     print("START Clip to perimeter...")
 
-    stands_merged_path = os.path.join(tbk_path,"stands_merged.gpkg")
-    stands_clip_path = os.path.join(tbk_path,"stands_clip_tmp.gpkg")
+    stands_merged_path = os.path.join(working_root,"stands_merged.gpkg")
+    stands_clip_path = os.path.join(tmp_output_folder,"stands_clip_tmp.gpkg")
 
     # Clip to forest mask
     param = {'INPUT':stands_merged_path,'OVERLAY':perimeter,'OUTPUT':stands_clip_path}
     processing.run("native:clip", param)
 
     #Clip highest trees
-    highest_point_path = os.path.join(tbk_path,"stands_highest_tree_tmp.gpkg")
-    highest_point_clip_path = os.path.join(tbk_path,"stands_highest_tree.gpkg")
+    highest_point_path = os.path.join(tmp_output_folder,"stands_highest_tree_tmp.gpkg")
+    highest_point_clip_path = os.path.join(working_root,"stands_highest_tree.gpkg")
     param = {'INPUT':highest_point_path,'OVERLAY':perimeter,'OUTPUT':highest_point_clip_path}
     processing.run("native:clip", param)
 
@@ -39,12 +39,12 @@ def clip_to_perimeter(tbk_path, perimeter, del_tmp=True):
         delete_shapefile(highest_point_path)
         delete_geopackage(highest_point_path)
 
-def clip_vhm_to_perimeter(tbk_path, vhm_input, perimeter, vhm_output_name):
+def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
     print("--------------------------------------------")
     print("START Clip VHM to perimeter...")
 
     # Clip to forest mask
-    vhm_clipped_path = os.path.join(tbk_path, vhm_output_name)
+    vhm_clipped_path = os.path.join(working_root, vhm_output_name)
 
     param = {'INPUT':vhm_input,'MASK':perimeter,'SOURCE_CRS':None,'TARGET_CRS':None,'NODATA':None,
     'ALPHA_BAND':False,'CROP_TO_CUTLINE':True,'KEEP_RESOLUTION':False,
@@ -56,7 +56,7 @@ def clip_vhm_to_perimeter(tbk_path, vhm_input, perimeter, vhm_output_name):
 
     return vhm_clipped_path
 
-def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
+def eliminate_gaps(working_root, tmp_output_folder, perimeter, del_tmp=True):
     '''
     Align tbk shapefile to perimeter (for example Waldmaske AV).
     Idea: If small gaps remain between a defined perimeter and the
@@ -68,19 +68,19 @@ def eliminate_gaps(tbk_path, perimeter, del_tmp=True):
     print("START Eliminate gaps...")
 
     # TBk folder path
-    workspace = tbk_path
-    scratchWorkspace = tbk_path
+    workspace = working_root
+    scratchWorkspace = working_root
         
     # Perimeter
     perimeter_shape = perimeter
 
     # File names
-    in_shape_path = os.path.join(tbk_path,"stands_clip_tmp.gpkg")
-    output_shape_path = os.path.join(tbk_path,"stands_clipped.gpkg")
-    gaps_tmp_path = os.path.join(tbk_path,"gaps_tmp.gpkg")
-    gaps_single_tmp_path = os.path.join(tbk_path,"gaps_single_tmp.gpkg")
-    union_tmp_path = os.path.join(tbk_path,"stands_gaps_union_tmp.gpkg")
-    union_tmp_buf_path = os.path.join(tbk_path,"stands_gaps_union_tmp_buf0.gpkg")
+    in_shape_path = os.path.join(tmp_output_folder,"stands_clip_tmp.gpkg")
+    output_shape_path = os.path.join(working_root,"stands_clipped.gpkg")
+    gaps_tmp_path = os.path.join(tmp_output_folder,"gaps_tmp.gpkg")
+    gaps_single_tmp_path = os.path.join(tmp_output_folder,"gaps_single_tmp.gpkg")
+    union_tmp_path = os.path.join(tmp_output_folder,"stands_gaps_union_tmp.gpkg")
+    union_tmp_buf_path = os.path.join(tmp_output_folder,"stands_gaps_union_tmp_buf0.gpkg")
 
     ########################################
     # Find gaps

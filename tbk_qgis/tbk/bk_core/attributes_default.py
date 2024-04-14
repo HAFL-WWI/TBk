@@ -21,16 +21,16 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 #
 ########################################################################################
 
-def calc_attributes(tbk_path, del_tmp=True):
+def calc_attributes(working_root, tbk_result_dir, del_tmp=True):
     print("--------------------------------------------")
     print("START CALC specific attributes")
 
     # TBk folder path
-    tbk_path
+    working_root
 
     # Filenames
-    shape_in = os.path.join(tbk_path, "stands_clipped.gpkg")
-    shape_out = os.path.join(tbk_path, "TBk_Bestandeskarte.gpkg")
+    shape_in = os.path.join(working_root, "stands_clipped.gpkg")
+    shape_out = os.path.join(tbk_result_dir, "TBk_Bestandeskarte.gpkg")
 
     # Copy shapefile
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")

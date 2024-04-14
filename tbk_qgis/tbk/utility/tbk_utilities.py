@@ -124,7 +124,7 @@ def delete_shapefile_old(path):
 # (creates directory if non existent)
 def ensure_dir (path):
     if not os.path.isdir(path):
-        os.mkdir(path)
+        os.makedirs(path, exist_ok=True)
 
 def getVectorSaveOptions(format, encoding, only_selected_features = False, in_crs = None, out_crs = None):
     save_options = QgsVectorFileWriter.SaveVectorOptions()

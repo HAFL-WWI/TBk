@@ -36,12 +36,12 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
+import shutil
 
 if __name__ == "__main__":  # this will be invoked if this module is being run directly, but not via import!
-    __package__ = 'bk_core' # make sure relative imports work when testing
+    __package__ = 'bk_core'  # make sure relative imports work when testing
 
-
-#--- Imports
+# --- Imports
 import os
 from shutil import copyfile
 from datetime import timedelta
@@ -63,7 +63,6 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterDefinition,
 
                        QgsApplication)
-
 
 from .tbk_create_stands import *
 from .post_process import *
@@ -97,8 +96,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
         return self.addParameter(parameter)
 
-
-    #------- Define Constants -------#
+    # ------- Define Constants -------#
     # Constants used to refer to parameters and outputs.
 
     # These constants will be used when calling the algorithm from another algorithm,
@@ -106,9 +104,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
     OUTPUT = "OUTPUT"
 
-    # Directory containing the output files
+    # Directory containing the output folder
     OUTPUT_ROOT = "output_root"
-    # Directory containing the input files
+    # Directory containing the output files and subfolders with tmp and processing files
     WORKING_ROOT = "working_root"
     # VHM 10m as main TBk input       
     VHM_10M = "vhm_10m"
@@ -128,7 +126,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Will be stored in the result directory
     LOGFILE_NAME = "logfile_name"
 
-    #--- Advanced Parameters
+    # --- Advanced Parameters
 
     # Main TBk parameters (for details see run_stand_classification function)
     # If to consider it for classification
@@ -168,9 +166,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     # Also calc coniferous prop. for main layer                          
     CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
     # Delete temporary files and fields
-    DEL_TMP ="del_tmp"
+    DEL_TMP = "del_tmp"
 
-    #------- List of Algorithm Parameters -------#
+    # ------- List of Algorithm Parameters -------#
     # Parameters with default values
     def initAlgorithm(self, config):
         """
@@ -188,7 +186,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                             optional=True))
         # Coniferous raster to calculate stand mean
         self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
-                                                            self.tr("Coniferous raster to be used during stand delineation (.tif)"
+                                                            self.tr(
+                                                                "Coniferous raster to be used during stand delineation (.tif)"
                                                                 "\nA simplified binarized raster may achieve better results (optional)"),
                                                             optional=True))
         # Perimeter shapefile to clip final result                                 
@@ -197,9 +196,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                 [QgsProcessing.TypeVectorPolygon]))
 
         # Folder for algorithm output
-        self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT, self.tr('Output folder')))
+        self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT, self.tr('Output folder'
+                                                                                            '\n(a subfolder with timestamp will be created within)')))
 
-        #--- Advanced Parameters
+        # --- Advanced Parameters
         parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION,
                                                   self.tr("Consider coniferous raster for classification"),
                                                   defaultValue=True)
@@ -289,14 +289,13 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
 
-        #------- INIT Algorithm -------#
-
+        # ------- INIT Algorithm -------#
 
         # settings_path = QgsApplication.qgisSettingsDirPath()
         # tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
-        tbk_tool_path = os.path.dirname(__file__) # needed for calling create project script
+        tbk_tool_path = os.path.dirname(__file__)  # needed for calling create project script
 
-        #--- get and check input parameters
+        # --- get and check input parameters
 
         # get and check general input parameters
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
@@ -307,10 +306,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get and check paths to VHMs
         vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
-        if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
+        if not os.path.splitext(vhm_10m)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file")
         vhm_150cm = str(self.parameterAsRasterLayer(parameters, self.VHM_150CM, context).source())
-        if not os.path.splitext(vhm_150cm)[1].lower() in (".tif",".tiff"):
+        if not os.path.splitext(vhm_150cm)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
         # get and check coniferous Raster / settings
@@ -319,15 +318,18 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         coniferous_raster = None
         if coniferous_raster_layer:
             coniferous_raster = str(coniferous_raster_layer.source())
-        if coniferous_raster and (not os.path.splitext(coniferous_raster)[1].lower() in (".tif",".tiff")):
+        if coniferous_raster and (not os.path.splitext(coniferous_raster)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster must be a TIFF file")
 
         # init coniferous_raster_for_classification and read from parameters if provided
         coniferous_raster_for_classification = None
-        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER_FOR_CLASSIFICATION, context)
+        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters,
+                                                                                 self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
+                                                                                 context)
         if coniferous_raster_for_classification_layer:
             coniferous_raster_for_classification = str(coniferous_raster_for_classification_layer.source())
-        if coniferous_raster_for_classification and (not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif",".tiff")):
+        if coniferous_raster_for_classification and (
+                not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster_for_classification must be a TIFF file")
 
         # if no explicit coniferous_raster_for_classification is provided, try using coniferous_raster, else complain
@@ -348,14 +350,14 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
-        #TODO maybe check geometry?
+        # TODO maybe check geometry?
 
         # get and check zone raster file
         zoneRasterFile_layer = self.parameterAsRasterLayer(parameters, self.ZONE_RASTER_FILE, context)
         zoneRasterFile = None
         if zoneRasterFile_layer:
             zoneRasterFile = str(zoneRasterFile_layer.source())
-        if zoneRasterFile and (not os.path.splitext(zoneRasterFile)[1].lower() in (".tif",".tiff")):
+        if zoneRasterFile and (not os.path.splitext(zoneRasterFile)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("zoneRasterFile must be a TIFF file")
         if (not zoneRasterFile) or (zoneRasterFile == "") or zoneRasterFile is None:
             zoneRasterFile = "null"
@@ -364,7 +366,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         description = str(self.parameterAsString(parameters, self.DESCRIPTION, context))
         if (not description) or description == "":
             description = "TBk dataset"
-        #TODO use description for naming the output/project file
+        # TODO use description for naming the output/project file
 
         # get and check algorithm parameters
         min_tol = self.parameterAsDouble(parameters, self.MIN_TOL, context)
@@ -387,22 +389,25 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # get and check miscellaneous parameters
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
-
-        #--- init directory
+        # --- init directory
         ensure_dir(output_root)
-        working_root = output_root
 
         # Set up directory with timestamp in working_root
-        working_root = os.path.join(working_root, '') # Add the trailing slash if it's not already there.
+        output_root = os.path.join(output_root, '')  # Add the trailing slash if it's not already there.
         currentDatetime = datetime.now().strftime("%Y%m%d-%H%M")
         outputDirectory = currentDatetime
-        tbk_result_dir = os.path.join(working_root, outputDirectory)
-        tbk_result_dir = os.path.join(tbk_result_dir, '') # Add the trailing slash if it's not already there.
-        if not os.path.isdir(tbk_result_dir):
-            os.makedirs(tbk_result_dir)
+        tbk_result_dir = os.path.join(output_root, outputDirectory)
+        tbk_result_dir = os.path.join(tbk_result_dir, '')  # Add the trailing slash if it's not already there.
 
-        #--- configure logging
-        logfile_tmp_path = os.path.join(tbk_result_dir, logfile_name)
+        working_root = os.path.join(tbk_result_dir, 'bk_process', '')  # create subfolder (and add trailing slash)
+        # create working root and all intermediate folders
+        ensure_dir(working_root)
+        tmp_output_folder = os.path.join(working_root, "tmp")
+        # create tmp folder and all intermediate folders
+        ensure_dir(tmp_output_folder)
+
+        # --- configure logging
+        logfile_tmp_path = os.path.join(working_root, logfile_name)
 
         # set up logging to file
         logging.basicConfig(
@@ -442,92 +447,113 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         log.info('Run TBk')
 
-        #------- TBk MAIN Processing --------#
+        # ------- TBk MAIN Processing --------#
 
         # Run TBk
         start_time = time.time()
 
-        #--- Stand delineation (Main)
+        # --- Stand delineation (Main)
         log.info('Stand delineation')
-        run_stand_classification(tbk_result_dir, vhm_10m, coniferous_raster_for_classification,
+        run_stand_classification(working_root, tmp_output_folder,
+                                 vhm_10m, coniferous_raster_for_classification,
                                  zoneRasterFile, description,
                                  min_tol, max_tol,
                                  min_corr, max_corr,
                                  min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
                                  vhm_min_height, vhm_max_height)
 
-        #--- Simplify & Eliminate
+        # --- Simplify & Eliminate
         log.info('Simplify & Eliminate')
-        post_process(tbk_result_dir, min_area_m2, simplification_tolerance=simplification_tolerance, del_tmp=del_tmp)
+        post_process(working_root, tmp_output_folder, min_area_m2, simplification_tolerance=simplification_tolerance,
+                     del_tmp=del_tmp)
 
-        #--- Merge similar neighbours
+        # --- Merge similar neighbours
         log.info('Merge similar neighbours')
-        merge_similar_neighbours(tbk_result_dir, similar_neighbours_min_area, similar_neighbours_hdom_diff_rel,
+        merge_similar_neighbours(working_root, tmp_output_folder, similar_neighbours_min_area,
+                                 similar_neighbours_hdom_diff_rel,
                                  del_tmp=del_tmp)
 
-        #--- Clip to perimeter and eliminate gaps
+        # --- Clip to perimeter and eliminate gaps
         log.info('Clip to perimeter and eliminate gaps')
         # run clip function
-        clip_to_perimeter(tbk_result_dir, perimeter, del_tmp=del_tmp)
+        clip_to_perimeter(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
         # run gaps function
-        eliminate_gaps(tbk_result_dir, perimeter, del_tmp=del_tmp)
+        eliminate_gaps(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
 
-        #--- Calculate DG
+        # --- Calculate DG
         log.info('Calculate DG')
-        calculate_dg(tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
+        calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
 
-        #--- Add coniferous proportion
+        # --- Add coniferous proportion
         if calc_mixture_for_main_layer:
             log.info('Add coniferous proportion')
-            add_coniferous_proportion(tbk_result_dir, coniferous_raster, calc_mixture_for_main_layer, del_tmp=del_tmp)
+            add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster,
+                                      calc_mixture_for_main_layer, del_tmp=del_tmp)
 
-        #--- Calc specific attributes and write final shapefile
+        # --- Calc specific attributes and write final shapefile
         log.info('Calc specific attributes and write final shapefile')
-        calc_attributes(tbk_result_dir, del_tmp=del_tmp)
+        calc_attributes(working_root, tbk_result_dir, del_tmp=del_tmp)
 
-        #--- Clean up unneeded fields
+        # --- Clean up unneeded fields
         if del_tmp:
-            del_fields = ["FID_orig","OBJECTID"]
-            result_shape_path = os.path.join(tbk_result_dir,"TBk_Bestandeskarte.gpkg")
+            log.info('Remove obsolete fields in TBk_Bestandeskarte')
+            del_fields = ["FID_orig", "OBJECTID"]
+            result_shape_path = os.path.join(working_root, "TBk_Bestandeskarte.gpkg")
             delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
 
-        #TODO:
+        # --- Delete tmp directory
+        if del_tmp:
+            log.info(f'Delete temporary files: {tmp_output_folder}')
+            # TODO: this usually fails with a Permission Error, since QGIS doesn't seem to close the file handles
+            # PermissionError: [WinError 32] The process cannot access the file because it is being used by another process:
+            # 'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_hafl\\tbk2012_v02\\20240414-2304\\bk_process\\tmp\\gaps_single_tmp.gpkg'
+            shutil.rmtree(tmp_output_folder, ignore_errors=True)
+
+        # TODO:
         # Delete stands < 100 m2
         # Delete stands without geometry
         # Repair geometry
         # Add incremental field (sort based on ID)
 
-        #--- Create default Project
+        # --- Create default Project
         log.info('Create default Project')
         # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\post_processing_arcpy\\create_mxd.py" +
-        #           " " + tbk_result_dir + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)
+        #           " " + working_root + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)
 
-        # Run Script in separate process since otherwise the current project would be unloaded
+        # Run Script in separate process, since otherwise the current project would be unloaded
+        # make sure the called python environment has all necessary modules on PYTHONPATH
         qgisPath = QgsApplication.prefixPath()
-        qgisPythonPath = os.path.join(qgisPath,"python")
+        qgisPythonPath = os.path.join(qgisPath, "python")
         if "PYTHONPATH" in os.environ:
+            # append to PYTHONPATH
             os.environ["PYTHONPATH"] = qgisPythonPath + os.pathsep + os.environ["PYTHONPATH"]
         else:
+            # create PYTHONPATH
             os.environ["PYTHONPATH"] = qgisPythonPath
-        script_path = os.path.join(tbk_tool_path, "create_project.py")
 
+        # construct a python call command with all necessary paramters and call
+        script_path = os.path.join(tbk_tool_path, "create_project.py")
         command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" \
+                  + working_root.replace("\\", "/") + "\" \"" \
+                  + tmp_output_folder.replace("\\", "/") + "\" \"" \
                   + tbk_result_dir.replace("\\", "/") + "\" \"" \
                   + tbk_tool_path.replace("\\", "/") + "\" \"" \
-                  + working_root.replace("\\", "/") + "\" \"" \
-                  + vhm_10m + "\" \"" + vhm_150cm + "\" \"" + coniferous_raster + "\""
+                  + vhm_10m + "\" \"" \
+                  + vhm_150cm + "\" \"" \
+                  + coniferous_raster + "\" \"" \
+                  + str(del_tmp) + "\""
 
         log.info(command)
         os.system(command)
 
         # if del_tmp:
-        #     output_tmp_folder = os.path.join(tbk_result_dir,"tmp")
+        #     output_tmp_folder = os.path.join(working_root,"tmp")
         #     if os.path.isdir(output_tmp_folder):
         #         shutil.rmtree(output_tmp_folder)
 
-        #--- Copy temporary logfile to result directory
-        #log.info("Copy logfile from: " + logfile_tmp_path)
-        # logfile = os.path.join(tbk_result_dir, logfile_name)
+        # --- Copy temporary logfile to result directory
+        # log.info("Copy logfile from: " + logfile_tmp_path)
+        # logfile = os.path.join(working_root, logfile_name)
         # log.info("Copy logfile to: " + logfile)
         # copyfile(logfile_tmp_path, logfile)
 
@@ -538,23 +564,21 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("====================================================================")
         log.info('FINISHED')
 
-
-#        # Compute the number of steps to display within the progress bar and
-#        # get features from source
-#        total = 100.0 / source.featureCount() if source.featureCount() else 0
-#        features = source.getFeatures()
-#
-#        for current, feature in enumerate(features):
-#            # Stop the algorithm if cancel button has been clicked
-#            if feedback.isCanceled():
-#                break
-#
-#            # Add a feature in the sink
-#            #sink.addFeature(feature, QgsFeatureSink.FastInsert)
-#
-#            # Update the progress bar
-#            feedback.setProgress(int(current * total))
-
+        #        # Compute the number of steps to display within the progress bar and
+        #        # get features from source
+        #        total = 100.0 / source.featureCount() if source.featureCount() else 0
+        #        features = source.getFeatures()
+        #
+        #        for current, feature in enumerate(features):
+        #            # Stop the algorithm if cancel button has been clicked
+        #            if feedback.isCanceled():
+        #                break
+        #
+        #            # Add a feature in the sink
+        #            #sink.addFeature(feature, QgsFeatureSink.FastInsert)
+        #
+        #            # Update the progress bar
+        #            feedback.setProgress(int(current * total))
 
         # Return the results of the algorithm. In this case our only result is
         # the feature sink which contains the processed features, but some

@@ -22,15 +22,15 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 import numpy as np
 import pandas as pd
 
-def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=True):
+def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_hdom_diff_rel, del_tmp=True):
     print("--------------------------------------------")
     print("START MERGE similar neighbours...")
 
-    scratchWorkspace = tbk_path
+    scratchWorkspace = tmp_output_folder
 
     # files
-    shape_in_path = os.path.join(tbk_path,"stands_simplified.gpkg")
-    shape_out_path = os.path.join(tbk_path,"stands_merged.gpkg")
+    shape_in_path = os.path.join(working_root,"stands_simplified.gpkg")
+    shape_out_path = os.path.join(working_root,"stands_merged.gpkg")
 
     ######################################################################
     # TBk post-process. Prepare polygons to dissolve by specific criterias.
@@ -41,7 +41,7 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     # load TBk shapefile
     simplified_layer = QgsVectorLayer(shape_in_path, "stand_boundaries_simplified", "ogr")
 
-    dissolve_layer_path = os.path.join(tbk_path, "stands_final_dissolve_field.gpkg")
+    dissolve_layer_path = os.path.join(tmp_output_folder, "stands_final_dissolve_field.gpkg")
     simplified_layer.selectAll()
 
     param = {'INPUT': simplified_layer,'OUTPUT': dissolve_layer_path}
@@ -52,7 +52,7 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     dissolve_layer = QgsVectorLayer(dissolve_layer_path, "stand_boundaries_simplified", "ogr")
 
     # load neighbors file depending on system settings
-    neighbors_path = os.path.join(tbk_path,"neighbors.csv")
+    neighbors_path = os.path.join(working_root,"neighbors.csv")
 
     df = pd.read_csv(neighbors_path)
 
@@ -99,7 +99,7 @@ def merge_similar_neighbours(tbk_path, min_area_m2, min_hdom_diff_rel, del_tmp=T
     print(len(dissolve_FID), "polygons to dissolve!")
 
     # metainfo: shapefile with polygons to dissolve
-    dissolve_polygon_path = os.path.join(tbk_path,"polygons_to_dissolve.gpkg")
+    dissolve_polygon_path = os.path.join(working_root,"polygons_to_dissolve.gpkg")
     param = {'INPUT': dissolve_layer,'OUTPUT': dissolve_polygon_path}
     algoOutput = processing.run("native:saveselectedfeatures", param)
 

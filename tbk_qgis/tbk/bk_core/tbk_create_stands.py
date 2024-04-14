@@ -20,6 +20,7 @@ import sys
 version = "0.9"
 
 def run_stand_classification(workingRoot,
+                             tmp_output_folder,
                              inputRasterFile,
                              coniferousRasterFile = 'null',
                              zoneRasterFile = 'null',
@@ -69,15 +70,9 @@ def run_stand_classification(workingRoot,
     outputVectorfile = 'stand_boundaries.gpkg' # shapefile, generated from raster (after polygonize)
     logfile = 'tbk_log.log' # name of the logfile (config params)
 
-    # # Add the trailing slash if it's not already there.
-    # workingRoot = os.path.join(workingRoot, '')
-    #
-    # # Creating a new directory for the current classification
-    # currentDatetime = datetime.now().strftime("%Y%m%d-%H%M")
-    # outputDirectory = currentDatetime
-    # out_path = workingRoot + outputDirectory
     out_path = workingRoot
 
+    # Add the trailing slash if it's not already there
     out_path = os.path.join(out_path, '')
     if not os.path.isdir(out_path):
         os.makedirs(out_path)

@@ -21,19 +21,19 @@ from qgis.core import *
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
-def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_tmp=True):
+def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster, calc_main_layer, del_tmp=True):
     print("--------------------------------------------")
     print("START coniferous proportion...")
 
-    workspace = tbk_path
-    scratchWorkspace = tbk_path
+    workspace = working_root
+    scratchWorkspace = tmp_output_folder
     
     print("loading files...")
     if coniferous_raster == 'null' or coniferous_raster == None:
         print("No coniferous raster found.")
         return
     nh_raster = coniferous_raster
-    stands_shapefile = os.path.join(tbk_path,"stands_clipped.gpkg")
+    stands_shapefile = os.path.join(working_root,"stands_clipped.gpkg")
 
     print("calc mean coniferous proportion...")
 
@@ -62,23 +62,20 @@ def add_coniferous_proportion(tbk_path, coniferous_raster, calc_main_layer, del_
     if calc_main_layer:
         print("calc mean coniferous proportion for main layer...")
         # dg raster layer
-        dg_layer_os = os.path.join(tbk_path, r"dg_layers\dg_layer.tif")
+        dg_layer_os = os.path.join(tbk_result_dir, r"dg_layers\dg_layer.tif")
 
         # minimum degree of cover to select valid 10 m NH pixels
         cover = 40
 
         # output raster file
-        dg_layer_os_nh = os.path.join(tbk_path, "tmp", "nh_os.tif")
+        dg_layer_os_nh = os.path.join(working_root, "tmp", "nh_os.tif")
 
         # Output files tmp
-        output_tmp_folder = os.path.join(tbk_path, "tmp")
-        if not os.path.isdir(output_tmp_folder):
-            os.makedirs(output_tmp_folder)
-        dg_layer_os_1m = os.path.join(output_tmp_folder, "dg_layer_os_1m.tif")
-        dg_layer_os_10m_sum = os.path.join(output_tmp_folder, "dg_layer_os_10m_sum.tif")
-        dg_layer_os_10m_mask = os.path.join(output_tmp_folder, "dg_layer_os_10m_mask.tif")
-        nh_mean_table = os.path.join(output_tmp_folder, "nh_mean_table")
-        nh_sum_table = os.path.join(output_tmp_folder, "nh_sum_table")
+        dg_layer_os_1m = os.path.join(tmp_output_folder, "dg_layer_os_1m.tif")
+        dg_layer_os_10m_sum = os.path.join(tmp_output_folder, "dg_layer_os_10m_sum.tif")
+        dg_layer_os_10m_mask = os.path.join(tmp_output_folder, "dg_layer_os_10m_mask.tif")
+        nh_mean_table = os.path.join(tmp_output_folder, "nh_mean_table")
+        nh_sum_table = os.path.join(tmp_output_folder, "nh_sum_table")
 
         # Resample os layer to 1m to align with 10m raster
         param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}

@@ -35,24 +35,32 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 from osgeo import gdal
 
 
-def calculate_dg(tbk_path, vhm, del_tmp=True):
+def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=True):
     print("--------------------------------------------")
     print("START DG calculation...")
 
+
+
     # TBk folder path
-    workspace = tbk_path
-    scratchWorkspace = tbk_path
+    workspace = working_root
+    scratchWorkspace = tmp_output_folder
 
     # Use half of the cores on the machine.
     # arcpy.env.parallelProcessingFactor = "50%"
 
     # TBk shapefile
-    stands_shapefile = os.path.join(tbk_path, "stands_clipped.gpkg")
+    stands_shapefile = os.path.join(working_root, "stands_clipped.gpkg")
 
     # Create dg layer output directory
-    dg_layers_dir = os.path.join(tbk_path, "dg_layers")
+    dg_layers_dir = os.path.join(tbk_result_dir, "dg_layers")
     if not os.path.exists(dg_layers_dir):
         os.makedirs(dg_layers_dir)
+
+    # Create tmp output directory if none is provided
+    if tmp_output_folder is None:
+        tmp_output_folder = os.path.join(dg_layers_dir, "tmp")
+        if not os.path.exists(tmp_output_folder):
+            os.makedirs(tmp_output_folder)
 
     # DG layers
     dg_ks_classified = os.path.join(dg_layers_dir, "dg_layer_ks.tif")
@@ -63,12 +71,12 @@ def calculate_dg(tbk_path, vhm, del_tmp=True):
     dg_classified = os.path.join(dg_layers_dir, "dg_layer.tif")
 
     # tmp files
-    tmp_lim_ks = os.path.join(dg_layers_dir, "dg_ks_max.tif")
-    tmp_lim_us = os.path.join(dg_layers_dir, "dg_us_min.tif")
-    tmp_lim_ms = os.path.join(dg_layers_dir, "dg_ms_min.tif")
-    tmp_lim_os = os.path.join(dg_layers_dir, "dg_lim_os.tif")
-    tmp_lim_ueb = os.path.join(dg_layers_dir, "dg_lim_ueb.tif")
-    tmp_lim_dg = os.path.join(dg_layers_dir, "dg_lim_dg.tif")
+    tmp_lim_ks = os.path.join(tmp_output_folder, "dg_ks_max.tif")
+    tmp_lim_us = os.path.join(tmp_output_folder, "dg_us_min.tif")
+    tmp_lim_ms = os.path.join(tmp_output_folder, "dg_ms_min.tif")
+    tmp_lim_os = os.path.join(tmp_output_folder, "dg_lim_os.tif")
+    tmp_lim_ueb = os.path.join(tmp_output_folder, "dg_lim_ueb.tif")
+    tmp_lim_dg = os.path.join(tmp_output_folder, "dg_lim_dg.tif")
 
     # Layer threshold values (based on NFI definition, www.lfi.ch)
     max_height_ks = 1.0

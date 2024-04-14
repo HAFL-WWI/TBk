@@ -19,14 +19,14 @@ from qgis.core import *
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
-def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
+def post_process(working_root, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
     # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")
 
     # TBk folder path
-    workspace = tbk_path
-    scratchWorkspace = tbk_path
+    workspace = working_root
+    scratchWorkspace = tmp_output_folder
 
     # Expression to eliminate small polygons
     expression = "area_m2 < " + str(min_area)
@@ -51,14 +51,14 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
 
     ########################################
     # Vectorize highest trees
-    highest_raster_path = os.path.join(workspace, highest_raster_in)
+    highest_raster_path = os.path.join(working_root, highest_raster_in)
     print(highest_raster_path)
 
     params = {'INPUT_RASTER': highest_raster_path, 'RASTER_BAND': 1, 'FIELD_NAME': 'VALUE',
               'OUTPUT': 'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("native:pixelstopoints", params)
 
-    highest_point_path = os.path.join(workspace, highest_point_out)
+    highest_point_path = os.path.join(tmp_output_folder, highest_point_out)
     params = {'INPUT': algoOutput["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
               'OUTPUT': highest_point_path}
     algoOutput = processing.run("native:extractbyattribute", params)
@@ -67,8 +67,8 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # Eliminate small polygons
 
     # Create tmp layer
-    stand_boundaries_path = os.path.join(workspace, shape_in)
-    tmp_stands_buf_path = os.path.join(workspace, tmp_stands_buf)
+    stand_boundaries_path = os.path.join(working_root, shape_in)
+    tmp_stands_buf_path = os.path.join(tmp_output_folder, tmp_stands_buf)
 
     params = {'INPUT': stand_boundaries_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
               'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_stands_buf_path}
@@ -82,7 +82,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # Execute Eliminate
     print("eliminating small polygons...")
 
-    tmp_reduced_path = os.path.join(workspace, tmp_reduced)
+    tmp_reduced_path = os.path.join(tmp_output_folder, tmp_reduced)
 
     ##Does not persist results when writing directly to file
     param = {'INPUT': stand_boundaries_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
@@ -97,15 +97,15 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # Simplify
 
     # print("smoothing polygons...")
-    # tmp_smoothed_path = os.path.join(workspace,tmp_smoothed)
-    # tmp_smoothed_error_path = os.path.join(workspace,tmp_smoothed_error)
+    # tmp_smoothed_path = os.path.join(tmp_output_folder,tmp_smoothed)
+    # tmp_smoothed_error_path = os.path.join(tmp_output_folder,tmp_smoothed_error)
 
     # param = {'input':tmp_reduced_path,'type':[0,1,2],'cats':'','where':'','method':8,'threshold':0.1,'look_ahead':7,'reduction':50,'slide':0.5,'angle_thresh':3,'degree_thresh':0,'closeness_thresh':0,'betweeness_thresh':0,'alpha':1,'beta':1,'iterations':1,'-t':False,'-l':True,'output':tmp_smoothed_path,'error':tmp_smoothed_error_path,'GRASS_REGION_PARAMETER':None,'GRASS_SNAP_TOLERANCE_PARAMETER':-1,'GRASS_MIN_AREA_PARAMETER':0.0001,'GRASS_OUTPUT_TYPE_PARAMETER':0,'GRASS_VECTOR_DSCO':'','GRASS_VECTOR_LCO':''}
     # algoOutput = processing.run("grass7:v.generalize", param)
 
     # print("simplifying polygons...")
-    # tmp_simplified_path = os.path.join(workspace,tmp_simplified)
-    # tmp_simplified_error_path = os.path.join(workspace,tmp_simplified_error)
+    # tmp_simplified_path = os.path.join(tmp_output_folder,tmp_simplified)
+    # tmp_simplified_error_path = os.path.join(tmp_output_folder,tmp_simplified_error)
 
     # param = {'input':tmp_smoothed_path,'type':[0,1,2],'cats':'','where':'','method':0,'threshold':7,'look_ahead':7,'reduction':50,'slide':0.5,'angle_thresh':3,'degree_thresh':0,'closeness_thresh':0,'betweeness_thresh':0,'alpha':1,'beta':1,'iterations':1,'-t':False,'-l':True,'output':tmp_simplified_path,'error':tmp_simplified_error_path,'GRASS_REGION_PARAMETER':None,'GRASS_SNAP_TOLERANCE_PARAMETER':-1,'GRASS_MIN_AREA_PARAMETER':0.0001,'GRASS_OUTPUT_TYPE_PARAMETER':0,'GRASS_VECTOR_DSCO':'','GRASS_VECTOR_LCO':''}
     # algoOutput = processing.run("grass7:v.generalize", param)
@@ -113,8 +113,8 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     # tmp_simplified_layer = iface.addVectorLayer(tmp_simplified_path, "tmp_simplified", "ogr")
 
     print("simplifying polygons...")
-    tmp_simplified_path = os.path.join(workspace, tmp_simplified)
-    tmp_simplified_error_path = os.path.join(workspace, tmp_simplified_error)
+    tmp_simplified_path = os.path.join(tmp_output_folder, tmp_simplified)
+    tmp_simplified_error_path = os.path.join(tmp_output_folder, tmp_simplified_error)
 
     param = {'input': tmp_reduced_path, 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
              'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
@@ -223,7 +223,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     if del_tmp:
         delete_fields(mLayer, fields)
 
-    shape_out_path = os.path.join(workspace, shape_out)
+    shape_out_path = os.path.join(working_root, shape_out)
     QgsVectorFileWriter.writeAsVectorFormatV3(mLayer, shape_out_path, ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
@@ -244,7 +244,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     #         mLayer.dataProvider().renameAttributes({findex: "src_"+name})
     #         mLayer.updateFields()
 
-    # neighbors_path = os.path.join(workspace,neighbors_out) 
+    # neighbors_path = os.path.join(working_root,neighbors_out)
     # QgsVectorFileWriter.writeAsVectorFormatV3(mLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
 
     ########################################
@@ -254,7 +254,7 @@ def post_process(tbk_path, min_area, simplification_tolerance=8, del_tmp=True):
     print("write neighbors TXT...")
     #    arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")
 
-    neighbors_path = os.path.join(workspace, neighbors_out)
+    neighbors_path = os.path.join(working_root, neighbors_out)
     # Create memory layer
     neighborLayer = QgsVectorLayer('None', 'Neighbors', 'memory')
 
