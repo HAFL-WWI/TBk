@@ -490,16 +490,32 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster,
                                       calc_mixture_for_main_layer, del_tmp=del_tmp)
 
-        # --- Calc specific attributes and write final shapefile
-        log.info('Calc specific attributes and write final shapefile')
-        calc_attributes(working_root, tbk_result_dir, del_tmp=del_tmp)
+        # --- Calc specific attributes
+        log.info('Calc specific attributes')
+        stands_file_attributed = calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=del_tmp)
+
+        # --- run cleanup and write final stand file
+        log.info('Run clean up')
+        stands_file_cleaned = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_clean.gpkg")
+        processing.run("TBk:TBk postprocess Cleanup", {
+            'tbk_bestandeskarte': stands_file_attributed,
+            'Tbk_bestandeskarte_clean': stands_file_cleaned})
 
         # --- Clean up unneeded fields
-        if del_tmp:
-            log.info('Remove obsolete fields in TBk_Bestandeskarte')
-            del_fields = ["FID_orig", "OBJECTID"]
-            result_shape_path = os.path.join(working_root, "TBk_Bestandeskarte.gpkg")
-            delete_fields(QgsVectorLayer(result_shape_path, "layer", "ogr"), del_fields)
+
+        # if del_tmp:
+        #     log.info('Remove obsolete fields in TBk_Bestandeskarte')
+        #     del_fields = ["FID_orig", "OBJECTID", "fid", "fid_1", "NH_CLASS"]
+        #     delete_fields(QgsVectorLayer(result_stand_path, "layer", "ogr"), del_fields)
+
+        # remove fid with processing tool, as deleting doesn't seem to work
+        # stands_file_fid_del = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_fiddel.gpkg")
+        stands_file_final = os.path.join(tbk_result_dir, "TBk_Bestandeskarte.gpkg")
+
+        processing.run("native:deletecolumn", {
+            'INPUT': stands_file_cleaned,
+            'COLUMN': ['fid', 'FID_orig', 'OBJECTID', 'NH_CLASS'],
+            'OUTPUT': stands_file_final})
 
         # --- Delete tmp directory
         if del_tmp:
@@ -507,7 +523,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             # TODO: this usually fails with a Permission Error, since QGIS doesn't seem to close the file handles
             # PermissionError: [WinError 32] The process cannot access the file because it is being used by another process:
             # 'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_hafl\\tbk2012_v02\\20240414-2304\\bk_process\\tmp\\gaps_single_tmp.gpkg'
-            shutil.rmtree(tmp_output_folder, ignore_errors=True)
+            # shutil.rmtree(tmp_output_folder, ignore_errors=True)
 
         # TODO:
         # Delete stands < 100 m2

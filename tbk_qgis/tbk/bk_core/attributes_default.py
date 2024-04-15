@@ -18,10 +18,11 @@ from qgis.core import *
 
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
+
 #
 ########################################################################################
 
-def calc_attributes(working_root, tbk_result_dir, del_tmp=True):
+def calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=True):
     print("--------------------------------------------")
     print("START CALC specific attributes")
 
@@ -30,21 +31,20 @@ def calc_attributes(working_root, tbk_result_dir, del_tmp=True):
 
     # Filenames
     shape_in = os.path.join(working_root, "stands_clipped.gpkg")
-    shape_out = os.path.join(tbk_result_dir, "TBk_Bestandeskarte.gpkg")
+    shape_out = os.path.join(tmp_output_folder, "stands_attributed_tmp.gpkg")
 
     # Copy shapefile
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")
-    
+
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(in_layer,shape_out,ctc,getVectorSaveOptions('GPKG','utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(in_layer, shape_out, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
     out_layer = QgsVectorLayer(shape_out, "stands in", "ogr")
 
     with edit(out_layer):
         # Add fields
-        print("add fields...")        
+        print("add fields...")
         provider = out_layer.dataProvider()
-        provider.addAttributes([QgsField("nr", QVariant.Int),
-                                QgsField("struktur", QVariant.Int),
+        provider.addAttributes([QgsField("struktur", QVariant.Int),
                                 QgsField("tbk_typ", QVariant.String)])
         out_layer.updateFields()
 
@@ -56,8 +56,7 @@ def calc_attributes(working_root, tbk_result_dir, del_tmp=True):
 
         i = 1
         for f in out_layer.getFeatures():
-            f["nr"] = i
-            i+=1
+            i += 1
 
             # Struktur
             if f["hdom"] >= 28 and \
@@ -76,12 +75,12 @@ def calc_attributes(working_root, tbk_result_dir, del_tmp=True):
             context.setFeature(f)
             f['area_m2'] = expression.evaluate(context)
 
-            out_layer.updateFeature(f)  
+            out_layer.updateFeature(f)
 
-    # Delete fields
+            # Delete fields
     print("remove fields...")
     if del_tmp:
-        delete_fields(out_layer, ["type","NH_pixels","NH_prob"])
+        delete_fields(out_layer, ["type", "NH_pixels", "NH_prob"])
 
     print("DONE!")
-
+    return (shape_out)
