@@ -9,9 +9,6 @@
 # (these values can be changed in the section settings).
 # An optional second pass was added to remove thin slithers (buffersmoothing - bs)  
 #
-# TODO: #add the following attributes to the input stand map (e.g. TBk output)
-# - area per class  : Flaeche (m2) besonders dichter/lueckiger Teilflaechen
-# - dg_dense / dg_sparse / dg_other  : Deckungsgrad (%) besonders dichter/lueckiger/restlicher Flaechen
 # TODO: remove intersections of zones based on different moving windows
 #
 # ATTENTION [updated 08/2023]: 
@@ -29,8 +26,10 @@
 # - 2023-08-15: now using classes. Add a row in df for each class to be computed.
 # - 2023-10-23: bugfixes, also add option to calc all DGs for zones
 #
-# (c) by Alexandra Erbach, HAFL, BFH, 2021-10
-# (c) by Hannes Horneber, HAFL, BFH, 2021-11, 2023-01, 2023-08, 2024-02
+# Authors:
+# Alexandra Erbach, HAFL, BFH, 2021-10
+# Hannes Horneber, HAFL, BFH, 2021-11, 2023-01, 2023-08, 2024-02, 2024-04
+# Attilio Benini, HAFL, BFH, 2024-04
 #------------------------------------------------------------------------------#
 
 library(terra)
