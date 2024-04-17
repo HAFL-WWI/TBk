@@ -46,47 +46,33 @@ library(progress)
 
 ### input parameters ###
 # path to TBk. This assumes the "normal" layer structure (subfolder with dg layers)
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_GL/Entwicklung/TBk_GL/20211011-0951_vhm2_min12a" # 2021-11-10
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_FL/TBk_FL/20210426-1427" # 2022-01-05
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_diverse/2023-01_Volketswil/tbk2018/20230125-0942" # 2022-01-05
-# PATH_TBk_INPUT =  "C:/Users/hbh1/Projects/H07_TBk/TBk_JU/Dev/DG_split/data_aoi" # 2023-08-14
-# PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_JU/tbk_2022/20230530-1332_arcpy" # 2023-08-14
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-10_Limmattal/tbk_2022/20231019-1105" # 2023-09-20
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.008456-52-FWWG-01_TBk_Projekt_HAFL/_Kleinprojekte/2023-09_Toppwald/tbk_2012/20230912-1001" # 2023-10-25
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/02_TBk_Jura/Daten/_HARA_/tbk_2022/20230530-1332_arcpy" # 2023-11-03
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/_Sierre_visite2/tbk_2021_50a/20231122-1446" # 2023-11-05
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231213-2351_50a" # 2023-12-15
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/05_TBk_Valais/Daten/TBk_2022/20231215-0746_10a" # 2024-01-15
-# PATH_TBk_INPUT =  "D:/GIS-Projekte/TBk/TBk_VS/TBk_2022/20231215-0746_10a" # 2024-01-18
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2019/20220420-0202" # 2024-02-13
-# PATH_TBk_INPUT =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
-PATH_TBk_INPUT = "C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/20240410-1818"
+# PATH_TBk_INPUT_DIR =  "//bfh.ch/data/HAFL/7 WWI/74a FF WG/742a Aktuell/L.012359-52-WFOM_TBk_II/04_TBk_Vaud/Daten/tbk_2015/20190916-1853" # 2024-01-15
+PATH_TBk_INPUT_DIR = "C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/20240415-0136"
 
 # the path to the polygons to perform the algorithm in
 # these can be stands (e.g. TBk) or other perimeters
-# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
-PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.gpkg")
-# PATH_SHP = file.path(PATH_TBk_INPUT,"TBk_Bestandeskarte.shp")
-# PATH_SHP = file.path(PATH_TBk_INPUT,"perimeter.shp")
+# PATH_SHP = file.path(PATH_TBk_INPUT_DIR,"TBk_Bestandeskarte.shp")
+PATH_SHP = file.path(PATH_TBk_INPUT_DIR,"TBk_Bestandeskarte.gpkg")
+# PATH_SHP = file.path(PATH_TBk_INPUT_DIR,"perimeter.shp")
 
 # the path to the mg layers to compute NH per area
-PATH_MG = file.path(PATH_TBk_INPUT,"../MG_10m.tif")
-# PATH_MG = file.path(PATH_TBk_INPUT,"../MG.tif")
-# PATH_MG = file.path(PATH_TBk_INPUT,"../MG_2022_detail.tif")
+PATH_MG = file.path(PATH_TBk_INPUT_DIR,"../MG_10m.tif")
+# PATH_MG = file.path(PATH_TBk_INPUT_DIR,"../MG.tif")
+# PATH_MG = file.path(PATH_TBk_INPUT_DIR,"../MG_2022_detail.tif")
 
 # the path to the dg layers (relative or absolute)
-# default is PATH_TBk_INPUT/dg_layers/dg_layer.tif
-PATH_DG = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer.tif")
+# default is PATH_TBk_INPUT_DIR/dg_layers/dg_layer.tif
+PATH_DG = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer.tif")
 
 
-PATH_DG_KS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ks.tif")
-PATH_DG_US = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_us.tif")
-PATH_DG_MS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ms.tif")
-PATH_DG_OS = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_os.tif")
-PATH_DG_UEB = file.path(PATH_TBk_INPUT,"dg_layers/dg_layer_ueb.tif")
+PATH_DG_KS = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer_ks.tif")
+PATH_DG_US = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer_us.tif")
+PATH_DG_MS = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer_ms.tif")
+PATH_DG_OS = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer_os.tif")
+PATH_DG_UEB = file.path(PATH_TBk_INPUT_DIR,"dg_layers/dg_layer_ueb.tif")
 
 # location of the output dataset
-PATH_OUTPUT = file.path(PATH_TBk_INPUT, "local_densities")
+PATH_OUTPUT_DIR = file.path(PATH_TBk_INPUT_DIR, "local_densities")
 # optional name suffix for output, e.g. "_new"
 NAME_SUFFIX = "_v9"
 
@@ -104,8 +90,10 @@ PLOT_RESULTS = FALSE # for visual output during processing
 PLOT_INTERMEDIATE = FALSE # for detailed visual output during processing
 CLIP_TO_STAND_BOUNDARIES = TRUE
 # write original file with new attributes 
-# this can fail if file is in use (will fall back to writing a new file in PATH_OUTPUT)
+# this can fail if file is in use (will fall back to writing a new file in PATH_OUTPUT_DIR)
 OVERWRITE_ORIGINAL_TBK = FALSE
+# overwrite existing local density files from previous runs
+OVERWRITE_EXISTING_LOCAL_DENSITIES = FALSE
 
 # thresholds for removing polygon parts
 # default (as of 2021-10-27): 100 / 100 m^2
@@ -157,9 +145,33 @@ as_units(min_size_stand)
 ####       INITIALIZE        ####
 #-------------------------------#
 
+#### ensure dir / log ####
+if(VERBOSE) print("----------------------------------")
+if(VERBOSE) print("----- PREPARE LOG/DIRECTORY ------")
+if(VERBOSE) print("----------------------------------")
+START_TIME = Sys.time()
+if(VERBOSE) print(paste0("START TIME: ", format(START_TIME, "%Y-%m-%d_%H-%M")))
+if(VERBOSE) print(paste0("create output directory and processing log: "))
+if(VERBOSE) print(PATH_OUTPUT_DIR)
+# attempt to create dir non-recursively, if that fails (likely parent dir not there) try recursive
+tryCatch(expr = {
+  dir.create(file.path(PATH_OUTPUT_DIR), recursive = FALSE, showWarnings = TRUE)
+}, error=function(cond) {
+  # recursive dir creation can fail if one of the parent dirs is write-protected (the function seemingly has no if-exist-check)
+  dir.create(file.path(PATH_OUTPUT_DIR), recursive = TRUE, showWarnings = TRUE)
+  return(cond)
+}, silent = TRUE)
+
+log_filepath = file.path(PATH_OUTPUT_DIR, paste0("TBk_local_densities", NAME_SUFFIX, paste0("_log_",format(START_TIME, "%Y-%m-%d_%H-%M-%S"),".txt")))
+# start logging R output/message stream (while maintaining console output with split)
+sink(file = log_filepath, append = TRUE, type = c("output", "message"), split = TRUE) # needs to be stopped and unlinked in the end
+
 if(VERBOSE) print("----------------------------------")
 if(VERBOSE) print("----- START LOCAL DENSITIES ------")
 if(VERBOSE) print("----------------------------------")
+
+if(VERBOSE) print("Ensured Folder and Log file")
+if(VERBOSE) print(log_filepath)
 
 if(VERBOSE) print("Initialize: Load data from:")
 if(VERBOSE) print(PATH_SHP)
@@ -253,7 +265,9 @@ ras2poly <- function(ras_foc, i=0, class=0, poly_parent=NULL){
 ####_________________________####
 ####          MAIN           ####
 #-------------------------------#
-print("----------------------------------")
+
+
+if(VERBOSE) print("----------------------------------")
 if(VERBOSE) print("Done loading data")
 
 # init statstable for attributes
@@ -288,9 +302,9 @@ pb <- progress_bar$new(format = "(:spin) [:bar] :percent [Elapsed time: :elapsed
 
 for (i in 1:nrow(stands)){
   # debug lines to check single stands
-  # PLOT_INTERMEDIATE = T # for detailed visual output during processing
 # for (i in 42:47){
-  
+  # PLOT_INTERMEDIATE = T # for detailed visual output during processing
+
   # iteration initialization
   pb$tick()
   flag_polys_created_stand <- F
@@ -336,7 +350,7 @@ for (i in 1:nrow(stands)){
       focal_map = focal(hs_crop, w=fw, na.rm=TRUE, na.policy="omit")
       focal_map_2 = focal(hs_crop, w=fw_2, na.rm=TRUE, na.policy="omit")
       
-      # writeRaster(focal_map, file.path(PATH_OUTPUT, paste0("focal_map", NAME_SUFFIX, ".tif")))
+      # writeRaster(focal_map, file.path(PATH_OUTPUT_DIR, paste0("focal_map", NAME_SUFFIX, ".tif")))
       #TODO check effect of na.rm = FALSE
       # focal_map = focal(hs_crop, w=fw, na.rm=FALSE, na.policy="omit")
       if(PLOT_INTERMEDIATE) plot(focal_map)
@@ -346,10 +360,11 @@ for (i in 1:nrow(stands)){
       
       ### ** ** ** ** ** ** ** ####
       ### > iterate over classes   ####
-      flag_polys_created_class <- F
       
       # run for each class
       for(k in 1:nrow(classes_df)) {
+        # flag to check whether a polygon for this class was created (if not, stats table will be populated with NA)
+        flag_polys_created_class <- F
         class = classes_df[k,]$class
         
         # use different focal windows for different zone types
@@ -515,22 +530,38 @@ if(VERBOSE) print(paste0("Errors: ", n_errors, " (out of ", nrow(stands), " proc
 #### write error proc IDs ####
 if(!is.null(ID_errors) && n_errors > 0){
   #TODO change this to output not proc IDs (list IDs) but the actual stand ID 
-  capture.output(ID_errors, file = file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, "_errors_proc_ID.txt")))
+  capture.output(ID_errors, file = file.path(PATH_OUTPUT_DIR, paste0("TBk_local_densities", NAME_SUFFIX, "_errors_proc_ID.txt")))
 } 
 
 
 #### write gpkg local density zones ####
 if(VERBOSE) print("----------------------------------")
-if(VERBOSE) print(paste0("write local density zones to: "))
-if(VERBOSE) print(PATH_OUTPUT)
-dir.create(file.path(PATH_OUTPUT), recursive = TRUE, showWarnings = TRUE)
+if(VERBOSE) print(paste0("write local density zones to folder: "))
+if(VERBOSE) print(PATH_OUTPUT_DIR)
 
 # write files for polygons
 polys$ID_TMP <- NULL # tmp. ID is not part of output!
 polys$area <- round(as.numeric(polys$area))  # drop unit & round to m^2
 polys$area_pct <- as.numeric(polys$area_pct) # drop unit 
-st_write(st_as_sf(polys), append = FALSE, 
-         file.path(PATH_OUTPUT, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg")))
+
+PATH_OUTPUT_FILE = file.path(PATH_OUTPUT_DIR, paste0("TBk_local_densities", NAME_SUFFIX, ".gpkg"))
+if (file.exists(PATH_OUTPUT_FILE)) {
+  if (OVERWRITE_EXISTING_LOCAL_DENSITIES) {
+    # delete file first
+    # st_write / write_sf allow overwriting the contents of gpkg that are currently used
+    # (also for some reason the st_write overwrite routine keeps the original file size 
+    # if bigger than the contents it is overwritten with)
+    # the use of file.remove avoids both these behaviors (errors when file is used)
+    print(paste0("Delete existing results: " , PATH_OUTPUT_FILE))
+    if (!file.remove(PATH_OUTPUT_FILE)) {
+      PATH_OUTPUT_FILE = file.path(PATH_OUTPUT_DIR, paste0("TBk_local_densities", NAME_SUFFIX, "_", format(START_TIME, "%Y-%m-%d_%H-%M-%S"), ".gpkg"))
+    }
+  } else {
+    # if not supposed to overwrite, create file with timestamp
+    PATH_OUTPUT_FILE = file.path(PATH_OUTPUT_DIR, paste0("TBk_local_densities", NAME_SUFFIX, "_", format(START_TIME, "%Y-%m-%d_%H-%M-%S"), ".gpkg"))
+  }
+}
+st_write(st_as_sf(polys), append = FALSE, PATH_OUTPUT_FILE)
 
 
 #### append attributes to input ####
@@ -556,20 +587,70 @@ tryCatch(expr={
   stands_out$ID_TMP <- NULL # tmp. ID is not part of output!
   stands_out$stand_ID <- NULL # same goes to stand_ID (identical with ID)!
   
-  if(!OVERWRITE_ORIGINAL_TBK){
-    if(VERBOSE) print(paste0("write input geometries with appendes attributes to folder: ", PATH_OUTPUT))
-    # write file with new attributes to PATH_OUTPUT
-    write_sf(stands_out, file.path(PATH_OUTPUT, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities", NAME_SUFFIX, ".gpkg") ))
-  }
   if(OVERWRITE_ORIGINAL_TBK){
-    if(VERBOSE) print(paste0("attempt to overwrite input geometries with appendend attributes: ", PATH_SHP))
-    # write file with new attributes to 
-    write_sf(stands_out, file.path(PATH_SHP))
+    if(VERBOSE) print("Attempt to overwrite input geometries with appendend attributes: ")
+    if(VERBOSE) print(PATH_SHP)
+    if(VERBOSE) print("Create backup first:")
+    PATH_SHP_BACKUP = file.path(PATH_OUTPUT_DIR,paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_original_backup", "_", format(START_TIME, "%Y-%m-%d_%H-%M-%S"),".gpkg"))
+    if(VERBOSE) print(PATH_SHP_BACKUP)
+    
+    # attempt overwrite. If it fails, toggle overwrite flag.
+    # st_write / write_sf allow overwriting the contents of gpkg that are currently used
+    # using file.remove and st_write allows to avoid this
+    if(file.copy(PATH_SHP, PATH_SHP_BACKUP)){
+      print(paste0("Backup successful. Attempting to delete original input geometries."))
+      if (!file.remove(PATH_SHP)) {
+        print(paste0("Couldn't delete original dataset, won't overwrite."))
+        OVERWRITE_ORIGINAL_TBK = FALSE
+      } else {
+        print(paste0("Delete successful. Will now write input geometires with appended attributes to original path."))
+        PATH_OUTPUT_TBK_FILE = PATH_SHP
+      }
+    } else {
+      print(paste0("Couldn't backup, won't overwrite."))
+      OVERWRITE_ORIGINAL_TBK = FALSE
+    }
   }
+  
+  if(!OVERWRITE_ORIGINAL_TBK){
+    if(VERBOSE) print(paste0("write input geometries with appended attributes to folder: "))
+    if(VERBOSE) print(PATH_OUTPUT_DIR)
+    
+    # write file with new attributes to PATH_OUTPUT_DIR
+    PATH_OUTPUT_TBK_FILE = file.path(PATH_OUTPUT_DIR, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities", NAME_SUFFIX, ".gpkg"))
+    if (file.exists(PATH_OUTPUT_TBK_FILE)) {
+      if (OVERWRITE_EXISTING_LOCAL_DENSITIES) {
+        # attempt deleting file first, checks whether file can be deleted
+        print(paste0("Delete existing results: " , PATH_OUTPUT_TBK_FILE))
+        if (!file.remove(PATH_OUTPUT_TBK_FILE)) {
+          PATH_OUTPUT_TBK_FILE = file.path(PATH_OUTPUT_DIR, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities", NAME_SUFFIX, "_", format(START_TIME, "%Y-%m-%d_%H-%M-%S"), ".gpkg"))  
+        }
+      } else {
+        # if not supposed to overwrite, create file with timestamp
+        PATH_OUTPUT_TBK_FILE = file.path(PATH_OUTPUT_DIR, paste0(tools::file_path_sans_ext(basename(PATH_SHP)),"_local-densities", NAME_SUFFIX, "_", format(START_TIME, "%Y-%m-%d_%H-%M-%S"), ".gpkg"))  
+      }
+    }
+  } 
+  st_write(stands_out, PATH_OUTPUT_TBK_FILE)
+  
 }, error=function(cond) {# optional: print alert # message(paste("")))
-}, silent = TRUE)
+}, silent = FALSE)
 
 
 if(VERBOSE) print("----------------------------------")
 if(VERBOSE) print("------------   DONE   ------------")
 if(VERBOSE) print("----------------------------------")
+#### output statistics ####
+END_TIME = Sys.time()
+if(VERBOSE) print(paste0("END TIME: ", format(END_TIME, "%Y-%m-%d_%H-%M")))
+DURATION = END_TIME - START_TIME
+if(VERBOSE) print(paste0("DURATION: ", DURATION, " secs"))
+if(VERBOSE) print(paste0("NR STANDS/PERIMETERS: ", nrow(stands)))
+if(VERBOSE) print(paste0("AVG TIME PER STAND: ", DURATION/nrow(stands), " secs"))
+if(VERBOSE) print(paste0("NR CREATED POLYGONS: ", nrow(polys)))
+if(VERBOSE) print(paste0("AVG TIME PER POLYGON: ", DURATION/nrow(polys), " secs"))
+
+if(VERBOSE) print("----------------------------------")
+# stop logging
+sink()
+
