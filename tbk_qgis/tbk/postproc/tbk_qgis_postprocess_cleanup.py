@@ -1,4 +1,7 @@
 """
+Removes small areas (< 100 m2) and areas without geometry.
+Also fixes geometries and duplicates in the stand ID field.
+
 Model exported as python.
 Name : TBk Cleanup
 Group : TBk
