@@ -72,6 +72,7 @@ from .calculate_dg import *
 from .add_coniferous_proportion import *
 from .attributes_default import *
 from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
+from tbk_qgis.tbk.utility.persistence_utility import write_dict_to_json_file, read_dict_from_json_file
 
 
 class TBkAlgorithm(QgsProcessingAlgorithm):
@@ -108,6 +109,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     OUTPUT_ROOT = "output_root"
     # Directory containing the output files and subfolders with tmp and processing files
     WORKING_ROOT = "working_root"
+    # File storing the parameters
+    CONFIG_FILE = "config_file"
     # VHM 10m as main TBk input       
     VHM_10M = "vhm_10m"
     # VHM 150cm to calculate DG                                  
@@ -174,6 +177,15 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
+        # Config file
+        self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
+                                                     self.tr(
+                                                         'Configuration file to set the parameters of the algorithm. '
+                                                         'The parameters set in the file does not need to be set here '
+                                                         'bellow'),
+                                                     extension='json',
+                                                     optional=True))
+
         # VHM 10m as main TBk input
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M,
                                                             self.tr("VHM 10m as main TBk input  (.tif)")))
@@ -389,6 +401,34 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # get and check miscellaneous parameters
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
+        # get configuration file path
+        config_path = self.parameterAsString(parameters, self.CONFIG_FILE, context)
+
+        # --- Set input parameters from config file
+
+        input_parameters = read_dict_from_json_file(config_path)
+
+        calc_mixture_for_main_layer = bool(input_parameters["calc_mixture_for_main_layer"])
+        #coniferous_raster = input_parameters["coniferous_raster"]
+        #coniferous_raster_for_classification = input_parameters["coniferous_raster_for_classification"]
+        del_tmp = bool(input_parameters["del_tmp"])
+        description = input_parameters["description"]
+        logfile_name = input_parameters["logfile_name"]
+        max_corr = int(input_parameters["max_corr"])
+        max_tol = int(input_parameters["max_tol"])
+        min_valid_cells = int(input_parameters["min_valid_cells"])
+        output_root = input_parameters["output_root"]
+        perimeter = input_parameters["perimeter"]
+        similar_neighbours_hdom_diff_rel = int(input_parameters["similar_neighbours_hdom_diff_rel"])
+        similar_neighbours_min_area = int(input_parameters["similar_neighbours_min_area"])
+        simplification_tolerance = int(input_parameters["simplification_tolerance"])
+        useConiferousRaster = bool(input_parameters["useConiferousRasterForClassification"])
+        vhm_10m = input_parameters["vhm_10m"]
+        vhm_150cm = input_parameters["vhm_150cm"]
+        vhm_max_height = int(input_parameters["vhm_max_height"])
+        vhm_min_height = int(input_parameters["vhm_min_height"])
+
+
         # --- init directory
         ensure_dir(output_root)
 
@@ -448,6 +488,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         log.info('Run TBk')
 
         # ------- TBk MAIN Processing --------#
+
+        # store the input parameters in a file
+        write_dict_to_json_file(tbk_result_dir, parameters)
 
         # Run TBk
         start_time = time.time()
