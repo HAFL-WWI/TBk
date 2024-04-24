@@ -128,6 +128,20 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
     # --- Advanced Parameters
 
+    # VegZone parameters
+    # Default Vegetation Zone
+    VEGZONE_DEFAULT = "vegZoneDefault"
+    # Vegetation Zone layer (polygons) for spatial join
+    VEGZONE_LAYER = "vegZoneLayer"
+    # Vegetation Zone Code field (in layer)
+    VEGZONE_LAYER_FIELD = "vegZoneLayerField"
+    # Default Forest Site Category
+    FORESTSITE_DEFAULT = "forestSiteDefault"
+    # Forest Site Category layer (polygons) for spatial join
+    FORESTSITE_LAYER = "forestSiteLayer"
+    # Forest Site Category field (in layer)
+    FORESTSITE_LAYER_FIELD = "forestSiteLayerField"
+
     # Main TBk parameters (for details see run_stand_classification function)
     # If to consider it for classification
     USE_CONFEROUS_FOR_CLASSIFICATION = "useConiferousRasterForClassification"
@@ -200,12 +214,41 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                                                             '\n(a subfolder with timestamp will be created within)')))
 
         # --- Advanced Parameters
+
+        # Fields for Vegetation Zone
+        self.addAdvancedParameter(QgsProcessingParameterNumber(self.VEGZONE_DEFAULT, self.tr(
+            "Vegetation Zone default (Code). Will be applied if no vegetation zone can be assigned from VegZone layer."
+            "\n1 - hyperinsubric, 2/3 - colline /with beech, 4 - submontane, "
+            "\n5 - lower montane, 6 - upper montane, 8 - high montane, 9 - sub alpine"
+        ), type=QgsProcessingParameterNumber.Integer, defaultValue=2))
+        self.addAdvancedParameter(
+            QgsProcessingParameterFeatureSource(self.VEGZONE_LAYER, self.tr("Vegetation Zone layer"),
+                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+        self.addAdvancedParameter(
+            QgsProcessingParameterField(self.VEGZONE_LAYER_FIELD, 'Vegetation Zone Code field (in layer)',
+                                        type=QgsProcessingParameterField.Numeric,
+                                        parentLayerParameterName=self.VEGZONE_LAYER, allowMultiple=False,
+                                        defaultValue='Code', optional=True))
+
+        # Fields for Forest Site Category
+        self.addAdvancedParameter(
+            QgsProcessingParameterString(self.FORESTSITE_DEFAULT, self.tr("Forest Site Category (Code, e.g. 7a)"),
+                                         optional=True))
+        self.addAdvancedParameter(
+            QgsProcessingParameterFeatureSource(self.FORESTSITE_LAYER, self.tr("Forest Site Category layer"),
+                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+        self.addAdvancedParameter(
+            QgsProcessingParameterField(self.FORESTSITE_LAYER_FIELD, 'Forest Site Category field (in layer)',
+                                        type=QgsProcessingParameterField.Any,
+                                        parentLayerParameterName=self.FORESTSITE_LAYER, allowMultiple=False,
+                                        optional=True))
+
+        # Main TBk Algorithm parameters
         parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION,
                                                   self.tr("Consider coniferous raster for classification"),
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-        # Zone raster is currently hidden,
         parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),
                                                       optional=True)
         self.addHiddenParameter(parameter)
@@ -260,7 +303,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=8)
         self.addAdvancedParameter(parameter)
 
-        #    # Additional parameters
         parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, self.tr("Min. area to eliminate small stands"),
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
         self.addAdvancedParameter(parameter)
@@ -280,6 +322,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
 
+        # Additional parameters
         parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files and fields"),
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
@@ -345,7 +388,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             # feedback.pushInfo("Using coniferous raster for classification.")
 
         calc_mixture_for_main_layer = self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER, context)
-        if calc_mixture_for_main_layer and coniferous_raster == None:
+        if calc_mixture_for_main_layer and coniferous_raster is None:
             raise QgsProcessingException("No coniferous_raster specified")
 
         # get and check perimeter file
@@ -367,6 +410,24 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         if (not description) or description == "":
             description = "TBk dataset"
         # TODO use description for naming the output/project file
+
+        # get and check join files/defaults
+        vegZoneDefault = self.parameterAsInt(parameters, self.VEGZONE_DEFAULT, context)
+        if self.parameterAsVectorLayer(parameters, self.VEGZONE_LAYER, context):
+            vegZoneLayer = str(self.parameterAsVectorLayer(parameters, self.VEGZONE_LAYER, context).source())
+        else:
+            vegZoneLayer = None
+        vegZoneLayerField = self.parameterAsString(parameters, self.VEGZONE_LAYER_FIELD, context)
+        if vegZoneLayer and not vegZoneLayerField:
+            raise QgsProcessingException("vegZoneLayer provided but no vegZoneLayerField for join")
+        forestSiteDefault = str(self.parameterAsString(parameters, self.FORESTSITE_DEFAULT, context))
+        if self.parameterAsVectorLayer(parameters, self.FORESTSITE_LAYER, context):
+            forestSiteLayer = str(self.parameterAsVectorLayer(parameters, self.FORESTSITE_LAYER, context).source())
+        else:
+            forestSiteLayer = None
+        forestSiteLayerField = self.parameterAsString(parameters, self.FORESTSITE_LAYER_FIELD, context)
+        if forestSiteLayer and not forestSiteLayerField:
+            raise QgsProcessingException("forestSiteLayer provided but no forestSiteLayerField for join")
 
         # get and check algorithm parameters
         min_tol = self.parameterAsDouble(parameters, self.MIN_TOL, context)
@@ -494,26 +555,85 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         log.info('Calc specific attributes')
         stands_file_attributed = calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=del_tmp)
 
-        # --- run cleanup and write final stand file
+        # --- Cleanup stand file
         log.info('Run clean up')
         stands_file_cleaned = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_clean.gpkg")
         processing.run("TBk:TBk postprocess Cleanup", {
             'tbk_bestandeskarte': stands_file_attributed,
             'Tbk_bestandeskarte_clean': stands_file_cleaned})
 
+        # --- Append attributes from join layers
+        log.info('Append attributes from join layers')
+
+        # join VegZone if layer is provided
+        if vegZoneLayer:
+            stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone1join.gpkg")
+            param = {'layer_to_join_attribute_on': stands_file_cleaned,
+                     'attribute_layer': vegZoneLayer,
+                     'fields_to_join': [vegZoneLayerField], 'joined_attributes_prefix': 'VegZone_',
+                     'output_with_attribute': stands_file_join}
+            processing.run("TBk:Optimized Spatial Join", param)
+
+            # rename field to VegZone_Code (if vegZoneLayerField is anything other than "Code")
+            vegZone_output_fieldname = 'VegZone_' + vegZoneLayerField
+            if not (vegZone_output_fieldname == "VegZone_Code"):
+                stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone2Rename.gpkg")
+                processing.run("native:renametablefield", {
+                    'INPUT': stands_file_join,
+                    'FIELD': vegZone_output_fieldname, 'NEW_NAME': 'VegZone_Code',
+                    'OUTPUT': stands_file_rename})
+                # make output the input of nextstep
+                stands_file_join = stands_file_rename
+
+            # make output the input of nextstep
+            stands_file_cleaned = stands_file_join
+
+        # create field VegZone_Code (if not already existent through join) and fill (NULL values) with default
+        stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone3.gpkg")
+        formula = f'if("VegZone_Code","VegZone_Code", {vegZoneDefault})'
+        processing.run("native:fieldcalculator", {
+            'INPUT': stands_file_cleaned,
+            'FIELD_NAME': 'VegZone_Code', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+            'FORMULA': formula, 'OUTPUT': stands_file_appended})
+
+        # join if layer is provided
+        if forestSiteLayer:
+            stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1join.gpkg")
+            param = {'layer_to_join_attribute_on': stands_file_appended,
+                     'attribute_layer': forestSiteLayer,
+                     'fields_to_join': [forestSiteLayerField], 'joined_attributes_prefix': 'ForestSite_',
+                     'output_with_attribute': stands_file_join}
+            processing.run("TBk:Optimized Spatial Join", param)
+
+            # rename field to ForestSite
+            forestSite_output_fieldname = 'ForestSite_' + forestSiteLayerField
+            stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2Rename.gpkg")
+            processing.run("native:renametablefield", {
+                'INPUT': stands_file_join,
+                'FIELD': forestSite_output_fieldname, 'NEW_NAME': 'ForestSite',
+                'OUTPUT': stands_file_rename})
+
+            # make output the input of nextstep
+            stands_file_appended = stands_file_rename
+
+        if (forestSiteDefault is not None) and not (forestSiteDefault == ""):
+            # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
+            stands_file_forestSite = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
+            formula = f'if("ForestSite","ForestSite", \'{forestSiteDefault}\')'
+            processing.run("native:fieldcalculator", {
+                'INPUT': stands_file_appended,
+                'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
+                'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
+            stands_file_appended = stands_file_forestSite
+
         # --- Clean up unneeded fields
-
-        # if del_tmp:
-        #     log.info('Remove obsolete fields in TBk_Bestandeskarte')
-        #     del_fields = ["FID_orig", "OBJECTID", "fid", "fid_1", "NH_CLASS"]
-        #     delete_fields(QgsVectorLayer(result_stand_path, "layer", "ogr"), del_fields)
-
+        log.info('Remove obsolete fields in TBk_Bestandeskarte')
         # remove fid with processing tool, as deleting doesn't seem to work
         # stands_file_fid_del = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_fiddel.gpkg")
         stands_file_final = os.path.join(tbk_result_dir, "TBk_Bestandeskarte.gpkg")
 
         processing.run("native:deletecolumn", {
-            'INPUT': stands_file_cleaned,
+            'INPUT': stands_file_appended,
             'COLUMN': ['fid', 'FID_orig', 'OBJECTID', 'NH_CLASS'],
             'OUTPUT': stands_file_final})
 

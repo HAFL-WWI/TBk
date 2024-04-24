@@ -50,6 +50,7 @@ from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCle
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_OSChange import TBkPostprocessOSChange
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
+from tbk_qgis.tbk.utility.optimized_spatial_join import OptimizedSpatialJoin
 
 class TBkProvider(QgsProcessingProvider):
 
@@ -83,6 +84,9 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessOSChange())
         self.addAlgorithm(TBkPostprocessLocalDensity())
         self.addAlgorithm(TBkPostprocessWIS2Export())
+        # [grpID: utlity]     grpName: X Utility
+        self.addAlgorithm(OptimizedSpatialJoin())
+
 
 
     def id(self):
