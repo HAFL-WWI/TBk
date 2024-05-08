@@ -1,35 +1,68 @@
-import json
+import importlib
 import os
+
 from types import SimpleNamespace
-from typing import Any
+from typing import Optional
 
-_CONFIG_FILE_NAME = "input_config.json"
+import toml
+import tomlkit
+from tomlkit import TOMLDocument
+
+import tbk_qgis
+
+_CONFIG_FILE_NAME = "input_config.toml"
+_DEFAULT_CONFIG_PATH = os.path.dirname(tbk_qgis.__file__) + '/' + 'config' + '/' + 'default_input_config.toml'
 
 
-# todo: make use of a toml config file?
-def write_dict_to_json_file(output_folder_path: str, dictionary: dict, file_name: str = _CONFIG_FILE_NAME) -> None:
+def write_dict_to_toml_file(toml_file_path: str, output_folder_path: str, dictionary: dict,
+                            file_name: str = _CONFIG_FILE_NAME) -> None:
     """
-        Write a dictionary to a JSON file.
+        Write a dictionary to a TOML file.
     """
-    # Serializing json with indentation for readability
-    parameters_string = json.dumps(dictionary, indent=4)
+
+    # If a TOML file path is given, store the corresponding file to keep the file comments
+    if toml_file_path:
+        toml_template_path = toml_file_path
+    else:
+        toml_template_path = _DEFAULT_CONFIG_PATH
+    toml_data = read_toml_file(toml_template_path)
+
+    # Iterate over the dict and replace the values in the toml template
+    for key, value in dictionary.items():
+        toml_data[key] = value
 
     file_path = os.path.join(output_folder_path, file_name)
 
-    # Writing the file
-    with open(file_path, "w") as outfile:
-        outfile.write(parameters_string)
+    try:
+        # Writing the file
+        with open(file_path, "w") as outfile:
+            outfile.write(toml_data.as_string())
+    except (FileNotFoundError, PermissionError, OSError):
+        print(f'Error writing file: {file_path}')
 
 
-def read_dict_from_json_file(file_path: str) -> SimpleNamespace:
+def read_dict_from_toml_file(file_path: str) -> Optional[SimpleNamespace]:
     """
-    Read a dictionary from a JSON file.
+    Read a dictionary from a TOML file
+    """
+    toml_document = read_toml_file(file_path)
+    if toml_document:
+        data = toml_document.unwrap()
+        # Convert the TOML data to a namespace object
+        return SimpleNamespace(**data)
+    return None
+
+
+def read_toml_file(file_path: str) -> TOMLDocument:
+    """
+    Read data contained in a TOML file
     """
     try:
-        # Attempt to open the JSON file for reading
-        with open(file_path, 'r') as json_file:
-            data = json.load(json_file)
-            # Convert the JSON data to a namespace object
-            return SimpleNamespace(**data)
-    except FileNotFoundError:
-        print(f'file {file_path} not found')
+        # Attempt to open the TOML file for reading
+        with open(file_path, 'r') as toml_file:
+            # Parse the TOML file and unwrap it to get a pure python object
+            data = tomlkit.parse(toml_file.read())
+            # Convert the TOML data to a namespace object
+            return data
+    except (FileNotFoundError, PermissionError, OSError):
+        print(f'Error opening file: {file_path}')

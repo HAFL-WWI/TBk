@@ -20,7 +20,7 @@ from qgis.core import (
 )
 
 # Path to the tbk project folder
-tbk_path = 'C:\dev\hafl\TBk_fork'
+tbk_path = 'C:/dev/hafl/TBk_fork'
 
 # The path to the plugin is environment specific
 # Appending it is only necessary if that path is not on the PYTHONPATH. Do so e.g. with:
@@ -49,7 +49,7 @@ QgsApplication.processingRegistry().addProvider(provider)
 # paths to files are exemplary here and need to be adjusted to the local system
 
 # TBk HAFL (BE)
-processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.json',
+processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.toml',
                                    'vhm_10m': f'{tbk_path}/data/tbk_hafl/VHM_10m.tif',
                                    'vhm_150cm': f'{tbk_path}/data/tbk_hafl/VHM_150cm.tif',
                                    'coniferous_raster': f'{tbk_path}/data/tbk_hafl/MG_10m.tif',
