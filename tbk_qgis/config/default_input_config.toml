@@ -1,10 +1,10 @@
 # default input configuration
 
 # Input files paths
-config_file = "C:/dev/hafl/TBk_fork/data/tbk_hafl/input_config.toml"         # TOML configuration file
+config_file = ""                                                                # TOML configuration file
 vhm_10m = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif"                      # VHM 10m as main TBk input
-vhm_150cm = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_150cm.tif"               # VHM 150cm to calculate DG
-coniferous_raster = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"             # todo
+vhm_150cm = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_150cm.tif"                  # VHM 150cm to calculate DG
+coniferous_raster = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"             # Coniferous raster to calculate stand mean
 coniferous_raster_for_classification = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m_binary.tif"   # Coniferous raster for classification
 perimeter = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl"  # Perimeter shapefile to clip final result
 
@@ -31,10 +31,16 @@ vhm_max_height = 60                                     # VHM maximum height
 min_area_m2 = 1000                                      # Min. area to eliminate small stands
 similar_neighbours_min_area = 2000                      # Min. area to merge similar stands
 similar_neighbours_hdom_diff_rel = 0.15                 # hdom relative diff to merge similar stands
-calc_mixture_for_main_layer = true                     # Also calc coniferous prop. for main layer
+calc_mixture_for_main_layer = true                      # Also calc coniferous prop. for main layer
 del_tmp = true                                          # Need to delete temporary files and fields
-simplification_tolerance = 8                            # todo
+simplification_tolerance = 8                            # Simplification tolerance
 
-
+# Vegetation zone and
+vegZoneDefault = 2                                      # Default Vegetation Zone
+vegZoneLayer = ""                                       # Vegetation Zone layer (polygons) for spatial join
+vegZoneLayerField = ""                                  # Vegetation Zone Code field (in layer)
+forestSiteDefault = ""                                  # Default Forest Site Category
+forestSiteLayer = ""                                    # Forest Site Category layer (polygons) for spatial join
+forestSiteLayerField = ""                               # Forest Site Category field (in layer)
 
 

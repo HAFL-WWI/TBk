@@ -72,7 +72,9 @@ from .calculate_dg import *
 from .add_coniferous_proportion import *
 from .attributes_default import *
 from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
-from tbk_qgis.tbk.utility.persistence_utility import read_dict_from_toml_file, write_dict_to_toml_file
+from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
+                                                      write_dict_to_toml_file,
+                                                      to_params_with_layer_source)
 
 
 class TBkAlgorithm(QgsProcessingAlgorithm):
@@ -354,7 +356,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get configuration file path
         config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
-        # --- Set input parameters from config file
+        # Set input parameters from config file
         try:
             config = read_dict_from_toml_file(config_path)
         except FileNotFoundError:
@@ -376,8 +378,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
         # get and check coniferous Raster / settings
-        # todo: variable with lower case
-        # todo: Code readability can be enhanced
+        # todo: Code difficult to read and understand from here
         use_coniferous_raster = self.parameterAsBool(config or parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
         coniferous_raster_layer = self.parameterAsRasterLayer(config or parameters, self.CONIFEROUS_RASTER, context)
         coniferous_raster = None
@@ -387,7 +388,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("coniferous_raster must be a TIFF file")
 
         # init coniferous_raster_for_classification and read from parameters if provided
-        # todo: Code readability can be enhanced
         coniferous_raster_for_classification = None
         coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(config or parameters,
                                                                                  self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
@@ -399,7 +399,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("coniferous_raster_for_classification must be a TIFF file")
 
         # if no explicit coniferous_raster_for_classification is provided, try using coniferous_raster, else complain
-        # todo: Code readability can be enhanced
         if use_coniferous_raster and (coniferous_raster_for_classification is None):
             if coniferous_raster is None:
                 coniferous_raster_for_classification = coniferous_raster
@@ -413,6 +412,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         calc_mixture_for_main_layer = self.parameterAsBool(config or parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
                                                            context)
+        # todo: some logic issue. CALC_MIXTURE_FOR_MAIN_LAYER is true per default and CONIFEROUS_RASTER optional in the
+        #   initAlgorithm. CONIFEROUS_RASTER is therefore not really optional since we block per default the algorithm
+        #   if it is not set
         if calc_mixture_for_main_layer and coniferous_raster is None:
             raise QgsProcessingException("No coniferous_raster specified")  # todo: raised if parameter not set in QGIS
 
@@ -421,7 +423,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # TODO maybe check geometry?
 
         # get and check zone raster file
-        # todo: Code readability can be enhanced
         zoneRasterFile_layer = self.parameterAsRasterLayer(config or parameters, self.ZONE_RASTER_FILE, context)
         zoneRasterFile = None
         if zoneRasterFile_layer:
@@ -539,7 +540,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # ------- TBk MAIN Processing --------#
 
         # store the input parameters in a file
-        write_dict_to_toml_file(config_path, tbk_result_dir, config or parameters)
+        params_with_sources = to_params_with_layer_source(self, parameters, context)
+        try:
+            write_dict_to_toml_file(config_path, tbk_result_dir, config or params_with_sources)
+        except Exception:
+            feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
         # Run TBk
         start_time = time.time()
