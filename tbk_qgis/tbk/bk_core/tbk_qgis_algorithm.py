@@ -218,7 +218,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         # Zone raster is currently hidden,
-        # todo: what does it do and is it necessary
         parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),
                                                       optional=True)
         self.addHiddenParameter(parameter)
@@ -311,51 +310,54 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # --- get and check input parameters
 
         # get configuration file path
-        config_path = self.parameterAsString(parameters, self.CONFIG_FILE, context)
+        config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
         # --- Set input parameters from config file
-        config = read_dict_from_toml_file(config_path)
+        try:
+            config = read_dict_from_toml_file(config_path)
+        except FileNotFoundError:
+            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
         # get and check general input parameters
-        output_root = config.output_root if config_path else self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
+        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
         # get and check logfile
-        logfile_name = config.logfile_name if config_path else str(self.parameterAsString(parameters, self.LOGFILE_NAME, context))
+        logfile_name = str(self.parameterAsString(config or parameters, self.LOGFILE_NAME, context))
         if (not logfile_name) or logfile_name == "":
             raise QgsProcessingException("no logfile name specified")
 
         # get and check paths to VHMs
-        vhm_10m = config.vhm_10m if config_path else str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
+        vhm_10m = str(self.parameterAsRasterLayer(config or parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file")
-        vhm_150cm = config.vhm_150cm if config_path else str(self.parameterAsRasterLayer(parameters, self.VHM_150CM, context).source())
+        vhm_150cm = str(self.parameterAsRasterLayer(config or parameters, self.VHM_150CM, context).source())
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
         # get and check coniferous Raster / settings
         # todo: variable with lower case
         # todo: Code readability can be enhanced
-        useConiferousRaster = config.useConiferousRasterForClassification if config_path else self.parameterAsBool(parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
-        coniferous_raster_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER, context)
+        use_coniferous_raster = self.parameterAsBool(config or parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
+        coniferous_raster_layer = self.parameterAsRasterLayer(config or parameters, self.CONIFEROUS_RASTER, context)
         coniferous_raster = None
         if coniferous_raster_layer:
-            coniferous_raster = config.coniferous_raster if config_path else str(coniferous_raster_layer.source())
+            coniferous_raster = str(coniferous_raster_layer.source())
         if coniferous_raster and (not os.path.splitext(coniferous_raster)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster must be a TIFF file")
 
         # init coniferous_raster_for_classification and read from parameters if provided
         # todo: Code readability can be enhanced
         coniferous_raster_for_classification = None
-        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters,
+        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(config or parameters,
                                                                                  self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
                                                                                  context)
         if coniferous_raster_for_classification_layer:
-            coniferous_raster_for_classification = config.coniferous_raster_for_classification if config_path else str(coniferous_raster_for_classification_layer.source())
+            coniferous_raster_for_classification = str(coniferous_raster_for_classification_layer.source())
         if coniferous_raster_for_classification and (
                 not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster_for_classification must be a TIFF file")
 
         # if no explicit coniferous_raster_for_classification is provided, try using coniferous_raster, else complain
         # todo: Code readability can be enhanced
-        if useConiferousRaster and (coniferous_raster_for_classification is None):
+        if use_coniferous_raster and (coniferous_raster_for_classification is None):
             if coniferous_raster is None:
                 coniferous_raster_for_classification = coniferous_raster
                 print("Using coniferous raster for classification.")
@@ -366,17 +368,18 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             print("Using coniferous raster for classification.")
             # feedback.pushInfo("Using coniferous raster for classification.")
 
-        calc_mixture_for_main_layer = config.calc_mixture_for_main_layer if config_path else self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER, context)
+        calc_mixture_for_main_layer = self.parameterAsBool(config or parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
+                                                           context)
         if calc_mixture_for_main_layer and coniferous_raster == None:
-            raise QgsProcessingException("No coniferous_raster specified")
+            raise QgsProcessingException("No coniferous_raster specified")  # todo: raised if parameter not set in QGIS
 
         # get and check perimeter file
-        perimeter = config.perimeter if config_path else str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
+        perimeter = str(self.parameterAsVectorLayer(config or parameters, self.PERIMETER, context).source())
         # TODO maybe check geometry?
 
         # get and check zone raster file
         # todo: Code readability can be enhanced
-        zoneRasterFile_layer = self.parameterAsRasterLayer(parameters, self.ZONE_RASTER_FILE, context)
+        zoneRasterFile_layer = self.parameterAsRasterLayer(config or parameters, self.ZONE_RASTER_FILE, context)
         zoneRasterFile = None
         if zoneRasterFile_layer:
             zoneRasterFile = str(zoneRasterFile_layer.source())
@@ -386,31 +389,33 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             zoneRasterFile = "null"
 
         # get and check description
-        description = config.description if config_path else str(self.parameterAsString(parameters, self.DESCRIPTION, context))
+        description = str(self.parameterAsString(config or parameters, self.DESCRIPTION, context))
         if (not description) or description == "":
             description = "TBk dataset"
         # TODO use description for naming the output/project file
 
         # get and check algorithm parameters
-        min_tol = config.min_tol if config_path else self.parameterAsDouble(parameters, self.MIN_TOL, context)
-        max_tol = config.max_tol if config_path else self.parameterAsDouble(parameters, self.MAX_TOL, context)
-        min_corr = config.min_corr if config_path else self.parameterAsDouble(parameters, self.MIN_CORR, context)
-        max_corr = config.max_corr if config_path else self.parameterAsDouble(parameters, self.MAX_CORR, context)
-        min_valid_cells = config.min_valid_cells if config_path else self.parameterAsDouble(parameters, self.MIN_VALID_CELLS, context)
-        min_cells_per_stand = config.min_cells_per_stand if config_path else self.parameterAsInt(parameters, self.MIN_CELLS_PER_STAND, context)
-        min_cells_per_pure_stand = config.min_cells_per_pure_stand if config_path else self.parameterAsInt(parameters, self.MIN_CELLS_PER_PURE_STAND, context)
-        vhm_min_height = config.vhm_min_height if config_path else self.parameterAsDouble(parameters, self.VHM_MIN_HEIGHT, context)
-        vhm_max_height = config.vhm_max_height if config_path else self.parameterAsDouble(parameters, self.VHM_MAX_HEIGHT, context)
+        min_tol = self.parameterAsDouble(config or parameters, self.MIN_TOL, context)
+        max_tol = self.parameterAsDouble(config or parameters, self.MAX_TOL, context)
+        min_corr = self.parameterAsDouble(config or parameters, self.MIN_CORR, context)
+        max_corr = self.parameterAsDouble(config or parameters, self.MAX_CORR, context)
+        min_valid_cells = self.parameterAsDouble(config or parameters, self.MIN_VALID_CELLS, context)
+        min_cells_per_stand = self.parameterAsInt(config or parameters, self.MIN_CELLS_PER_STAND, context)
+        min_cells_per_pure_stand = self.parameterAsInt(config or parameters, self.MIN_CELLS_PER_PURE_STAND, context)
+        vhm_min_height = self.parameterAsDouble(config or parameters, self.VHM_MIN_HEIGHT, context)
+        vhm_max_height = self.parameterAsDouble(config or parameters, self.VHM_MAX_HEIGHT, context)
 
-        simplification_tolerance = config.simplification_tolerance if config_path else self.parameterAsDouble(parameters, self.SIMPLIFICATION_TOLERANCE, context)
+        simplification_tolerance = self.parameterAsDouble(config or parameters, self.SIMPLIFICATION_TOLERANCE, context)
 
-        min_area_m2 = config.min_area_m2 if config_path else self.parameterAsInt(parameters, self.MIN_AREA_M2, context)
-        similar_neighbours_min_area = config.similar_neighbours_min_area if config_path else self.parameterAsInt(parameters, self.SIMILAR_NEIGHBOURS_MIN_AREA_M2, context)
-        similar_neighbours_hdom_diff_rel = config.similar_neighbours_hdom_diff_rel if config_path else self.parameterAsDouble(parameters, self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
+        min_area_m2 = self.parameterAsInt(config or parameters, self.MIN_AREA_M2, context)
+        similar_neighbours_min_area = self.parameterAsInt(config or parameters, self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
+                                                          context)
+        similar_neighbours_hdom_diff_rel = self.parameterAsDouble(config or parameters,
+                                                                  self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
                                                                   context)
 
         # get and check miscellaneous parameters
-        del_tmp = config.del_tmp if config_path else self.parameterAsBool(parameters, self.DEL_TMP, context)
+        del_tmp = self.parameterAsBool(config or parameters, self.DEL_TMP, context)
 
         # --- init directory
         ensure_dir(output_root)
@@ -473,8 +478,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # ------- TBk MAIN Processing --------#
 
         # store the input parameters in a file
-        # todo: correct error thrown in qgis if config file not set: TypeError: Object of type QVariant is not JSON serializable
-        write_dict_to_toml_file(config_path, tbk_result_dir, parameters)
+        write_dict_to_toml_file(config_path, tbk_result_dir, config or parameters)
 
         # Run TBk
         start_time = time.time()

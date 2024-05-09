@@ -31,7 +31,7 @@ vhm_max_height = 60                                     # VHM maximum height
 min_area_m2 = 1000                                      # Min. area to eliminate small stands
 similar_neighbours_min_area = 2000                      # Min. area to merge similar stands
 similar_neighbours_hdom_diff_rel = 0.15                 # hdom relative diff to merge similar stands
-calc_mixture_for_main_layer = false                     # Also calc coniferous prop. for main layer
+calc_mixture_for_main_layer = true                     # Also calc coniferous prop. for main layer
 del_tmp = true                                          # Need to delete temporary files and fields
 simplification_tolerance = 8                            # todo
 
