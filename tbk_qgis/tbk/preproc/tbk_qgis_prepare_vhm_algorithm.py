@@ -73,6 +73,9 @@ import processing
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from .pre_processing_helper import PreProcessingHelper
+from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
+                                                      write_dict_to_toml_file,
+                                                      to_params_with_layer_source)
 
 
 class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
@@ -102,6 +105,8 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
+    # File storing the parameters
+    CONFIG_FILE = "config_file"
 
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
@@ -134,6 +139,15 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         with some other properties.
         """
 
+        # Config file containing all parameter values
+        self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
+                                                     self.tr(
+                                                         'Configuration file to set the parameters of the algorithm. '
+                                                         'The parameters set in the file does not need to be set '
+                                                         'bellow'),
+                                                     extension='toml',
+                                                     optional=True))
+
         # input
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_INPUT, self.tr("Detailed input VHM (.tif)")))                                
         self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,self.tr("Mask shapefile to clip final result (.shp)"),[QgsProcessing.TypeVectorPolygon]))
@@ -144,7 +158,7 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         ## output
         parameter = QgsProcessingParameterString(self.VHM_DETAIL, self.tr("VHM detail output name (.tif)"),defaultValue = "vhm_detail.tif")
         self.addParameter(parameter)
-
+        # todo: names are confusing since VHM_10M and VHM_150CM refers to the inputs in the main algorithm
         parameter = QgsProcessingParameterString(self.VHM_10M, self.tr("VHM 10m output name (.tif)"),defaultValue = "vhm_10m.tif")
         self.addParameter(parameter)
 
@@ -179,56 +193,64 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-
+        print(f'parameters: {parameters}')
         settings_path = QgsApplication.qgisSettingsDirPath()
         feedback.pushInfo(settings_path)
 
         tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
 
+        # get configuration file path
+        config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
+        # Set input parameters from config file
+        try:
+            config = read_dict_from_toml_file(config_path)
+        except FileNotFoundError:
+            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+
         # input
-        vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
+        vhm_input = str(self.parameterAsRasterLayer(config or parameters, self.VHM_INPUT, context).source())
         if not os.path.splitext(vhm_input)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_input must be a TIFF file")
 
-        mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
+        mask = str(self.parameterAsVectorLayer(config or parameters, self.MASK, context).source())
         if "|layername=" in mask.lower():
             mask = mask.split("|")[0]
-
+        # todo: allow gpkg format?
         if not os.path.splitext(mask)[1].lower() in (".shp"):
             raise QgsProcessingException("Mask must be a Shape file")
 
         # Folder for algo output
-        output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
+        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
 
         # output
-        vhm_detail = str(self.parameterAsString(parameters, self.VHM_DETAIL, context))
+        vhm_detail = str(self.parameterAsString(config or parameters, self.VHM_DETAIL, context))
         if (not vhm_detail) or vhm_detail == "":
             raise QgsProcessingException("no VHM detail file name specified")
         if not os.path.splitext(vhm_detail)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_detail must be a TIFF file name")
 
-        vhm_10m = str(self.parameterAsString(parameters, self.VHM_10M, context))
+        vhm_10m = str(self.parameterAsString(config or parameters, self.VHM_10M, context))
         if (not vhm_10m) or vhm_10m == "":
             raise QgsProcessingException("no VHM 10m file name specified")
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file name")
 
-        vhm_150cm = str(self.parameterAsString(parameters, self.VHM_150CM, context))
+        vhm_150cm = str(self.parameterAsString(config or parameters, self.VHM_150CM, context))
         if (not vhm_150cm) or vhm_150cm == "":
             raise QgsProcessingException("no VHM 150cm file name specified")
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file name")
 
         # vhm range
-        vMin = self.parameterAsDouble(parameters, self.VMIN, context)
-        vMax = self.parameterAsDouble(parameters, self.VMAX, context)
+        vMin = self.parameterAsDouble(config or parameters, self.VMIN, context)
+        vMax = self.parameterAsDouble(config or parameters, self.VMAX, context)
 
         # advanced params
-        vNA = self.parameterAsInt(parameters, self.VNA, context)
-        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
-        convert_to_byte = self.parameterAsBool(parameters, self.CONVERT_TO_BYTE, context)
-        crop_vhm = self.parameterAsBool(parameters, self.CROP_VHM, context)
-        rasterize_mask = self.parameterAsBool(parameters, self.RASTERIZE_MASK, context)
+        vNA = self.parameterAsInt(config or parameters, self.VNA, context)
+        del_tmp = self.parameterAsBool(config or parameters, self.DEL_TMP, context)
+        convert_to_byte = self.parameterAsBool(config or parameters, self.CONVERT_TO_BYTE, context)
+        crop_vhm = self.parameterAsBool(config or parameters, self.CROP_VHM, context)
+        rasterize_mask = self.parameterAsBool(config or parameters, self.RASTERIZE_MASK, context)
 
         ensure_dir(output_root)
         working_root = output_root
@@ -250,6 +272,13 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(tmp_byte)
         self.deleteRasterIfExists(tmp_cropped)
         self.deleteRasterIfExists(tmp_mask)
+
+        # Store the input parameters in a file
+        params_with_sources = to_params_with_layer_source(self, parameters, context)
+        try:
+            write_dict_to_toml_file(config_path, output_root, config or params_with_sources)
+        except Exception:
+            feedback.pushWarning(f'The TOML file was not writen in the output folder because an error occurred')
 
         start_time = time.time()
 

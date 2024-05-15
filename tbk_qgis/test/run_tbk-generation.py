@@ -49,7 +49,21 @@ QgsApplication.processingRegistry().addProvider(provider)
 # paths to files are exemplary here and need to be adjusted to the local system
 
 # TBk HAFL (BE)
-processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.toml',
+"""processing.run("TBk:TBk prepare VHM", {'vhm_input': 'C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif',
+                                       'mask': 'C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.shp',
+                                       'output_root': 'TEMPORARY_OUTPUT', 'vhm_detail': 'vhm_detail.tif',
+                                       'vhm_10m': 'vhm_10m.tif', 'vhm_150cm': 'vhm_150cm.tif', 'vMin': 0, 'vMax': 60,
+                                       'vNA': 255, 'del_tmp': True, 'convert_to_byte': True, 'crop_vhm': True,
+                                       'rasterize_mask': False})"""
+
+processing.run("TBk:TBk prepare MG",
+               {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.toml',
+                'mg_input': f'{tbk_path}/data/tbk_hafl/MG_10m.tif',
+                'vhm_10m': f'{tbk_path}/data/tbk_hafl/VHM_10m.tif',
+                'output_root': f'{tbk_path}/data/tbk_hafl', 'mg_output': 'MG.tif', 'min_lh': 1,
+                'max_lh': 5000, 'min_nh': 5000, 'max_nh': 10000, 'reclassify_mg_values': True, 'del_tmp': True})
+
+"""processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.toml',
                                    'vhm_10m': f'{tbk_path}/data/tbk_hafl/VHM_10m.tif',
                                    'vhm_150cm': f'{tbk_path}/data/tbk_hafl/VHM_150cm.tif',
                                    'coniferous_raster': f'{tbk_path}/data/tbk_hafl/MG_10m.tif',
@@ -62,7 +76,7 @@ processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/inp
                                    'min_cells_per_pure_stand': 30, 'vhm_min_height': 0, 'vhm_max_height': 60,
                                    'simplification_tolerance': 8, 'min_area_m2': 1000,
                                    'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
-                                   'calc_mixture_for_main_layer': True, 'del_tmp': True})
+                                   'calc_mixture_for_main_layer': True, 'del_tmp': True})"""
 
 '''processing.run("TBk:Generate BK",
                {'vhm_10m': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_hafl/tbk2012_v02/VHM_10m.tif',

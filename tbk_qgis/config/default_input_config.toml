@@ -1,5 +1,6 @@
 # default input configuration
 
+################## Common Inputs used by all algorithm ########################
 # Input files paths
 config_file = ""                                                                # TOML configuration file
 vhm_10m = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif"                      # VHM 10m as main TBk input
@@ -9,7 +10,35 @@ coniferous_raster_for_classification = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10
 perimeter = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl"  # Perimeter shapefile to clip final result
 
 # Output path
-output_root = "C:/dev/hafl/TBk_fork/data/tbk_hafl"   # Folder in which to save the results output folder
+output_root = "C:/dev/hafl/TBk_fork/data/tbk_hafl"      # Folder in which to save the results output folder
+
+# Other
+del_tmp = true                                          # Need to delete temporary files and fields
+
+################## TBK preprocessing Algorithm ########################
+
+mask = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.shp" # Mask shapefile to clip final result (.shp) todo: use the perimeter instead?
+
+# TBk prepare MG:
+max_lh = 5000                                           # Maximum deciduous wood value
+max_nh = 10000                                          # Maximum coniferous wood value
+mg_input = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"# Mixing degree 10m input (.tif)
+mg_output = "MG.tif"                                    # Mixing degree output name (.tif)
+min_lh = 1                                              # Minimum deciduous wood value
+min_nh = 5000                                           # Minimum coniferous wood value
+reclassify_mg_values = true
+
+# TBk prepare VHM:
+convert_to_byte = true                                  # Convert VHM to BYTE datatype
+crop_vhm = true                                         # Crop VHM to mask
+rasterize_mask = false                                  # Rasterize mask
+vMax = 60.0                                             # VHM max value
+vMin = 0.0                                              # VHM min value
+vNA = 255                                               # VHM NA value
+vhm_detail = "vhm_detail.tif"                           # VHM detail output name (.tif)
+vhm_input = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif"# Detailed input VHM (.tif)
+
+################## TBK Main Algorithm          ########################
 
 # Default log file name
 logfile_name = "tbk_processing.log"                     # Will be stored in the result directory
@@ -32,7 +61,6 @@ min_area_m2 = 1000                                      # Min. area to eliminate
 similar_neighbours_min_area = 2000                      # Min. area to merge similar stands
 similar_neighbours_hdom_diff_rel = 0.15                 # hdom relative diff to merge similar stands
 calc_mixture_for_main_layer = true                      # Also calc coniferous prop. for main layer
-del_tmp = true                                          # Need to delete temporary files and fields
 simplification_tolerance = 8                            # Simplification tolerance
 
 # Vegetation zone and

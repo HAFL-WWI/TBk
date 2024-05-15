@@ -193,11 +193,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
-        # Config file
+        # Config file containing all parameter values
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      self.tr(
                                                          'Configuration file to set the parameters of the algorithm. '
-                                                         'The parameters set in the file does not need to be set here '
+                                                         'The parameters set in the file does not need to be set '
                                                          'bellow'),
                                                      extension='toml',
                                                      optional=True))
@@ -539,7 +539,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # ------- TBk MAIN Processing --------#
 
-        # store the input parameters in a file
+        # Store the input parameters in a file
         params_with_sources = to_params_with_layer_source(self, parameters, context)
         try:
             write_dict_to_toml_file(config_path, tbk_result_dir, config or params_with_sources)
