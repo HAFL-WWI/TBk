@@ -63,6 +63,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterDefinition,
+                       QgsProcessingParameterMatrix,
                        QgsVectorLayer,
                        QgsRasterLayer,
                        QgsCoordinateReferenceSystem,
@@ -104,6 +105,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     # advanced parameters
 
+    # input table for local density classes (matrix as one-dimensional list)
+    TABLE_DENSITY_CLASSES = "table_density_classes"
     # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
     CALC_ALL_DG = "calc_all_dg"
     # radius of circular moving window (in m)
@@ -136,6 +139,23 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterRasterLayer(self.MG_INPUT,
                                                             self.tr(
                                                                 "Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)")))
+
+        # input table for local density classes (matrix as one-dimensional list)
+        parameter = QgsProcessingParameterMatrix(
+            self.TABLE_DENSITY_CLASSES,
+            self.tr("Table to define classes of local densities"),
+            hasFixedNumberRows=False,
+            headers=['class', 'min DG [%]', 'max DG [%]', 'use large moving window? [False/True]'],
+            defaultValue=[
+                1, 85, 100, 'False',
+                2, 60, 85, 'True',
+                3, 40, 60, 'True',
+                4, 25, 40, 'True',
+                5, 0, 25, 'False',
+                12, 60, 100, 'True'
+            ]
+        )
+        self.addAdvancedParameter(parameter)
 
         # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
         parameter = QgsProcessingParameterBoolean(self.CALC_ALL_DG,
@@ -212,6 +232,74 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         if not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("mg_input must be TIFF file")
 
+        # input table for local density classes (matrix as one-dimensional list)
+        table_density_classes = self.parameterAsMatrix(parameters, self.TABLE_DENSITY_CLASSES, context)
+        if len(table_density_classes) % 4 != 0:
+            raise QgsProcessingException("Invalid value for table_density_classes: list must contain a multiple of 4 elements.")
+        # nuber of density classes
+        n_cl = int(len(table_density_classes) / 4)
+
+        # gather and check names of density classes
+        cl_names = []
+        for i in range(n_cl):
+            cl_i = str(table_density_classes[i * 4])
+            if cl_i == '':
+                raise QgsProcessingException('Empty string ("") among names of DG-density-classes. Only strings with length >= 1 are valid names.')
+            else:
+                cl_i = cl_i.replace(' ', '_')
+                if cl_i in cl_names:
+                    raise QgsProcessingException('"' + cl_i + '" is a duplicate among the names of DG-density-classes. Valid names must be unique. Not that under the hood " " is replaced by "_".')
+                else:
+                    cl_names.append(cl_i)
+
+        # function to check whether string is a number
+        def is_number(x):
+            try:
+                float(x)
+                return True
+            except ValueError:
+                return False
+
+        # gather and check min-values of density classes
+        cl_min = []
+        for i in range(n_cl):
+            min_i = str(table_density_classes[i * 4 + 1])
+            if is_number(min_i):
+                min_i = float(min_i)
+                if min_i < 0 or min_i >= 100:
+                    raise QgsProcessingException('The min of DG-class "' + cl_names[i] + '" is set to ' + str(min_i) + ', which is outside of the range valid: 0 >= min < 100.')
+                else:
+                    cl_min.append(float(min_i))
+            else:
+                raise QgsProcessingException('The min of DG-class "' + cl_names[i] + '" is set to "' + str(min_i) + '". But it must be a number (0 >= min < 100).')
+
+        # gather and check max-values of density classes
+        cl_max = []
+        for i in range(n_cl):
+            max_i = str(table_density_classes[i * 4 + 2])
+            if is_number(max_i):
+                max_i = float(max_i)
+                if max_i <= 0 or max_i > 100:
+                    raise QgsProcessingException('The max of DG-class "' + cl_names[i] + '" is set to ' + str(max_i) + ', which is outside of the range valid: 0 > max =< 100.')
+                else:
+                    cl_max.append(float(max_i))
+            else:
+                raise QgsProcessingException('The max of DG-class "' + cl_names[i] + '" is set to "' + str(max_i) + '". But it must be a number (0 >= max < 100).')
+
+        # check whether min-value < max-value of density classes
+        for i in range(n_cl):
+            if cl_min[i] >= cl_max[i]:
+                raise QgsProcessingException('The min and max of DG-class "' + cl_names[i] + '" are set to ' + str(cl_min[i]) + ' resp. to ' + str(cl_max[i]) + '. But min < max must be true.')
+
+        # gather and check values for usage of large moving window
+        cl_large_window = []
+        for i in range(n_cl):
+            large_window_i = str(table_density_classes[i * 4 + 3])
+            if large_window_i in ['True', 'False']:
+                cl_large_window.append(eval(large_window_i))
+            else:
+                raise QgsProcessingException('For DG-class "' + cl_names[i] + '" the usage of large moving window of is set to "' + str(large_window_i) + '". Set either to True or to False.')
+
         # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
         calc_all_dg = self.parameterAsBool(parameters, self.CALC_ALL_DG, context)
 
@@ -241,15 +329,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # development version (of local densities) suffix for output
         version_suffix = "_v11"
 
-        # define density classes
-        den_classes = [
-            {"class": 1, "min": 0.85, "max": 1, "large_window": False},
-            {"class": 2, "min": 0.6, "max": 0.85, "large_window": True},
-            {"class": 3, "min": 0.4, "max": 0.6, "large_window": True},
-            {"class": 4, "min": 0.25, "max": 0.4, "large_window": True},
-            {"class": 5, "min": 0, "max": 0.25, "large_window": False},
-            {"class": 12, "min": 0.6, "max": 1, "large_window": True}
-        ]
+        # lump together density classes
+        den_classes = []
+        for i in range(n_cl):
+            den_classes.append(
+                {
+                    "class": cl_names[i],  # string / as is
+                    "min": cl_min[i] / 100,  # [0%, 100%] --> [0, 1]
+                    "max": cl_max[i] / 100,  # [0%, 100%] --> [0, 1]
+                    "large_window": cl_large_window[i]  # boolean / as is
+                }
+            )
         # for i in den_classes: print(i)
 
         # any large moving window? --> True / False
