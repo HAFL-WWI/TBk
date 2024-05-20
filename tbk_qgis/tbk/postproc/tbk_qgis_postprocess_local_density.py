@@ -199,7 +199,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
         path_tbk_input = self.parameterAsString(parameters, self.PATH_TBk_INPUT, context)
-        path_output = os.path.join(path_tbk_input, "local_densities")
+        path_output = os.path.join(path_tbk_input, "local_densities_dev") # remove suffix _dev after development is finished
         ensure_dir(path_output)
 
         settings_path = QgsApplication.qgisSettingsDirPath()
