@@ -47,7 +47,7 @@ QgsApplication.processingRegistry().addProvider(provider)
 
 processing.run(
     "TBk:TBk postprocess local density",
-    {'path_tbk_input': 'C:\\Users\\bia3\\aktuelle_Projekte\\TBk\\data\\tbk_hafl\\20240423-0908',
+    {'path_tbk_input': 'C:\\Users\\bia3\\aktuelle_Projekte\\TBk\\data\\tbk_hafl\\20240520-1139',
      'mg_input': 'C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/MG_10m.tif', 'calc_all_dg': True, 'mw_rad': 7,
      'mw_rad_large': 14, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400, 'buffer_smoothing': True,
      'buffer_smoothing_dist': 7}
