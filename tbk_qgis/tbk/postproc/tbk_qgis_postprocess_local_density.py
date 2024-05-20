@@ -239,7 +239,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         start_time = time.time()
 
         # development version (of local densities) suffix for output
-        version_suffix = "_v10"
+        version_suffix = "_v11"
 
         # define density classes
         den_classes = [
