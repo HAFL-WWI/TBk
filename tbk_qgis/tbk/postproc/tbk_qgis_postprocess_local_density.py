@@ -131,14 +131,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         """
 
         # Folder for algo input/output
-        self.addParameter(QgsProcessingParameterFile(self.PATH_TBk_INPUT, self.tr("Folder with TBk results"),
-                                                     behavior=QgsProcessingParameterFile.Folder,
-                                                     fileFilter='All Folders (*.*)', defaultValue=None))
+        self.addParameter(QgsProcessingParameterFile(
+            self.PATH_TBk_INPUT, self.tr("Folder with TBk results"),
+            behavior=QgsProcessingParameterFile.Folder,
+            fileFilter='All Folders (*.*)', defaultValue=None)
+        )
 
         # Forest mixture degree / coniferous raster to calculate density zone mean
-        self.addParameter(QgsProcessingParameterRasterLayer(self.MG_INPUT,
-                                                            self.tr(
-                                                                "Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)")))
+        self.addParameter(QgsProcessingParameterRasterLayer(
+            self.MG_INPUT,
+            self.tr("Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)"))
+        )
 
         # input table for local density classes (matrix as one-dimensional list)
         parameter = QgsProcessingParameterMatrix(
@@ -158,49 +161,64 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
-        parameter = QgsProcessingParameterBoolean(self.CALC_ALL_DG,
-                                                  self.tr(
-                                                      "Determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)"),
-                                                  defaultValue=True)
+        parameter = QgsProcessingParameterBoolean(
+            self.CALC_ALL_DG,
+            self.tr("Determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)"),
+            defaultValue=True
+        )
         self.addAdvancedParameter(parameter)
 
         # radius of circular moving window (in m)
-        parameter = QgsProcessingParameterNumber(self.MW_RAD, self.tr("Radius of circular moving window (in m)"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=7.0)
+        parameter = QgsProcessingParameterNumber(
+            self.MW_RAD,
+            self.tr("Radius of circular moving window (in m)"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=7.0
+        )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
 
         # large radius of circular moving window (in m)
-        parameter = QgsProcessingParameterNumber(self.MW_RAD_LARGE,
-                                                 self.tr("Large radius of circular moving window (in m)"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=14.0)
+        parameter = QgsProcessingParameterNumber(
+            self.MW_RAD_LARGE,
+            self.tr("Large radius of circular moving window (in m)"),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=14.0
+        )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
 
         # minimum size for dense/sparse "clumps" (m^2)
-        parameter = QgsProcessingParameterNumber(self.MIN_SIZE_CLUMP,
-                                                 self.tr("Minimum size for dense/sparse 'clumps' (m^2)"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=1200)
+        parameter = QgsProcessingParameterNumber(
+            self.MIN_SIZE_CLUMP,
+            self.tr("Minimum size for dense/sparse 'clumps' (m^2)"),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=1200
+        )
         self.addAdvancedParameter(parameter)
 
         # minimum size for stands to apply calculation of local densities (m^2)
-        parameter = QgsProcessingParameterNumber(self.MIN_SIZE_STAND,
-                                                 self.tr(
-                                                     "Minimum size for stands to apply calculation of local densities (m^2)"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=1200)
+        parameter = QgsProcessingParameterNumber(
+            self.MIN_SIZE_STAND,
+            self.tr("Minimum size for stands to apply calculation of local densities (m^2)"),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=1200
+        )
         self.addAdvancedParameter(parameter)
 
         # threshold for minimal holes within local density polygons (m^2)
-        parameter = QgsProcessingParameterNumber(self.HOLES_THRESH, self.tr(
-            "Threshold for minimal holes within local density polygons (m^2)"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=400)
+        parameter = QgsProcessingParameterNumber(
+            self.HOLES_THRESH,
+            self.tr("Threshold for minimal holes within local density polygons (m^2)"),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=400
+        )
         self.addAdvancedParameter(parameter)
 
         # method to remove thin parts and details of zones by minus / plus buffering (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.BUFFER_SMOOTHING,
-            self.tr(
-                "Remove thin parts and details of density zones by minus / plus buffering. If unchecked, no buffer smoothing is applied."),
+            self.tr("Remove thin parts and details of density zones by minus / plus buffering. If unchecked, no buffer smoothing is applied."),
             defaultValue=True
         )
         self.addAdvancedParameter(parameter)
@@ -209,7 +227,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.BUFFER_SMOOTHING_DIST,
             self.tr("Buffer distance of buffer smoothing (m). If set to 0, no buffer smoothing is applied."),
-            type=QgsProcessingParameterNumber.Double, defaultValue=7
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=7
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
