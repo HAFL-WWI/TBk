@@ -125,6 +125,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     MG_10M = "mg_10m"
     # binary coniferous raster, used for stand delineation (boolean)
     MG_10M_BINARY = "mg_10m_binary"
+    # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
+    MG_CLIP_BY_EXTENT = "mg_clip_by_extent"
     # local densities within TBk-stands (post-process output) (boolean)
     LOCAL_DENSITIES = "local_densities"
 
@@ -222,6 +224,14 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.MG_CLIP_BY_EXTENT,
+            self.tr("Clip both coniferous raster and binary coniferous raster by extent, else by mask"),
+            defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
         # local densities within TBk-stands (post-process output) (boolean)
         LOCAL_DENSITIES = "local_densities"
         parameter = QgsProcessingParameterBoolean(
@@ -273,6 +283,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # binary coniferous raster, used for stand delineation (boolean)
         mg_detail_binary = self.parameterAsBool(parameters, self.MG_10M_BINARY, context)
+
+        # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
+        mg_clip_by_extent = self.parameterAsBool(parameters, self.MG_CLIP_BY_EXTENT, context)
 
         # local densities within TBk-stands (post-process output) (boolean)
         local_densities = self.parameterAsBool(parameters, self.LOCAL_DENSITIES, context)
@@ -419,28 +432,43 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     if not os.path.exists(os.path.dirname(dataset_out)):
                         os.makedirs(os.path.dirname(dataset_out))
 
-                # clip raster by mask layer and save masked layer
-                param = {
-                    'INPUT': dataset_in,
-                    'MASK': extraction_perimeter_raster,
-                    'SOURCE_CRS': None,
-                    'TARGET_CRS': None,
-                    'TARGET_EXTENT': None,
-                    'NODATA': None,
-                    'ALPHA_BAND': False,
-                    'CROP_TO_CUTLINE': True,
-                    'KEEP_RESOLUTION': False,
-                    'SET_RESOLUTION': False,
-                    'X_RESOLUTION': None,
-                    'Y_RESOLUTION': None,
-                    'MULTITHREADING': True,
-                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
-                    'DATA_TYPE': 0,  # use input layer data type
-                    'EXTRA': '',
-                    'OUTPUT': dataset_out
-                }
-                algoOutput = processing.run("gdal:cliprasterbymasklayer", param)
-                algoOutput["OUTPUT"]
+                # if coniferous rasters and required to clip by extent
+                if ds[3:] in ["MG_10m.tif", "MG_10m_binary.tif"] and mg_clip_by_extent:
+                    param = {
+                        'INPUT': dataset_in,
+                        'PROJWIN': extraction_perimeter_raster.extent(),
+                        'OVERCRS': False,
+                        'NODATA': None,
+                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                        'DATA_TYPE': 0, # use input layer data type
+                        'EXTRA': '',
+                        'OUTPUT': dataset_out
+                    }
+                    algoOutput = processing.run("gdal:cliprasterbyextent", param)
+                    algoOutput["OUTPUT"]
+                # else
+                else:
+                    param = {
+                        'INPUT': dataset_in,
+                        'MASK': extraction_perimeter_raster,
+                        'SOURCE_CRS': None,
+                        'TARGET_CRS': None,
+                        'TARGET_EXTENT': None,
+                        'NODATA': None,
+                        'ALPHA_BAND': False,
+                        'CROP_TO_CUTLINE': True,
+                        'KEEP_RESOLUTION': False,
+                        'SET_RESOLUTION': False,
+                        'X_RESOLUTION': None,
+                        'Y_RESOLUTION': None,
+                        'MULTITHREADING': True,
+                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                        'DATA_TYPE': 0,  # use input layer data type
+                        'EXTRA': '',
+                        'OUTPUT': dataset_out
+                    }
+                    algoOutput = processing.run("gdal:cliprasterbymasklayer", param)
+                    algoOutput["OUTPUT"]
 
         # extract vector datatsets
         if len(tbk_vector_datasets) > 0:
