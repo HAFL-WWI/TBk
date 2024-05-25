@@ -381,32 +381,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # check perimeter
         # f_save_as_gpkg(perimeter, "perimeter")
 
-        # load main TBk layer
+        # path to original main TBk layer
         path_tbk_main_in = os.path.join(path_tbk_input, "TBk_Bestandeskarte.gpkg")
-        tbk_main_dataset = QgsVectorLayer(path_tbk_main_in, '', 'ogr')
+        # path to extracted main TBb layer
+        path_tbk_main_out = os.path.join(path_output, "TBk_Bestandeskarte.gpkg")
 
         # extract main TBk layer
         param = {
-            'INPUT': tbk_main_dataset,
+            'INPUT': path_tbk_main_in,
             'PREDICATE': [0], # intersect
             'INTERSECT': perimeter,
-            'OUTPUT': 'TEMPORARY_OUTPUT'
+            'OUTPUT': path_tbk_main_out
         }
         algoOutput = processing.run("native:extractbylocation", param)
-        tbk_main_extracted = algoOutput["OUTPUT"]
-
-        # save extracted main TBk layer
-        path_tbk_main_out = os.path.join(path_output, "TBk_Bestandeskarte.gpkg")
-        ctc = QgsProject.instance().transformContext()
-        QgsVectorFileWriter.writeAsVectorFormatV3(tbk_main_extracted, path_tbk_main_out, ctc,
-                                                  getVectorSaveOptions('GPKG', 'utf-8'))
+        algoOutput["OUTPUT"]
 
         # extract raster datatsets
         if len(tbk_raster_datasets) > 0:
 
             # create extraction perimeter of raster datasets
             param = {
-                'INPUT': tbk_main_extracted,
+                'INPUT': path_tbk_main_out,  # extracted main TBk layer
                 'DISTANCE': 10,
                 'SEGMENTS': 5,
                 'END_CAP_STYLE': 0,  # round
@@ -475,7 +470,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
             # create extraction perimeter of vector datasets
             param = {
-                'INPUT': tbk_main_extracted,
+                'INPUT': path_tbk_main_out,   # extracted main TBk layer
                 'DISTANCE': 0.0001,
                 'SEGMENTS': 5,
                 'END_CAP_STYLE': 0,  # round
@@ -506,12 +501,10 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     'INPUT': dataset_in,
                     'PREDICATE': [6],  # within
                     'INTERSECT': extraction_perimeter_vector,
-                    'OUTPUT': 'TEMPORARY_OUTPUT'
+                    'OUTPUT': dataset_out
                 }
                 algoOutput = processing.run("native:extractbylocation", param)
-                dataset_out_tmp = algoOutput["OUTPUT"]
-                # save extracted vector layer
-                QgsVectorFileWriter.writeAsVectorFormatV3(dataset_out_tmp, dataset_out, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
+                algoOutput["OUTPUT"]
 
         feedback.pushInfo("====================================================================")
         feedback.pushInfo("FINISHED")
