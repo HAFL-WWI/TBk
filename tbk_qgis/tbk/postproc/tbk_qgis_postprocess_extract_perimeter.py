@@ -417,7 +417,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 'OUTPUT': 'TEMPORARY_OUTPUT'
             }
             algoOutput = processing.run("native:buffer", param)
-            extraction_perimeter_raster = tbk_main_extracted = algoOutput["OUTPUT"]
+            extraction_perimeter_raster = algoOutput["OUTPUT"]
             # check perimeter for raster layers
             # f_save_as_gpkg(extraction_perimeter_raster, "extraction_perimeter_raster")
 
@@ -486,7 +486,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 'OUTPUT': 'TEMPORARY_OUTPUT'
             }
             algoOutput = processing.run("native:buffer", param)
-            extraction_perimeter_vector = tbk_main_extracted = algoOutput["OUTPUT"]
+            extraction_perimeter_vector = algoOutput["OUTPUT"]
             # check perimeter for vector layers
             # f_save_as_gpkg(extraction_perimeter_vector, "extraction_perimeter_vector")
 
