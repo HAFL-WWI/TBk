@@ -139,7 +139,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # Perimeter with geometries for extracting (polygons/multipolygons)
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.PERIMETER,
-            self.tr("Perimeter shapefile to clip final result"),
+            self.tr("Perimeter of extraction (polygon(s) and/or mutlipolygon(s)"),
             [QgsProcessing.TypeVectorPolygon])
         )
 
@@ -152,7 +152,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # Folder for algorithm output
         self.addParameter(QgsProcessingParameterFolderDestination(
-            self.OUTPUT_ROOT, self.tr('Folder where the extracted material will be stored)'))
+            self.OUTPUT_ROOT, self.tr('Folder where the extracted material will be stored'))
         )
 
         # TBk-qgis-project-file (boolean)
@@ -195,7 +195,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # VHM 150cm with resolution, used to genrate DG-raster layers (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.VHM_150CM,
-            self.tr("VHM 150cm with resolution, used to genrate degree of cover raster layers"),
+            self.tr("VHM with 150cm resolution, used to genrate degree of cover raster layers"),
             defaultValue=True
         )
         self.addAdvancedParameter(parameter)
