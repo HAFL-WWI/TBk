@@ -399,22 +399,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # extract raster datatsets
         if len(tbk_raster_datasets) > 0:
 
-            # create extraction perimeter of raster datasets
-            param = {
-                'INPUT': path_tbk_main_out,  # extracted main TBk layer
-                'DISTANCE': 10,
-                'SEGMENTS': 5,
-                'END_CAP_STYLE': 0,  # round
-                'JOIN_STYLE': 0,  # round
-                'MITER_LIMIT': 2,
-                'DISSOLVE': True,
-                'SEPARATE_DISJOINT': False,
-                'OUTPUT': 'TEMPORARY_OUTPUT'
-            }
-            algoOutput = processing.run("native:buffer", param)
-            extraction_perimeter_raster = algoOutput["OUTPUT"]
-            # check perimeter for raster layers
-            # f_save_as_gpkg(extraction_perimeter_raster, "extraction_perimeter_raster")
+            # dict for buffered extraction perimeters according to resolution of raster layer to be extracted
+            extraction_perimeter_raster = {}
 
             for i, ds in enumerate(tbk_raster_datasets):
                 # build input and output path
@@ -427,11 +413,33 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     if not os.path.exists(os.path.dirname(dataset_out)):
                         os.makedirs(os.path.dirname(dataset_out))
 
+                # get resolution of raster layer
+                param =  {'INPUT': dataset_in, 'BAND': None}
+                res_i = processing.run("native:rasterlayerproperties",param)['PIXEL_HEIGHT']
+
+                # create extraction perimeter of raster dataset if it does not exist yet
+                if not str(res_i) in extraction_perimeter_raster:
+                    param = {
+                        'INPUT': path_tbk_main_out,  # extracted main TBk layer
+                        'DISTANCE': res_i,  # resolution of raster layer to be extracted as buffer distance
+                        'SEGMENTS': 5,
+                        'END_CAP_STYLE': 0,  # round
+                        'JOIN_STYLE': 0,  # round
+                        'MITER_LIMIT': 2,
+                        'DISSOLVE': True,
+                        'SEPARATE_DISJOINT': False,
+                        'OUTPUT': 'TEMPORARY_OUTPUT'
+                    }
+                    algoOutput = processing.run("native:buffer", param)
+                    extraction_perimeter_raster[str(res_i)] = algoOutput["OUTPUT"]
+                    # check extraction perimeter for raster layer
+                    # f_save_as_gpkg(extraction_perimeter_raster[str(res_i)], "extraction_perimeter_raster_" + str(res_i))
+
                 # if coniferous rasters and required to clip by extent
                 if ds[3:] in ["MG_10m.tif", "MG_10m_binary.tif"] and mg_clip_by_extent:
                     param = {
                         'INPUT': dataset_in,
-                        'PROJWIN': extraction_perimeter_raster.extent(),
+                        'PROJWIN': extraction_perimeter_raster[str(res_i)].extent(),
                         'OVERCRS': False,
                         'NODATA': None,
                         'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
@@ -445,7 +453,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 else:
                     param = {
                         'INPUT': dataset_in,
-                        'MASK': extraction_perimeter_raster,
+                        'MASK': extraction_perimeter_raster[str(res_i)],
                         'SOURCE_CRS': None,
                         'TARGET_CRS': None,
                         'TARGET_EXTENT': None,
