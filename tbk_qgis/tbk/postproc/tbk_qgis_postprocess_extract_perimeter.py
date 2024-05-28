@@ -127,6 +127,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     MG_10M_BINARY = "mg_10m_binary"
     # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
     MG_CLIP_BY_EXTENT = "mg_clip_by_extent"
+    # intermediate layers from TBk-proecessing  (boolean)
+    BK_PROCESS = "bk_process"
     # local densities within TBk-stands (post-process output) (boolean)
     LOCAL_DENSITIES = "local_densities"
 
@@ -232,6 +234,15 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # intermediate layers from TBk-proecessing  (boolean)
+        BK_PROCESS = "bk_process"
+        parameter = QgsProcessingParameterBoolean(
+            self.BK_PROCESS,
+            self.tr("Intermediate layers from TBk-proecessing (folder bk_process)"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
         # local densities within TBk-stands (post-process output) (boolean)
         LOCAL_DENSITIES = "local_densities"
         parameter = QgsProcessingParameterBoolean(
@@ -286,6 +297,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
         mg_clip_by_extent = self.parameterAsBool(parameters, self.MG_CLIP_BY_EXTENT, context)
+
+        # intermediate layers from TBk-proecessing  (boolean)
+        bk_process = self.parameterAsBool(parameters, self.BK_PROCESS, context)
 
         # local densities within TBk-stands (post-process output) (boolean)
         local_densities = self.parameterAsBool(parameters, self.LOCAL_DENSITIES, context)
@@ -353,6 +367,20 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             if os.path.exists(path_mg_detail_binary) == False:
                 raise QgsProcessingException("No binary coniferous raster found:\n" + path_mg_detail_binary + "\ndoes not exist.")
             tbk_raster_datasets.append(os.path.join("..", "MG_10m_binary.tif"))
+
+        # if required add intermediate layers from TBk-processing to lists of vector resp. raster datasets
+        # note: .csv & folder tmp are not extracted
+        if bk_process:
+            path_bk_process = os.path.join(path_tbk_input, "bk_process")
+            if os.path.exists(path_bk_process) == False:
+                raise QgsProcessingException(
+                    "No folder with intermediate layers from TBk-processing found:\n" + path_bk_process + "\ndoes not exist.")
+            file_list = os.listdir(path_bk_process)
+            for file in file_list:
+                if file.endswith(".gpkg"):
+                    tbk_vector_datasets.append(os.path.join("bk_process", file))
+                elif file.endswith(".tif"):
+                    tbk_raster_datasets.append(os.path.join("bk_process", file))
 
         # if required add local densities to list of vector datasets
         if local_densities:
