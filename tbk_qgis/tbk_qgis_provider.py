@@ -42,6 +42,7 @@ from PyQt5.QtGui import *
 
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_legagy import TBkAlgorithmLegacy
 from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
@@ -76,6 +77,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPrepareMgAlgorithm())
         self.addAlgorithm(TBkPrepareAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
+        self.addAlgorithm(TBkStandDelineationAlgorithm())
         self.addAlgorithm(TBkAlgorithmLegacy())
         self.addAlgorithm(BkAGAlgorithm())
         # [grpID: postproc]     grpName: 2 Postprocessing
