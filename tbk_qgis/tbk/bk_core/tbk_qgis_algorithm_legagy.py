@@ -77,7 +77,7 @@ from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
                                                       to_params_with_layer_source)
 
 
-class TBkAlgorithm(QgsProcessingAlgorithm):
+class TBkAlgorithmLegacy(QgsProcessingAlgorithm):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -768,7 +768,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Generate BK'
+        return 'Generate BK (legacy)'
 
     def displayName(self):
         """
@@ -799,4 +799,4 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         return QCoreApplication.translate('Processing', string)
 
     def createInstance(self):
-        return TBkAlgorithm()
+        return TBkAlgorithmLegacy()
