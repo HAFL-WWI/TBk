@@ -36,37 +36,21 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
-import os
 import time
 from datetime import datetime, timedelta
-import logging, logging.handlers
-import sys
-import osgeo.gdal as gdal
-import osgeo.ogr as ogr
-import osgeo.osr as osr
-
 import math
-
-import numpy as np
-from scipy import ndimage
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
-                       QgsFeatureSink,
                        QgsProcessingAlgorithm,
-                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterRasterLayer,
-                       QgsProcessingParameterFeatureSink,
-                       QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterString,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterMatrix,
                        QgsVectorLayer,
                        QgsRasterLayer,
-                       QgsCoordinateReferenceSystem,
                        QgsApplication)
 import processing
 
@@ -74,18 +58,6 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 
 
 class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
-    """
-    This is an example algorithm that takes a vector layer and
-    creates a new identical one.
-
-    It is meant to be used as an example of how to create your own
-    algorithms and explain methods and variables used to do it. An
-    algorithm like this will be available in all elements, and there
-    is not need for additional work.
-
-    All Processing algorithms should extend the QgsProcessingAlgorithm
-    class.
-    """
 
     def addAdvancedParameter(self, parameter):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
