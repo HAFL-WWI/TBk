@@ -46,7 +46,7 @@ from qgis.core import (
     QgsProcessing,
     QgsField,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterFeatureSink,
+    QgsProcessingParameterVectorDestination,
     QgsProcessingParameterDefinition,
     QgsProcessingParameterMultipleLayers,
     QgsProcessingParameterEnum
@@ -66,14 +66,14 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
-    # merged TBk map layer
-    OUTPUT = 'OUTPUT'
-
     # list of TBK mamp layer to merge
     TBK_MAP_LAYERS = 'tbk_map_layers'
 
     # dropdown for type ID prefix
     ID_PREFIX = 'id_prefix'
+
+    # merged TBk map layer
+    OUTPUT = 'OUTPUT'
 
     def initAlgorithm(self, config):
         """
@@ -106,7 +106,7 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
 
         # merged TBk map layer
         self.addParameter(
-            QgsProcessingParameterFeatureSink(
+            QgsProcessingParameterVectorDestination(
                 self.OUTPUT,
                 self.tr('Merged TBk map')
             )
@@ -117,15 +117,15 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
          Here is where the processing itself takes place.
          """
 
-        # merged TBk map layer
-        # output = self.parameterAsString(parameters, self.OUTPUT, context)
-
         # list of TBK mamp layer to merge
         tbk_map_layers = self.parameterAsLayerList(parameters, self.TBK_MAP_LAYERS, context)
 
         # dropdown for type ID prefix
         id_prefix = self.parameterAsInt(parameters, self.ID_PREFIX, context)
         prefix_type = ['alphabetical', 'numerical'][id_prefix]
+
+        # merged TBk map layer
+        output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
 
         start_time = time.time()
 
@@ -209,16 +209,16 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
         tbk_map_merged = algoOutput["OUTPUT"]
 
         # drop attribute layer & path (add by native:mergevectorlayers)
-        param = {'INPUT': tbk_map_merged, 'COLUMN': ['layer', 'path'], 'OUTPUT':  parameters['OUTPUT']}
+        param = {'INPUT': tbk_map_merged, 'COLUMN': ['layer', 'path'], 'OUTPUT': output}
         algoOutput = processing.run("native:deletecolumn", param)
-        results = {'OUTPUT': algoOutput["OUTPUT"]}
+        tbk_map_merged = algoOutput["OUTPUT"]
 
         feedback.pushInfo("====================================================================")
         feedback.pushInfo("FINISHED")
         feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
 
-        return results
+        return {self.OUTPUT: tbk_map_merged}
 
     def name(self):
         """
