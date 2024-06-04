@@ -106,10 +106,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         """
 
         # Folder for algo input/output
-        self.addParameter(QgsProcessingParameterFile(
-            self.PATH_TBk_INPUT, self.tr("Folder with TBk results"),
-            behavior=QgsProcessingParameterFile.Folder,
-            fileFilter='All Folders (*.*)', defaultValue=None)
+        self.addParameter(
+            QgsProcessingParameterFile(
+                self.PATH_TBk_INPUT,
+                self.tr("Folder with TBk results"),
+                behavior=QgsProcessingParameterFile.Folder,
+                fileFilter='All Folders (*.*)',
+                defaultValue=None
+            )
         )
 
         # Use forest mixture degree / coniferous raster to calculate density zone mean?
