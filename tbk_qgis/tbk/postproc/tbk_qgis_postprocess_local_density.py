@@ -72,6 +72,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     OUTPUT = "OUTPUT"
 
+    # Use forest mixture degree / coniferous raster to calculate density zone mean?
+    MG_USE = "mg_use"
+
     # Forest mixture degree / coniferous raster to calculate density zone mean
     MG_INPUT = "mg_input"
 
@@ -109,10 +112,22 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             fileFilter='All Folders (*.*)', defaultValue=None)
         )
 
+        # Use forest mixture degree / coniferous raster to calculate density zone mean?
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.MG_USE,
+                self.tr("Use forest mixture degree (coniferous raster)?"),
+                defaultValue=True
+            )
+        )
+
         # Forest mixture degree / coniferous raster to calculate density zone mean
-        self.addParameter(QgsProcessingParameterRasterLayer(
-            self.MG_INPUT,
-            self.tr("Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)"))
+        self.addParameter(
+            QgsProcessingParameterRasterLayer(
+                self.MG_INPUT,
+                self.tr("Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)"),
+                optional=True
+            )
         )
 
         # input table for local density classes (matrix as one-dimensional list)
@@ -218,10 +233,19 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         tbk_tool_path = os.path.join(settings_path, "python/plugins/tbk_qgis")
 
-        # input
-        mg_input = str(self.parameterAsRasterLayer(parameters, self.MG_INPUT, context).source())
-        if not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff"):
-            raise QgsProcessingException("mg_input must be TIFF file")
+        # boolean input: Use forest mixture degree / coniferous raster to calculate density zone mean?
+        mg_use = self.parameterAsDouble(parameters, self.MG_USE, context)
+
+        # raster input: forest mixture degree / coniferous raster to calculate density zone mean
+        if mg_use:
+            try:
+                mg_input = str(self.parameterAsRasterLayer(parameters, self.MG_INPUT, context).source())
+                if not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff"):
+                    raise QgsProcessingException("mg_input must be TIFF file")
+            except:
+                raise QgsProcessingException(
+                    'if "Use forest mixture degree / coniferous raster" is True, is mg_input must be TIFF file')
+
 
         # input table for local density classes (matrix as one-dimensional list)
         table_density_classes = self.parameterAsMatrix(parameters, self.TABLE_DENSITY_CLASSES, context)
@@ -403,6 +427,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         else:
             col_names_rest = ['NH', 'hdom']
         col_names[len(col_names):] = col_names_rest
+        if not mg_use:
+            col_names.remove('NH')
         param = {'INPUT': stands, 'FIELDS': col_names, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:retainfields", param)
         stands = algoOutput["OUTPUT"]
@@ -564,18 +590,20 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= hs = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
-        param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
-                 'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': hs.extent(),
-                 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("gdal:warpreproject", param)
-        mg = algoOutput["OUTPUT"]
+        if mg_use:
+            param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
+                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': hs.extent(),
+                     'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("gdal:warpreproject", param)
+            mg = algoOutput["OUTPUT"]
 
         # zonal statistics
         if calc_all_dg:
-            rasters_4_stats = {'DG': hs, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os,
-                               'DG_ueb': dg_ueb, 'NH': mg}
+            rasters_4_stats = {'DG': hs, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os, 'DG_ueb': dg_ueb}
         else:
-            rasters_4_stats = {'DG': hs, 'NH': mg}
+            rasters_4_stats = {'DG': hs}
+        if mg_use:
+            rasters_4_stats['NH'] = mg
 
         for raster in rasters_4_stats:
             # actual zonal stats: 'STATISTICS': [2] --> mean
@@ -599,10 +627,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # - nh:        mean NH  of all subsurface of a class with the same stand [0, 100] (%)
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:dropgeometries", param)
-        param = {
-            'INPUT': algoOutput["OUTPUT"],
-            'GROUP_BY': 'Array( "fid_stand", "class")',
-            'AGGREGATES': [
+        aggregates = [
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': '"fid_stand"', 'length': 0, 'name': 'fid_stand',
                  'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': '"class"', 'length': 0, 'name': 'class',
@@ -613,10 +638,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                  'length': 0, 'name': 'area_pct', 'precision': 0, 'sub_type': 0, 'type': 6,
                  'type_name': 'double precision'},
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(DG * area) / sum(area) * 100)',
-                 'length': 0, 'name': 'dg', 'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'integer'},
+                 'length': 0, 'name': 'dg', 'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'integer'}
+            ]
+        if mg_use:
+            aggregates.append(
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(NH * area) / sum(area))',
                  'length': 0, 'name': 'nh', 'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'}
-            ],
+            )
+        param = {
+            'INPUT': algoOutput["OUTPUT"],
+            'GROUP_BY': 'Array( "fid_stand", "class")',
+            'AGGREGATES': aggregates,
             'OUTPUT': 'TEMPORARY_OUTPUT'
         }
         algoOutput = processing.run("native:aggregate", param)
@@ -628,7 +660,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for cl in den_classes:
             all_classes.append(str(cl["class"]))
         # all value types included in stats on local densities (s. long table above)
-        value_types = ['area', 'area_pct', 'dg', 'nh']
+        value_types = ['area', 'area_pct', 'dg']
+        if mg_use:
+            value_types.append('nh')
         # list of new fields for stats on local densities
         new_fields = []
         for cl in all_classes:
