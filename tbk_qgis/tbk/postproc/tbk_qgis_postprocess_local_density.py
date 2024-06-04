@@ -267,7 +267,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             else:
                 cl_i = cl_i.replace(' ', '_')
                 if cl_i in cl_names:
-                    raise QgsProcessingException('"' + cl_i + '" is a duplicate among the names of DG-density-classes. Valid names must be unique. Not that under the hood " " is replaced by "_".')
+                    raise QgsProcessingException('"' + cl_i + '" is a duplicate among the names of DG-density-classes. Valid names must be unique. Note that under the hood " " is replaced by "_".')
                 else:
                     cl_names.append(cl_i)
 
