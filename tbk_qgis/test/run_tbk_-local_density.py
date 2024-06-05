@@ -51,6 +51,7 @@ processing.run(
      'mg_use':True,
      'mg_input': 'C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/MG_10m.tif',
      # 'mg_input': None, # if 'mg_use':True & 'mg_input': None --> error
+     'tbk_input_file': 'TBk_Bestandeskarte.gpkg',
      'output_suffix': "_v11",
      'table_density_classes': [
          1, 85, 100, 'False',
