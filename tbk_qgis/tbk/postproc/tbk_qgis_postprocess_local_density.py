@@ -83,6 +83,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     # advanced parameters
 
+    # TBk input file name (string)
+    TBK_INPUT_FILE = "tbk_input_file"
     # suffix for output files (string)
     OUTPUT_SUFFIX = "output_suffix"
     # input table for local density classes (matrix as one-dimensional list)
@@ -138,6 +140,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 optional=True
             )
         )
+
+        # TBk input file name (string)
+        parameter = QgsProcessingParameterString(
+            self.TBK_INPUT_FILE,
+            self.tr("Name of TBk-map-file (.gpkg) included in folder with TBk results"),
+            defaultValue='TBk_Bestandeskarte.gpkg'  # output of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
 
         # suffix for output files (string)
         parameter = QgsProcessingParameterString(
@@ -271,6 +281,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             except:
                 raise QgsProcessingException(
                     'if "Use forest mixture degree / coniferous raster" is True, is mg_input must be TIFF file')
+
+        # TBk input file name (string)
+        tbk_input_file = self.parameterAsString(parameters, self.TBK_INPUT_FILE, context)
 
         # suffix for output files (string)
         output_suffix = self.parameterAsString(parameters, self.OUTPUT_SUFFIX, context)
@@ -408,7 +421,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         path_dg_os = os.path.join(path_tbk_input, "dg_layers/dg_layer_os.tif")
         path_dg_ueb = os.path.join(path_tbk_input, "dg_layers/dg_layer_ueb.tif")
 
-        path_stands = os.path.join(path_tbk_input, "TBk_Bestandeskarte.gpkg")
+        path_stands = os.path.join(path_tbk_input, tbk_input_file)
 
         stands_all = QgsVectorLayer(path_stands, 'Stands', 'ogr')
         # add fid (--> fid_stand) as unique identifier for later joins to original stands
