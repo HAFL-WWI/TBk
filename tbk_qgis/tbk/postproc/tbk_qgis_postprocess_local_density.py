@@ -51,6 +51,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterMatrix,
                        QgsProcessingException,
+                       QgsProcessingParameterString,
                        QgsVectorLayer,
                        QgsRasterLayer,
                        QgsApplication)
@@ -82,6 +83,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     # advanced parameters
 
+    # suffix for output files (string)
+    OUTPUT_SUFFIX = "output_suffix"
     # input table for local density classes (matrix as one-dimensional list)
     TABLE_DENSITY_CLASSES = "table_density_classes"
     # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
@@ -135,6 +138,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 optional=True
             )
         )
+
+        # suffix for output files (string)
+        parameter = QgsProcessingParameterString(
+            self.OUTPUT_SUFFIX,
+            self.tr(
+                "Suffix added to names of output files (.gpkg)"
+                "\nDefault _v11 stands for current development version of local densities"
+            ),
+            defaultValue='_v11' # current development version of local densities
+        )
+        self.addAdvancedParameter(parameter)
 
         # input table for local density classes (matrix as one-dimensional list)
         parameter = QgsProcessingParameterMatrix(
@@ -252,6 +266,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     'if "Use forest mixture degree / coniferous raster" is True, is mg_input must be TIFF file')
 
+        # suffix for output files (string)
+        output_suffix = self.parameterAsString(parameters, self.OUTPUT_SUFFIX, context)
 
         # input table for local density classes (matrix as one-dimensional list)
         table_density_classes = self.parameterAsMatrix(parameters, self.TABLE_DENSITY_CLASSES, context)
@@ -346,9 +362,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         buffer_smoothing_dist = self.parameterAsDouble(parameters, self.BUFFER_SMOOTHING_DIST, context)
 
         start_time = time.time()
-
-        # development version (of local densities) suffix for output
-        version_suffix = "_v11"
 
         # lump together density classes
         den_classes = []
@@ -732,7 +745,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         den_polys = algoOutput["OUTPUT"]
 
         # save local densities output
-        path_local_den_out = os.path.join(path_output, "TBk_local_densities" + version_suffix + ".gpkg")
+        path_local_den_out = os.path.join(path_output, "TBk_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()
         QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
@@ -742,7 +755,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         algoOutput = processing.run("native:deletecolumn", param)
         stands_all = algoOutput["OUTPUT"]
         # output original stands + local density stats
-        path_stands_out = os.path.join(path_output, "TBk_Bestandeskarte_local_densities" + version_suffix + ".gpkg")
+        path_stands_out = os.path.join(path_output, "TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()
         QgsVectorFileWriter.writeAsVectorFormatV3(stands_all, path_stands_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
