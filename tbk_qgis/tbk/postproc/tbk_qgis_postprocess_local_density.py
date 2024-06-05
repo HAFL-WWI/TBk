@@ -153,7 +153,13 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # input table for local density classes (matrix as one-dimensional list)
         parameter = QgsProcessingParameterMatrix(
             self.TABLE_DENSITY_CLASSES,
-            self.tr("Table to define classes of local densities"),
+            self.tr(
+                "Table to define classes of local densities"
+                "\nclass: unique class name"
+                "\nmin DG [%]: minimal percentage of degree of cover"
+                "\nmin DG [%]: maximal percentage of degree of cover"
+                "\nuse large moving window? False/True whether to apply the large moving window on the degree of cover raster"
+            ),
             hasFixedNumberRows=False,
             headers=['class', 'min DG [%]', 'max DG [%]', 'use large moving window? [False/True]'],
             defaultValue=[
