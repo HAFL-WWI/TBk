@@ -36,6 +36,7 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
+import os # os is used below, so make sure it's available in any case
 import time
 from datetime import datetime, timedelta
 import math
@@ -49,6 +50,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterDefinition,
                        QgsProcessingParameterMatrix,
+                       QgsProcessingException,
                        QgsVectorLayer,
                        QgsRasterLayer,
                        QgsApplication)
