@@ -136,7 +136,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 self.MG_INPUT,
-                self.tr("Forest mixture degree (coniferous raster) 10m input to calculate density zone mean (.tif)"),
+                self.tr("Forest mixture degree (coniferous raster) 10m input (.tif)"),
                 optional=True
             )
         )
@@ -186,7 +186,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.CALC_ALL_DG,
-            self.tr("Determine whether DG is calculated for all layers (KS, US, MS, OS, UEB)"),
+            self.tr("Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)"),
             defaultValue=True
         )
         self.addAdvancedParameter(parameter)
@@ -214,7 +214,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # minimum size for dense/sparse "clumps" (m^2)
         parameter = QgsProcessingParameterNumber(
             self.MIN_SIZE_CLUMP,
-            self.tr("Minimum size for dense/sparse 'clumps' (m^2)"),
+            self.tr("Minimum size for 'clumps' of local densities (m^2)"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=1200
         )
@@ -241,7 +241,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # method to remove thin parts and details of zones by minus / plus buffering (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.BUFFER_SMOOTHING,
-            self.tr("Remove thin parts and details of density zones by minus / plus buffering. If unchecked, no buffer smoothing is applied."),
+            self.tr(
+                "Remove thin parts and details of density zones by minus / plus buffering."
+                "\nIf unchecked, no buffer smoothing is applied."
+            ),
             defaultValue=True
         )
         self.addAdvancedParameter(parameter)
@@ -249,7 +252,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # buffer distance of buffer smoothing (m)
         parameter = QgsProcessingParameterNumber(
             self.BUFFER_SMOOTHING_DIST,
-            self.tr("Buffer distance of buffer smoothing (m). If set to 0, no buffer smoothing is applied."),
+            self.tr(
+                "Buffer distance of buffer smoothing (m)."
+                "\nIf set to 0, no buffer smoothing is applied."
+            ),
             type=QgsProcessingParameterNumber.Double,
             defaultValue=7
         )
@@ -823,6 +829,64 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+
+    def shortHelpString(self):
+        return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (dg_layer / output of Generate BK). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m^2) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m^2) and having themself an area below another threshold (default also 1200m^2) are filtered out.
+
+Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with _stand. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either to TBk Genertate’s input or output. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees is optional.
+
+To a copy of the TBk stand map attributes with metrics about each local density class detected within a stand are added.</p></body></html></p>
+
+<h2>Input parameters</h2>
+<h3>Folder with TBk results</h3>
+<p>Path to folder containing returns of "Generate BK"</p>
+<h3>Use forest mixture degree (coniferous raster)</h3>
+<p>Check box: if checked (default) zonal statistic is applied to forest mixture degree raster layer.</p>
+<h3>Forest mixture degree (coniferous raster) 10m input</h3>
+<p>Path to forest mixture degree raster layer. Only required if "Use forest mixture degree ..." is checked.</p>
+
+<h2>Advanced parameters</h2>
+<h3>Name of TBk-map-file (.gpkg) included in folder with TBk results</h3>
+<p>File name of the TBk stand map kept in the "Folder with TBk results". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
+<h3>Suffix added to names of output files (.gpkg)</h3>
+<p>String. Default = _v11, which stands for the current development version of local densities. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (local_densities, s. below Outputs). It's good practice to include a reference to local densities' development version in the suffixes: _v11_A, _v11_B, _v11_C, ..., ect.</p>
+<h3>Table to define classe of local densities</h3>
+<p>Matrix with 4 columns to set 1 or multiple classes. By default 6 classes defined.</p>
+<h3>Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)</h3>
+<p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees.</p>
+<h3>Radius of circular moving window</h3>
+<p>float / [m], default 7m. Note: In contrast to the large radius mention above as "normal" radius.</p>
+<h3>Large radius of circular moving window</h3>
+<p>float / [m], default 14m</p>
+<h3>Minimum size for 'clumps' of local densities</h3>
+<p>integer / [m^2], default 1200m^2</p>
+<h3>Minimum size for stands to apply calculation of local densities</h3>
+<p>integer / [m^2], default 1200m^2</p>
+<h3>Threshold for minimal holes within local density 'clump'</h3>
+<p>integer / [m^2], default 400m^2</p>
+<h3>Remove thin parts and details of density zones by minus / plus buffering.</h3>
+<p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
+<h3>Buffer distance of buffer smoothing</h3>
+<p>float / [m], default 7m</p>
+
+<h2>Outputs</h2>
+<h3>local_densities</h3>
+<p>A folder placed within the "Folder with TBk results" (s. inputs above) containing two files:
+
+- TBk_local_densities_v11.gpkg* holding a same named layer with polygons of all density classes.
+
+- TBk_Bestandeskarte_local_densities_v11.gpkg* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
+
+* Note that the advanced parameter "Suffix added to ..." sets the suffix of the file names by default to _v11.</p>
+
+<h2>Examples</h2>
+<p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html></p><br><p align="right">Algorithm author: Attilio Benini @ BFH-HAFL (2024)</p></body></html>"""
 
     def createInstance(self):
         return TBkPostprocessLocalDensity()
