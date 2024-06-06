@@ -91,6 +91,8 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
                 f["dissolve"] = row.nbr_FID
                 dissolve_layer.updateFeature(f)  
 
+    # cast dissolve_FID to int, in some cases it is generated as list of 'float'
+    dissolve_FID = [int(x) for x in dissolve_FID]
     # get subset shapefile of polygons to dissolve
     dissolve_layer.removeSelection()
     dissolve_layer.selectByIds(dissolve_FID)
