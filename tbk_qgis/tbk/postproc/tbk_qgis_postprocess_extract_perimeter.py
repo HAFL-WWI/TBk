@@ -49,6 +49,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException,
+                       QgsProcessingParameterString,
                        QgsVectorLayer,
                        QgsApplication)
 import processing
@@ -81,27 +82,47 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
     # TBk-qgis-project-file (boolean)
     # TBK_QGIS_PROJ = "tbk_qgis_proj"
+    # relative path to TBk input file (string)
+    TBK_INPUT_FILE_PATH = "tbk_input_file_path"
     # degree of cover raster layer (boolean)
     DG = "dg"
+    # relative path to degree of cover raster layer (string)
+    DG_PATH = "dg_path"
     # degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)
     # relative to dominant tree height of stand (boolean)
     ALL_DG = "all_dg"
+    # relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB) (string)
+    ALL_DG_PATH = "all_dg_path"
     # VHM with 10m resolution, main input to generate TBk-stand-map (boolean)
     VHM_10M = "vhm_10m"
+    # relative path to VHM 10m resolution (string)
+    VHM_10M_PATH = "vhm_10m_path"
     # VHM 150cm resolution, used to genrate DG-raster layers (boolean)
     VHM_150CM = "vhm_150cm"
+    # relative path to VHM 150cm resolution (string)
+    VHM_150CM_PATH = "vhm_150cm_path"
     # detailed VHM raster with original resolution (boolean)
     VHM_DETAIL = "vhm_detail"
+    # relative path to detailed VHM (string)
+    VHM_DETAIL_PATH = "vhm_detail_path"
     # coniferous raster (boolean)
     MG_10M = "mg_10m"
+    # relative path to coniferous raster (string)
+    MG_10M_PATH = "mg_10m_path"
     # binary coniferous raster, used for stand delineation (boolean)
     MG_10M_BINARY = "mg_10m_binary"
+    # relative path to binary coniferous raster (string)
+    MG_10M_BINARY_PATH = "mg_10m_binary_path"
     # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
     MG_CLIP_BY_EXTENT = "mg_clip_by_extent"
     # intermediate layers from TBk-proecessing  (boolean)
     BK_PROCESS = "bk_process"
+    # relative path to folder with intermediate layers (string)
+    BK_PROCESS_PATH = "bk_process_path"
     # local densities within TBk-stands (post-process output) (boolean)
     LOCAL_DENSITIES = "local_densities"
+    # relative path to folder local densities (string)
+    LOCAL_DENSITIES_PATH = "local_densities_path"
 
     def initAlgorithm(self, config):
         """
@@ -135,12 +156,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         #     defaultValue=True
         # )
         # self.addAdvancedParameter(parameter)
+        # TBk input file name (string)
+        parameter = QgsProcessingParameterString(
+            self.TBK_INPUT_FILE_PATH,
+            self.tr("Relative path to TBk-map-file (.gpkg)"),
+            defaultValue='TBk_Bestandeskarte.gpkg'  # output of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
 
         # degree of cover raster layer (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.DG,
             self.tr("Degree of cover raster layer"),
             defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to degree of cover raster layer (string)
+        parameter = QgsProcessingParameterString(
+            self.DG_PATH,
+            self.tr("Relative path to degree of cover raster layer"),
+            defaultValue=os.path.join("dg_layers", "dg_layer.tif")  # output of Generate TBk
         )
         self.addAdvancedParameter(parameter)
 
@@ -157,11 +193,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB) (string)
+        parameter = QgsProcessingParameterString(
+            self.ALL_DG_PATH,
+            self.tr("Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)"),
+            defaultValue="dg_layers"  # output of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
+
         # VHM with 10m resolution, main input to generate TBk-stand-map (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.VHM_10M,
             self.tr("VHM with 10m resolution, main input to generate TBk-stand-map"),
             defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to VHM 10m resolution (string)
+        parameter = QgsProcessingParameterString(
+            self.VHM_10M_PATH,
+            self.tr("Relative path VHM 10m layer"),
+            defaultValue=os.path.join("..", "VHM_10m.tif")  # input of Generate TBk
         )
         self.addAdvancedParameter(parameter)
 
@@ -173,11 +225,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # relative path to VHM 150cm resolution (string)
+        parameter = QgsProcessingParameterString(
+            self.VHM_150CM_PATH,
+            self.tr("Relative path VHM 150cm layer"),
+            defaultValue=os.path.join("..", "VHM_150cm.tif")  # input of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
+
         # detailed VHM raster with original resolution (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.VHM_DETAIL,
             self.tr("Detailed VHM raster with original resolution"),
             defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to detailed VHM (string)
+        parameter = QgsProcessingParameterString(
+            self.VHM_DETAIL_PATH,
+            self.tr("Relative path to detailed VHM layer"),
+            defaultValue=os.path.join("..", "VHM_detail.tif")  # input of Generate TBk
         )
         self.addAdvancedParameter(parameter)
 
@@ -189,11 +257,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # relative path to coniferous raster (string)
+        parameter = QgsProcessingParameterString(
+            self.MG_10M_PATH,
+            self.tr("Relative path to coniferous raster"),
+            defaultValue=os.path.join("..", "MG_10m.tif")  # input of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
+
         # binary coniferous raster, used for stand delineation (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.MG_10M_BINARY,
             self.tr("Binary coniferous raster with 10m resolution, used for stand delineation"),
             defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to coniferous raster (string)
+        parameter = QgsProcessingParameterString(
+            self.MG_10M_BINARY_PATH,
+            self.tr("Relative path to binary coniferous raster"),
+            defaultValue=os.path.join("..", "MG_10m_binary.tif")  # input of Generate TBk
         )
         self.addAdvancedParameter(parameter)
 
@@ -209,17 +293,32 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         BK_PROCESS = "bk_process"
         parameter = QgsProcessingParameterBoolean(
             self.BK_PROCESS,
-            self.tr("Intermediate layers from TBk-proecessing (folder bk_process)"),
+            self.tr("Intermediate layers from TBk-proecessing"),
             defaultValue=False
         )
         self.addAdvancedParameter(parameter)
 
+        # relative path to folder with intermediate layers (string)
+        parameter = QgsProcessingParameterString(
+            self.BK_PROCESS_PATH,
+            self.tr("Relative path to folder with intermediate layers"),
+            defaultValue="bk_process"  # output of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
+
         # local densities within TBk-stands (post-process output) (boolean)
-        LOCAL_DENSITIES = "local_densities"
         parameter = QgsProcessingParameterBoolean(
             self.LOCAL_DENSITIES,
             self.tr("Local densities within TBk-stands (post-process output)"),
             defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to folder local density (string)
+        parameter = QgsProcessingParameterString(
+            self.LOCAL_DENSITIES_PATH,
+            self.tr("Relative path to folder with local densities"),
+            defaultValue="local_densities"  # output of TBk Postprocess Local Density
         )
         self.addAdvancedParameter(parameter)
 
@@ -244,36 +343,57 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # TBk-qgis-project-file (boolean)
         # tbk_qgis_proj = self.parameterAsBool(parameters, self.TBK_QGIS_PROJ, context)
 
+        # relative path to TBk-map-file (string)
+        tbk_input_file_path = self.parameterAsString(parameters, self.TBK_INPUT_FILE_PATH, context)
+
         # degree of cover raster layer (boolean)
         dg = self.parameterAsBool(parameters, self.DG, context)
+        # relative path to degree of cover raster layer (string)
+        dg_path = self.parameterAsString(parameters, self.DG_PATH, context)
 
         # degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)
         # relative to dominant tree height of stand (boolean)
         all_dg = self.parameterAsBool(parameters, self.ALL_DG, context)
+        # relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB) (string)
+        all_dg_path = self.parameterAsString(parameters, self.ALL_DG_PATH, context)
 
         # VHM with 10m resolution, main input to generate TBk-stand-map (boolean)
         vhm_10m = self.parameterAsBool(parameters, self.VHM_10M, context)
+        # relative path to VHM 10m resolution (string)
+        vhm_10m_path = self.parameterAsString(parameters, self.VHM_10M_PATH, context)
 
         # VHM 150cm resolution, used to genrate DG-raster layers (boolean)
         vhm_150cm = self.parameterAsBool(parameters, self.VHM_150CM, context)
+        # relative path to VHM 150cm resolution (string)
+        vhm_150cm_path = self.parameterAsString(parameters, self.VHM_150CM_PATH, context)
 
         # detailed VHM raster with original resolution (boolean)
         vhm_detail = self.parameterAsBool(parameters, self.VHM_DETAIL, context)
+        # relative path to detailed VHM (string)
+        vhm_detail_path = self.parameterAsString(parameters, self.VHM_DETAIL_PATH, context)
 
         # coniferous raster (boolean)
         mg_10m = self.parameterAsBool(parameters, self.MG_10M, context)
+        # relative path to coniferous raster (string)
+        mg_10m_path = self.parameterAsString(parameters, self.MG_10M_PATH, context)
 
         # binary coniferous raster, used for stand delineation (boolean)
-        mg_detail_binary = self.parameterAsBool(parameters, self.MG_10M_BINARY, context)
+        mg_10m_binary = self.parameterAsBool(parameters, self.MG_10M_BINARY, context)
+        # relative path to coniferous raster (string)
+        mg_10m_binary_path = self.parameterAsString(parameters, self.MG_10M_BINARY_PATH, context)
 
         # clip both coniferous raster and binary coniferous raster by extent, else by mask (boolean)
         mg_clip_by_extent = self.parameterAsBool(parameters, self.MG_CLIP_BY_EXTENT, context)
 
         # intermediate layers from TBk-proecessing  (boolean)
         bk_process = self.parameterAsBool(parameters, self.BK_PROCESS, context)
+        # relative path to folder with intermediate layers (string)
+        bk_process_path = self.parameterAsString(parameters, self.BK_PROCESS_PATH, context)
 
         # local densities within TBk-stands (post-process output) (boolean)
         local_densities = self.parameterAsBool(parameters, self.LOCAL_DENSITIES, context)
+        # relative path to folder with local densities (string)
+        local_densities_path = self.parameterAsString(parameters, self.LOCAL_DENSITIES_PATH, context)
 
         start_time = time.time()
 
@@ -290,79 +410,79 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # if required add degree of cover to list of raster datasets
         if dg:
-            path_dg = os.path.join(path_tbk_input, "dg_layers", "dg_layer.tif")
+            path_dg = os.path.join(path_tbk_input, dg_path)
             if os.path.exists(path_dg) == False:
                 raise QgsProcessingException("No degree of cover raster layer found:\n" + path_dg + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("dg_layers", "dg_layer.tif"))
+            tbk_raster_datasets.append(dg_path)
 
         # if required add degree of cover layer for specific height ranges (relative to hdom) to list of raster datasets
         if all_dg:
             for i in ["ks", "us", "ms", "os", "ueb"]:
-                path_dg_i = os.path.join(path_tbk_input, "dg_layers", "dg_layer_" + i + ".tif")
+                path_dg_i = os.path.join(path_tbk_input, all_dg_path, "dg_layer_" + i + ".tif")
                 if os.path.exists(path_dg_i) == False:
                     raise QgsProcessingException(
                         "For the " + i.upper() + " height range no degree of cover raster layer found:\n" + path_dg_i + "\ndoes not exist.")
-                tbk_raster_datasets.append(os.path.join("dg_layers", "dg_layer_" + i + ".tif"))
+                tbk_raster_datasets.append(os.path.join(all_dg_path, "dg_layer_" + i + ".tif"))
 
         # if required add VHM with detail resolution to list of raster datasets
         if vhm_10m:
-            path_vhm_10m = os.path.join(path_tbk_input, "..", "VHM_10m.tif")
+            path_vhm_10m = os.path.join(path_tbk_input, vhm_10m_path)
             if os.path.exists(path_vhm_10m) == False:
                 raise QgsProcessingException("No VHM with resolution 10m found:\n" + path_vhm_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("..", "VHM_10m.tif"))
+            tbk_raster_datasets.append(vhm_10m_path)
 
         # if required add VHM with 150cm resolution to list of raster datasets
         if vhm_150cm:
-            path_vhm_150cm = os.path.join(path_tbk_input, "..", "VHM_150cm.tif")
+            path_vhm_150cm = os.path.join(path_tbk_input, vhm_150cm_path)
             if os.path.exists(path_vhm_150cm) == False:
                 raise QgsProcessingException("No VHM with resolution 150cm found:\n" + path_vhm_150cm + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("..", "VHM_150cm.tif"))
+            tbk_raster_datasets.append(vhm_150cm_path)
 
         # if required add detailed VHM to list of raster datasets
         if vhm_detail:
-            path_vhm_detail = os.path.join(path_tbk_input, "..", "VHM_detail.tif")
+            path_vhm_detail = os.path.join(path_tbk_input, vhm_detail_path)
             if os.path.exists(path_vhm_detail) == False:
                 raise QgsProcessingException("No detailed VHM with original resolution found:\n" + path_vhm_detail + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("..", "VHM_detail.tif"))
+            tbk_raster_datasets.append(vhm_detail_path)
 
         # if required add coniferous raster to list of raster datasets
         if mg_10m:
-            path_mg_10m = os.path.join(path_tbk_input, "..", "MG_10m.tif")
+            path_mg_10m = os.path.join(path_tbk_input, mg_10m_path)
             if os.path.exists(path_mg_10m) == False:
                 raise QgsProcessingException("No coniferous raster found:\n" + path_mg_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("..", "MG_10m.tif"))
+            tbk_raster_datasets.append(mg_10m_path)
 
         # if required add coniferous raster to list of raster datasets
-        if mg_detail_binary:
-            path_mg_detail_binary = os.path.join(path_tbk_input, "..", "MG_10m_binary.tif")
-            if os.path.exists(path_mg_detail_binary) == False:
-                raise QgsProcessingException("No binary coniferous raster found:\n" + path_mg_detail_binary + "\ndoes not exist.")
-            tbk_raster_datasets.append(os.path.join("..", "MG_10m_binary.tif"))
+        if mg_10m_binary:
+            path_mg_10m_binary = os.path.join(path_tbk_input, mg_10m_binary_path)
+            if os.path.exists(path_mg_10m_binary) == False:
+                raise QgsProcessingException("No binary coniferous raster found:\n" + path_mg_10m_binary + "\ndoes not exist.")
+            tbk_raster_datasets.append(mg_10m_binary_path)
 
         # if required add intermediate layers from TBk-processing to lists of vector resp. raster datasets
         # note: .csv & folder tmp are not extracted
         if bk_process:
-            path_bk_process = os.path.join(path_tbk_input, "bk_process")
+            path_bk_process = os.path.join(path_tbk_input, bk_process_path)
             if os.path.exists(path_bk_process) == False:
                 raise QgsProcessingException(
                     "No folder with intermediate layers from TBk-processing found:\n" + path_bk_process + "\ndoes not exist.")
             file_list = os.listdir(path_bk_process)
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join("bk_process", file))
+                    tbk_vector_datasets.append(os.path.join(bk_process_path, file))
                 elif file.endswith(".tif"):
-                    tbk_raster_datasets.append(os.path.join("bk_process", file))
+                    tbk_raster_datasets.append(os.path.join(bk_process_path, file))
 
         # if required add local densities to list of vector datasets
         if local_densities:
-            path_local_densities = os.path.join(path_tbk_input, "local_densities")
+            path_local_densities = os.path.join(path_tbk_input, local_densities_path)
             if os.path.exists(path_local_densities) == False:
                 raise QgsProcessingException(
                     "No local densities' folder found:\n" + path_local_densities + "\ndoes not exist.")
             file_list = os.listdir(path_local_densities)
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join("local_densities", file))
+                    tbk_vector_datasets.append(os.path.join(local_densities_path, file))
 
         # check gathered vector datatsets
         # for v in tbk_vector_datasets: print(v)
@@ -381,9 +501,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # f_save_as_gpkg(perimeter, "perimeter")
 
         # path to original main TBk layer
-        path_tbk_main_in = os.path.join(path_tbk_input, "TBk_Bestandeskarte.gpkg")
+        path_tbk_main_in = os.path.join(path_tbk_input, tbk_input_file_path)
         # path to extracted main TBb layer
-        path_tbk_main_out = os.path.join(path_output, "TBk_Bestandeskarte.gpkg")
+        path_tbk_main_out = os.path.join(path_output, tbk_input_file_path)
 
         # extract main TBk layer
         param = {
@@ -435,7 +555,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     # f_save_as_gpkg(extraction_perimeter_raster[str(res_i)], "extraction_perimeter_raster_" + str(res_i))
 
                 # if coniferous rasters and required to clip by extent
-                if ds[3:] in ["MG_10m.tif", "MG_10m_binary.tif"] and mg_clip_by_extent:
+                if ds in [mg_10m_path, mg_10m_binary_path] and mg_clip_by_extent:
                     param = {
                         'INPUT': dataset_in,
                         'PROJWIN': extraction_perimeter_raster[str(res_i)].extent(),
