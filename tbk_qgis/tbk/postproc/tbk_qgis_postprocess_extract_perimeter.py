@@ -163,7 +163,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # TBk-qgis-project-file (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.TBK_QGIS_PROJ,
-            self.tr("Copy TBk-qgis-project-file"),
+            self.tr("Copy TBk-QGIS-project-file"),
             defaultValue=True
         )
         self.addAdvancedParameter(parameter)
@@ -171,7 +171,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # relative path to TBk-qgis-project-file (string)
         parameter = QgsProcessingParameterString(
             self.TBK_QGIS_PROJ_PATH,
-            self.tr("Relative path to TBk-qgis-project-file (.qgz / .qgs)"),
+            self.tr("Relative path to TBk-QGIS-project-file (.qgz / .qgs)"),
             defaultValue='TBk_Project.qgz'  # output of Generate TBk
         )
         self.addAdvancedParameter(parameter)
@@ -725,9 +725,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     <h3>Relative path to TBk-map-file (.gpkg)</h3>
     <p>File name of the TBk stand map kept in the "Folder with TBk project to extract from". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
     
-    <h3>Copy TBk-qgis-project-file</h3>
+    <h3>Copy TBk-QGIS-project-file</h3>
     <p>Check box: default True.</p>
-    <h3>Relative path to TBk-qgis-project-file (.qgz / .qgs)</h3>
+    <h3>Relative path to TBk-QGIS-project-file (.qgz / .qgs)</h3>
     <p>File path relative to "Folder with TBk project to extract from". By default TBk_Project.qgz, which is what "Generate BK" returns.</p>
    
     <h3>Degree of cover raster layer</h3>
