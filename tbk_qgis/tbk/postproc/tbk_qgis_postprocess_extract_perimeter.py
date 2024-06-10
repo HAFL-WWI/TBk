@@ -705,87 +705,87 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
-    <html><head><meta name="qrichtext" content="1" /><style type="text/css">
-    </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-    <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Extracts all polygons from a TBk stands map intersecting with a perimeter. The extracted stands are saved in a .gpkg having the same name as the .gpkg holding the original stand map. Furthermore, the .gpkg with the extracted stands is placed within the user-defined output folder in a folder inheriting its name from the folder harboring the original .gpkg. Thus, file naming and folder architecture of original TBk-project is cloned.
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Extracts all polygons from a TBk stands map intersecting with a perimeter. The extracted stands are saved in a .gpkg having the same name as the .gpkg holding the original stand map. Furthermore, the .gpkg with the extracted stands is placed within the user-defined output folder in a folder inheriting its name from the folder harboring the original .gpkg. Thus, file naming and folder architecture of original TBk-project is cloned.
 
-    Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter.
+Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter.
+
+Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p></body></html></p>
+
+<h2>Input parameters</h2>
+<h3>Perimeter of extraction (polygon(s) and/or mutlipolygon(s)</h3>
+<p>Layer of extraction perimeter</p>
+<h3>Folder with TBk project to extract from</h3>
+<p>Path to folder including a .gpkg-file holding a TBk-stand-map.</p>
+<h3>Folder where the extracted material will be stored</h3>
+<p>Path to output folder.</p>
+
+<h2>Advanced parameters</h2>
+<h3>Relative path to TBk-map-file (.gpkg)</h3>
+<p>File name of the TBk stand map kept in the "Folder with TBk project to extract from". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
+
+<h3>Copy TBk-QGIS-project-file</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to TBk-QGIS-project-file (.qgz / .qgs)</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default TBk_Project.qgz, which is what "Generate BK" returns.</p>
+
+<h3>Degree of cover raster layer</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to degree of cover raster layer</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default dg_layers\dg_layer.tif, which is what "Generate BK" returns.</p>
+
+<h3>Degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
+<p>Folder path relative to "Folder with TBk project to extract from". By default dg_layers, which is what "Generate BK" returns populates with the five DG-layers.</p>
+
+<h3>VHM with 10m resolution, main input to generate TBk-stand-map</h3>
+<p>Check box: default True.</p>
+<h3>Relative path VHM 10m layer</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>VHM with 150cm resolution, main input to generate TBk-stand-map</h3>
+<p>Check box: default True.</p>
+<h3>Relative path VHM 150cm layer</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_150cm.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>Detailed VHM raster with original resolution</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to detailed VHM layer</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_detail.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>Coniferous raster / forest mixture degree with 10m resolution</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to coniferous raster</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>Binary coniferous raster with 10m resolution, used for stand delineation</h3>
+<p>Check box: default True.</p>
+<h3>Relative path to binary coniferous raster</h3>
+<p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m_binary.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>Clip both coniferous raster and binary coniferous raster by extent, else by mask</h3>
+<p>Check box: default True.</p>
+
+<h3>Intermediate layers from TBk-proecessing</h3>
+<p>Check box: default False. If True extracts all raster (.tif) and vector (.gpkg) layers held in folder with intermediate layers, but not any content held there in subfolders or .cvs-files.</p>
+<h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
+<p>Folder path relative to "Folder with TBk project to extract from". By default bk_process, which is what "Generate BK" returns populates with intermediate material.</p>
+
+<h3>Local densities within TBk-stands (post-process output)</h3>
+<p>Check box: default False. If True extracts all vector layers (.gpkg) held in local densities' folder.</p>
+<h3>Relative path to folder with local densities</h3>
+<p>Folder path relative to "Folder with TBk project to extract from". By default local_densities, which where "TBk Postprocess Local Density" drops its outputs.</p>
+
+<h2>Outputs</h2>
+<p>Output folder containing extracted material ("Folder where the extracted material will be stored" s. above). File naming and achitectur inherited form inputs (s. above).</p>
     
-    Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p></body></html></p>
-
-    <h2>Input parameters</h2>
-    <h3>Perimeter of extraction (polygon(s) and/or mutlipolygon(s)</h3>
-    <p>Layer of extraction perimeter</p>
-    <h3>Folder with TBk project to extract from</h3>
-    <p>Path to folder including a .gpkg-file holding a TBk-stand-map.</p>
-    <h3>Folder where the extracted material will be stored</h3>
-    <p>Path to output folder.</p>
-    
-    <h2>Advanced parameters</h2>
-    <h3>Relative path to TBk-map-file (.gpkg)</h3>
-    <p>File name of the TBk stand map kept in the "Folder with TBk project to extract from". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
-    
-    <h3>Copy TBk-QGIS-project-file</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to TBk-QGIS-project-file (.qgz / .qgs)</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default TBk_Project.qgz, which is what "Generate BK" returns.</p>
-   
-    <h3>Degree of cover raster layer</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to degree of cover raster layer</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default dg_layers\dg_layer.tif, which is what "Generate BK" returns.</p>
-
-    <h3>Degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
-    <p>Folder path relative to "Folder with TBk project to extract from". By default dg_layers, which is what "Generate BK" returns populates with the five DG-layers.</p>
-
-    <h3>VHM with 10m resolution, main input to generate TBk-stand-map</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path VHM 10m layer</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
-
-    <h3>VHM with 150cm resolution, main input to generate TBk-stand-map</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path VHM 150cm layer</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_150cm.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
-    
-    <h3>Detailed VHM raster with original resolution</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to detailed VHM layer</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_detail.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
-
-    <h3>Coniferous raster / forest mixture degree with 10m resolution</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to coniferous raster</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
-
-    <h3>Binary coniferous raster with 10m resolution, used for stand delineation</h3>
-    <p>Check box: default True.</p>
-    <h3>Relative path to binary coniferous raster</h3>
-    <p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m_binary.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
-
-    <h3>Clip both coniferous raster and binary coniferous raster by extent, else by mask</h3>
-    <p>Check box: default True.</p>
-    
-    <h3>Intermediate layers from TBk-proecessing</h3>
-    <p>Check box: default False. If True extracts all raster (.tif) and vector (.gpkg) layers held in folder with intermediate layers, but not any content held there in subfolders or .cvs-files.</p>
-    <h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
-    <p>Folder path relative to "Folder with TBk project to extract from". By default bk_process, which is what "Generate BK" returns populates with intermediate material.</p>
-
-    <h3>Local densities within TBk-stands (post-process output)</h3>
-    <p>Check box: default False. If True extracts all vector layers (.gpkg) held in local densities' folder.</p>
-    <h3>Relative path to folder with local densities</h3>
-    <p>Folder path relative to "Folder with TBk project to extract from". By default local_densities, which where "TBk Postprocess Local Density" drops its outputs.</p>
-
-    <h2>Outputs</h2>
-    <p>Output folder containing extracted material ("Folder where the extracted material will be stored" s. above). File naming and achitectur inherited form inputs (s. above).</p>
-    
-    <h2>Examples</h2>
-    <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
-    <html><head><meta name="qrichtext" content="1" /><style type="text/css">
-    </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-    <p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html></p><br><p align="right">Algorithm author: Attilio Benini @ BFH-HAFL (2024)</p></body></html>"""
+<h2>Examples</h2>
+<p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
+<html><head><meta name="qrichtext" content="1" /><style type="text/css">
+</style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
+<p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html></p><br><p align="right">Algorithm author: Attilio Benini @ BFH-HAFL (2024)</p></body></html>"""
 
     def createInstance(self):
         return TBkPostprocessExtractPerimeter()
