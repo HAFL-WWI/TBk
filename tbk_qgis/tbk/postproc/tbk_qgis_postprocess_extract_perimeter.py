@@ -39,6 +39,7 @@ __revision__ = '$Format:%H$'
 import os # os is used below, so make sure it's available in any case
 import time
 from datetime import datetime, timedelta
+from shutil import copyfile
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
@@ -80,8 +81,10 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
     # advanced parameters (list of material to copy resp. to extract)
 
-    # TBk-qgis-project-file (boolean)
-    # TBK_QGIS_PROJ = "tbk_qgis_proj"
+    # copy TBk-qgis-project-file (boolean)
+    TBK_QGIS_PROJ = "tbk_qgis_proj"
+    # relative path to TBk-qgis-project-file (string)
+    TBK_QGIS_PROJ_PATH = "tbk_qgis_proj_path"
     # relative path to TBk input file (string)
     TBK_INPUT_FILE_PATH = "tbk_input_file_path"
     # degree of cover raster layer (boolean)
@@ -149,18 +152,27 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             self.OUTPUT_ROOT, self.tr('Folder where the extracted material will be stored'))
         )
 
-        # TBk-qgis-project-file (boolean)
-        # parameter = QgsProcessingParameterBoolean(
-        #     self.TBK_QGIS_PROJ,
-        #     self.tr("Copy TBk-qgis-project-file"),
-        #     defaultValue=True
-        # )
-        # self.addAdvancedParameter(parameter)
         # TBk input file name (string)
         parameter = QgsProcessingParameterString(
             self.TBK_INPUT_FILE_PATH,
             self.tr("Relative path to TBk-map-file (.gpkg)"),
             defaultValue='TBk_Bestandeskarte.gpkg'  # output of Generate TBk
+        )
+        self.addAdvancedParameter(parameter)
+
+        # TBk-qgis-project-file (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.TBK_QGIS_PROJ,
+            self.tr("Copy TBk-qgis-project-file"),
+            defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        # relative path to TBk-qgis-project-file (string)
+        parameter = QgsProcessingParameterString(
+            self.TBK_QGIS_PROJ_PATH,
+            self.tr("Relative path to TBk-qgis-project-file (.qgz / .qgs)"),
+            defaultValue='TBk_Project.qgz'  # output of Generate TBk
         )
         self.addAdvancedParameter(parameter)
 
@@ -340,11 +352,13 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         tbk_tool_path = os.path.join(settings_path, "python/plugins/tbk_qgis")
 
-        # TBk-qgis-project-file (boolean)
-        # tbk_qgis_proj = self.parameterAsBool(parameters, self.TBK_QGIS_PROJ, context)
-
         # relative path to TBk-map-file (string)
         tbk_input_file_path = self.parameterAsString(parameters, self.TBK_INPUT_FILE_PATH, context)
+
+        # TBk-qgis-project-file (boolean)
+        tbk_qgis_proj = self.parameterAsBool(parameters, self.TBK_QGIS_PROJ, context)
+        # relative path to TBk-qgis-project-file (string)
+        tbk_qgis_proj_path = self.parameterAsString(parameters, self.TBK_QGIS_PROJ_PATH, context)
 
         # degree of cover raster layer (boolean)
         dg = self.parameterAsBool(parameters, self.DG, context)
@@ -397,11 +411,11 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         start_time = time.time()
 
-        # if tbk_qgis_proj:
-        #     path_tbk_qgis_proj = os.path.join(path_tbk_input, "TBk_Project.qgz")
-        #     if os.path.exists(path_tbk_qgis_proj) == False:
-        #         raise QgsProcessingException(
-        #             "No TBk-QGIS-file found:\n" + path_tbk_qgis_proj + "\ndoes not exist.")
+        if tbk_qgis_proj:
+            path_tbk_qgis_proj = os.path.join(path_tbk_input, tbk_qgis_proj_path)
+            if os.path.exists(path_tbk_qgis_proj) == False:
+                raise QgsProcessingException(
+                    "No TBk-QGIS-project-file found:\n" + path_tbk_qgis_proj + "\ndoes not exist.")
 
         # list to gather TBk vector layer for extraction (TBk main dataset not included)
         tbk_vector_datasets = []
@@ -514,6 +528,11 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         }
         algoOutput = processing.run("native:extractbylocation", param)
         algoOutput["OUTPUT"]
+
+        if tbk_qgis_proj:
+            path_tbk_qgis_proj_in = os.path.join(path_tbk_input, tbk_qgis_proj_path)
+            path_tbk_qgis_proj_out = os.path.join(path_output, tbk_qgis_proj_path)
+            copyfile(path_tbk_qgis_proj_in, path_tbk_qgis_proj_out)
 
         # extract raster datatsets
         if len(tbk_raster_datasets) > 0:
