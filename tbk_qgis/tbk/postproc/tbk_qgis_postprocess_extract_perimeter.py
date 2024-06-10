@@ -341,11 +341,19 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
 
+        # path to folder with TBk-input
         path_tbk_input = self.parameterAsString(parameters, self.PATH_TBk_INPUT, context)
+        # name to folder with TBk-input
+        tbk_folder = os.path.basename(os.path.normpath(path_tbk_input))
+        # print(tbk_folder)
 
+        # folder where output goes
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
-        path_output = output_root
+        # print(output_root)
+        # folder same-named as folder with TBk-input placed within output-folder
+        path_output = os.path.join(output_root, tbk_folder)
         ensure_dir(path_output)
+        # print(path_output)
 
         settings_path = QgsApplication.qgisSettingsDirPath()
         feedback.pushInfo(settings_path)
