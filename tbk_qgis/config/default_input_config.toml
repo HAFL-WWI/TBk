@@ -1,0 +1,74 @@
+# default input configuration
+
+################## Common Inputs used by all algorithm ########################
+# Input files paths
+config_file = ""                                                                # TOML configuration file
+vhm_10m = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif"                      # VHM 10m as main TBk input
+vhm_150cm = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_150cm.tif"                  # VHM 150cm to calculate DG
+coniferous_raster = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"             # Coniferous raster to calculate stand mean
+coniferous_raster_for_classification = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m_binary.tif"   # Coniferous raster for classification
+perimeter = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl"  # Perimeter shapefile to clip final result
+
+# Output path
+output_root = "C:/dev/hafl/TBk_fork/data/tbk_hafl"      # Folder in which to save the results output folder
+
+# Other
+del_tmp = true                                          # Need to delete temporary files and fields
+
+################## TBK preprocessing Algorithm ########################
+
+mask = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.shp" # Mask shapefile to clip final result (.shp) todo: use the perimeter instead?
+
+# TBk prepare MG:
+max_lh = 5000                                           # Maximum deciduous wood value
+max_nh = 10000                                          # Maximum coniferous wood value
+mg_input = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"# Mixing degree 10m input (.tif)
+mg_output = "MG.tif"                                    # Mixing degree output name (.tif)
+min_lh = 1                                              # Minimum deciduous wood value
+min_nh = 5000                                           # Minimum coniferous wood value
+reclassify_mg_values = true
+
+# TBk prepare VHM:
+convert_to_byte = true                                  # Convert VHM to BYTE datatype
+crop_vhm = true                                         # Crop VHM to mask
+rasterize_mask = false                                  # Rasterize mask
+vMax = 60.0                                             # VHM max value
+vMin = 0.0                                              # VHM min value
+vNA = 255                                               # VHM NA value
+vhm_detail = "vhm_detail.tif"                           # VHM detail output name (.tif)
+vhm_input = "C:/dev/hafl/TBk_fork/data/tbk_hafl/VHM_10m.tif"# Detailed input VHM (.tif)
+
+################## TBK Main Algorithm          ########################
+
+# Default log file name
+logfile_name = "tbk_processing.log"                     # Will be stored in the result directory
+
+# Main TBk parameters (for details see run_stand_classification function)
+description = "TBk dataset"                             # Short description
+useConiferousRasterForClassification = true             # Need to use the coniferous raster for classification
+min_tol = 0.1                                           # Relative min tolerance
+max_tol = 0.1                                           # Relative max tolerance
+min_corr = 4                                            # Extension of the range down [m]
+max_corr = 4                                            # Extension of the range up [m]
+min_valid_cells = 0.5                                   # Minimum relative amount of valid cells
+min_cells_per_stand = 10                                # Minimum cells per stand
+min_cells_per_pure_stand = 30                           # Minimum cells for pure mixture stands
+vhm_min_height = 0                                      # VHM minimum height
+vhm_max_height = 60                                     # VHM maximum height
+
+# Additional parameters
+min_area_m2 = 1000                                      # Min. area to eliminate small stands
+similar_neighbours_min_area = 2000                      # Min. area to merge similar stands
+similar_neighbours_hdom_diff_rel = 0.15                 # hdom relative diff to merge similar stands
+calc_mixture_for_main_layer = true                      # Also calc coniferous prop. for main layer
+simplification_tolerance = 8                            # Simplification tolerance
+
+# Vegetation zone and
+vegZoneDefault = 2                                      # Default Vegetation Zone
+vegZoneLayer = ""                                       # Vegetation Zone layer (polygons) for spatial join
+vegZoneLayerField = ""                                  # Vegetation Zone Code field (in layer)
+forestSiteDefault = ""                                  # Default Forest Site Category
+forestSiteLayer = ""                                    # Forest Site Category layer (polygons) for spatial join
+forestSiteLayerField = ""                               # Forest Site Category field (in layer)
+
+
