@@ -122,8 +122,12 @@ class ClassificationHelper:
             # store information
             layer.SetFeature(feature)
 
-        dataSource.Close()
-
+        try:
+            # this threw errors in specific QGIS versions (e.g. QGIS 3.28.4
+            #TODO : check if gdal actually needs close and/or how this is properly handled
+            dataSource.Close()
+        except:
+            print(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
 
     ################################################
     # Add hmax effective and 80th percentile (zonal stats)
@@ -173,7 +177,12 @@ class ClassificationHelper:
             layer.SetFeature(feature)
             counter += 1
 
-        dataSource.Close()
+        try:
+            # this threw errors in specific QGIS versions (e.g. QGIS 3.28.4
+            #TODO : check if gdal actually needs close and/or how this is properly handled
+            dataSource.Close()
+        except:
+            print(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
         # delete_geopackage(vectorfile_path_stat_path)
 
     ################################################
