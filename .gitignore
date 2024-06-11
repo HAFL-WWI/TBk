@@ -15,6 +15,13 @@ data/tbk_qgis_data.qgz
 
 
 #_________________________________#
+#-----         test          -----#
+#_________________________________#
+# test contains general test files that should work on default configurations
+# the following folder contains test files that are adapted to local configs and shouldn't be in the repository
+tbk_qgis/test/local
+
+#_________________________________#
 #-----         Various        ----#
 #_________________________________#
 # ignore pycaches
