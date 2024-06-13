@@ -2,7 +2,6 @@
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
-import processing
 
 
 class TBkAlgorithm(TBkProcessingAlgorithm):
@@ -10,20 +9,20 @@ class TBkAlgorithm(TBkProcessingAlgorithm):
     todo
     """
 
-    # todo: store the algorithm modules in a list?
+    # todo: store the algorithm instances in a list and run them in a for loop? Put the instanciations in the initAlgorithm method
     def __init__(self):
         TBkProcessingAlgorithm.__init__(self)
         self.stand_delineation_algorithm = TBkStandDelineationAlgorithm()
         self.simplify_and_clean_algorithm = TBkSimplifyAndCleanAlgorithm()
 
-    # todo: avoid repetition
+    # todo: avoid repetition + ensure that a parameter is not added twice
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
 
         self.stand_delineation_algorithm.initAlgorithm(config)
-        # Add the child algorithm's parameters to the main algorithm
+        # Add the child algorithm's parameters to this algorithm
         for param in self.stand_delineation_algorithm.parameterDefinitions():
             self.addParameter(param.clone())
 
@@ -38,7 +37,7 @@ class TBkAlgorithm(TBkProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
 
-        # use the config file parameters if given, else input parameters
+        # Use the parameters from the config file if provided; otherwise, use the input parameters.
         params = self._get_input_or_config_params(parameters, context)
 
         outputs = self.stand_delineation_algorithm.processAlgorithm(params.__dict__, context, feedback)
@@ -46,7 +45,7 @@ class TBkAlgorithm(TBkProcessingAlgorithm):
         params.working_root = outputs['WORKING_ROOT']
         self.simplify_and_clean_algorithm.processAlgorithm(params.__dict__, context, feedback)
 
-        return {}
+        return {}  # todo
 
     def createInstance(self):
         """

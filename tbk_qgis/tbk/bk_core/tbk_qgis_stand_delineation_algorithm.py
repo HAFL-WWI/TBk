@@ -7,10 +7,6 @@ This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
-
-Todo:
-    * merge main branch when config pull request is integrated
-    * Enhance the helpstring
 """
 
 __authors__ = 'Dominique Weber, Christoph Schaller'
@@ -20,7 +16,6 @@ __email__ = "christian.rosset@bfh.ch"
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-import logging
 from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
@@ -44,9 +39,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
     # Directory containing the output files
     OUTPUT_ROOT = "output_root"
-    # Directory containing the working_root output files
+    # Folder for storing all input files and saving output files
     WORKING_ROOT = "working_root"
-    # File storing the parameters
+    # File storing configuration parameters
     CONFIG_FILE = "config_file"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
@@ -54,8 +49,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
     VHM_10M = "vhm_10m"
     # Coniferous raster to be used during stand delineation
     CONIFEROUS_RASTER_FOR_CLASSIFICATION = "coniferous_raster_for_classification"
-    # Zone raster
-    ZONE_RASTER_FILE = "zoneRasterFile"
     # Short description
     DESCRIPTION = "description"
     # Relative min tolerance
@@ -83,11 +76,10 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         """
         # --- Parameters
 
-        # Config file containing all parameter values
+        # Config file containing all parameter key-value pairs
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
-                                                         'Configuration file to set the parameters of the algorithm. '
-                                                         'The parameters set in the file does not need to be set '
-                                                         'bellow',
+                                                     'Configuration file to set the algorithm parameters. The bellow '
+                                                     'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
 
@@ -95,7 +87,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M,
                                                             "VHM 10m as main TBk input  (.tif)"))
 
-        # Coniferous raster to calculate stand mean
+        # Coniferous raster
         self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
                                                             "Coniferous raster to be used during stand "
                                                             "delineation (.tif)\nA simplified binarized "
@@ -107,11 +99,11 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
 
-        # Folder for root output, used for displaying in algorithm help when called from the console
-        self.add_hidden_parameter(QgsProcessingParameterFolderDestination(self.WORKING_ROOT,
+        # Working root folder. This is set only to be displayed when calling the algorithm help from the console
+        self._add_hidden_parameter(QgsProcessingParameterFolderDestination(self.WORKING_ROOT,
                                                                           "Output subfolder containing the working "
                                                                           "root files",
-                                                                          optional=True))
+                                                                           optional=True))
 
         # --- Advanced Parameters
 
@@ -119,49 +111,49 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterString(self.DESCRIPTION, "Short description",
                                                  defaultValue="TBk dataset")
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_TOL, "Relative min tolerance",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_TOL, "Relative max tolerance",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CORR, "Extension of the range down [m]",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=4)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_CORR, "Extension of the range up [m]",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=4)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS,
                                                  "Minimum relative amount of valid cells",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, "Minimum cells per stand",
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=10)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND,
                                                  "Minimum cells for pure mixture stands",
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=30)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, "VHM minimum height",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=0)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, "VHM maximum height",
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=60)
-        self.add_advanced_parameter(parameter)
+        self._add_advanced_parameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -172,22 +164,22 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         # use the config file parameters if given, else input parameters
         params = self._get_input_or_config_params(parameters, context)
 
-        # handle output root input
+        # Handle the working root and temp output folders
         output_root = params.output_root
-        working_root = self.get_working_root_path(output_root)
+        working_root = self._get_working_root_path(output_root)
         ensure_dir(working_root)
-        tmp_output_folder = self.get_tmp_output_path(working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
 
         # set logger
-        log = self.configure_logging(working_root, params.logfile_name)
+        log = self._configure_logging(working_root, params.logfile_name)
 
         # check tif files extension
-        self.check_tif_extension(params.vhm_10m, self.VHM_10M)
+        self._check_tif_extension(params.vhm_10m, self.VHM_10M)
         if params.coniferous_raster_for_classification:
-            self.check_tif_extension(params.coniferous_raster_for_classification,
-                                     self.CONIFEROUS_RASTER_FOR_CLASSIFICATION)
+            self._check_tif_extension(params.coniferous_raster_for_classification,
+                                      self.CONIFEROUS_RASTER_FOR_CLASSIFICATION)
 
-        # Store the input parameters in a file
+        # Write the used parameters in a toml file
         try:
             write_dict_to_toml_file(params.config_file, working_root, params.__dict__)
         except Exception:
@@ -197,7 +189,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         # --- Stand delineation (Main)
         log.info(f'Starting')
 
-        # None correspond to the zone_raster_file that is not used
+        # None correspond to the zone_raster_file that is not used yet
         output = run_stand_classification(working_root, tmp_output_folder,
                                           params.vhm_10m, params.coniferous_raster_for_classification,
                                           None, params.description,

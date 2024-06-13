@@ -1,6 +1,6 @@
 # #####################################################################
-# Base class for the core TBk algorithms. It is
-# aimed be inherited to reduce code repetition in each child algorithm can use its functions.
+# Base class for TBk core sub-algorithms designed for inheritance to minimize code repetition across child algorithms,
+# allowing them to leverage shared functions efficiently.
 # 30.05.2024
 # (C) Dominique Weber, Christoph Schaller, David Coutrot, HAFL
 # #####################################################################
@@ -21,7 +21,7 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     """
 
     @staticmethod
-    def get_working_root_path(output_root):
+    def _get_working_root_path(output_root):
         """
         Return the working root folder path
         """
@@ -32,7 +32,7 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return working_root
 
     @staticmethod
-    def get_tmp_output_path(working_root):
+    def _get_tmp_output_path(working_root):
         """
             Return the temporary output folder path
         """
@@ -40,27 +40,29 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return tmp_output_path
 
     @staticmethod
-    def configure_logging(output_folder_path, logfile_name):
+    def _configure_logging(output_folder_path, logfile_name):
         """
         Configure logging
         """
-        # the output folder must exist
+        # The output folder must exist
         logfile_tmp_path = str(os.path.join(output_folder_path, logfile_name))
 
-        # set up logging to file
-        file_handler_formatter = logging.Formatter('[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s', '%H:%M:%S')
+        # Set up logging to file
+        log_format = '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s'
+        date_format = '%H:%M:%S'
+        file_handler_formatter = logging.Formatter(log_format, date_format)
         # The log is appended to the existing log or a new file is created if file does not exist (mode = 'a')
         file_handler = logging.FileHandler(logfile_tmp_path, mode='a')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_handler_formatter)
 
-        # set up logging to console
+        # Set up logging to console
         console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
         console = logging.StreamHandler()
         console.setLevel(logging.DEBUG)
         console.setFormatter(console_formatter)
 
-        # create logger and the handler to the logger
+        # Create logger and add the handlers to it
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
         logger.addHandler(console)
@@ -76,21 +78,21 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return logger
 
     @staticmethod
-    def check_tif_extension(file, input_name):
+    def _check_tif_extension(file, input_name):
         """
         Check if the file has a .tiff/tif extension.
         """
         if not file.endswith(('.tiff', '.tif')):
             raise QgsProcessingException(f"{input_name} must be a TIFF file")
 
-    def add_advanced_parameter(self, parameter):
+    def _add_advanced_parameter(self, parameter):
         """
         Add an advanced parameter
         """
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         return self.addParameter(parameter)
 
-    def add_hidden_parameter(self, parameter):
+    def _add_hidden_parameter(self, parameter):
         """
         Add a hidden parameter
         """
@@ -98,6 +100,10 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return self.addParameter(parameter)
 
     def _get_input_or_config_params(self, parameters, context):
+        """
+        Retrieve and determine the appropriate parameters to use. By default, if a config file is provided,
+        the parameters from the config file are returned.
+        """
         inputs_params = self._extract_context_params(parameters, context)
         used_params = inputs_params
         config_path = used_params.config_file
@@ -108,7 +114,7 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         except FileNotFoundError:
             raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
-        return inputs_params
+        return used_params
 
     def _extract_context_params(self, parameters, context):
         """
