@@ -25,7 +25,7 @@ def write_dict_to_toml_file(toml_file_path: str,
     # If a TOML file path is given, use it as template. Use otherwise the default toml file as template
     toml_template_path = toml_file_path if toml_file_path else _DEFAULT_CONFIG_PATH
     toml_data = read_toml_file(toml_template_path)
-    print(dictionary)
+
     # todo: for loop not needed anymore with the modularize core tbk algorithm. This implementation can be
     #  adapted after the legacy algorithm has been deleted and the prepare algorithms adapted:
     #  It can probably be replaced with toml_data = dictionary
