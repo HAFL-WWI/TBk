@@ -4,6 +4,7 @@ from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgo
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 import processing
 
+
 class TBkAlgorithm(TBkProcessingAlgorithm):
     """
     todo
@@ -32,16 +33,18 @@ class TBkAlgorithm(TBkProcessingAlgorithm):
             if param.name() != 'working_root':
                 self.addParameter(param.clone())
 
-
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
 
-        inputs = self.get_inputs(parameters, context)
-        outputs = self.stand_delineation_algorithm.processAlgorithm(inputs.__dict__, context, feedback)
-        inputs.working_root = outputs['WORKING_ROOT']
-        self.simplify_and_clean_algorithm.processAlgorithm(inputs.__dict__, context, feedback)
+        # use the config file parameters if given, else input parameters
+        params = self._get_input_or_config_params(parameters, context)
+
+        outputs = self.stand_delineation_algorithm.processAlgorithm(params.__dict__, context, feedback)
+        # Set the working root, so that it can be read in the simplify algorithm
+        params.working_root = outputs['WORKING_ROOT']
+        self.simplify_and_clean_algorithm.processAlgorithm(params.__dict__, context, feedback)
 
         return {}
 

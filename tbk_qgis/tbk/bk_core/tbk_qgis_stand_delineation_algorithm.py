@@ -21,12 +21,14 @@ __email__ = "christian.rosset@bfh.ch"
 __revision__ = '$Format:%H$'
 
 import logging
-from qgis.core import (QgsProcessingParameterFolderDestination,
+from qgis.core import (QgsProcessingParameterFile,
+                       QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
                        QgsProcessingParameterNumber)
 from tbk_qgis.tbk.bk_core.tbk_create_stands import run_stand_classification
 from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
+from tbk_qgis.tbk.utility.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.utility.tbk_utilities import ensure_dir
 
 
@@ -44,6 +46,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
     OUTPUT_ROOT = "output_root"
     # Directory containing the working_root output files
     WORKING_ROOT = "working_root"
+    # File storing the parameters
+    CONFIG_FILE = "config_file"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
     # VHM 10m as main TBk input
@@ -78,6 +82,15 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         Here we define the inputs and outputs of the algorithm.
         """
         # --- Parameters
+
+        # Config file containing all parameter values
+        self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
+                                                         'Configuration file to set the parameters of the algorithm. '
+                                                         'The parameters set in the file does not need to be set '
+                                                         'bellow',
+                                                     extension='toml',
+                                                     optional=True))
+
         # VHM 10m as main TBk input
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_10M,
                                                             "VHM 10m as main TBk input  (.tif)"))
@@ -155,27 +168,30 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         Here is where the processing itself takes place.
         """
         # --- get and check input parameters
-        # --- get input parameters
-        inputs = self.get_inputs(parameters, context)
+
+        # use the config file parameters if given, else input parameters
+        params = self._get_input_or_config_params(parameters, context)
 
         # handle output root input
-        output_root = inputs.output_root
+        output_root = params.output_root
         working_root = self.get_working_root_path(output_root)
         ensure_dir(working_root)
         tmp_output_folder = self.get_tmp_output_path(working_root)
 
-        # get and check description
-        description = inputs.description
-
         # set logger
-        self.configure_logging(working_root, inputs.logfile_name)
-        log = logging.getLogger('Stand Delineation')
+        log = self.configure_logging(working_root, params.logfile_name)
 
         # check tif files extension
-        self.check_tif_extension(inputs.vhm_10m, self.VHM_10M)
-        if inputs.coniferous_raster_for_classification:
-            self.check_tif_extension(inputs.coniferous_raster_for_classification,
+        self.check_tif_extension(params.vhm_10m, self.VHM_10M)
+        if params.coniferous_raster_for_classification:
+            self.check_tif_extension(params.coniferous_raster_for_classification,
                                      self.CONIFEROUS_RASTER_FOR_CLASSIFICATION)
+
+        # Store the input parameters in a file
+        try:
+            write_dict_to_toml_file(params.config_file, working_root, params.__dict__)
+        except Exception:
+            feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
         # ------- TBk Processing --------#
         # --- Stand delineation (Main)
@@ -183,12 +199,13 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
         # None correspond to the zone_raster_file that is not used
         output = run_stand_classification(working_root, tmp_output_folder,
-                                 inputs.vhm_10m, inputs.coniferous_raster_for_classification,
-                                 None, description,
-                                 inputs.min_tol, inputs.max_tol,
-                                 inputs.min_corr, inputs.max_corr,
-                                 inputs.min_valid_cells, inputs.min_cells_per_stand, inputs.min_cells_per_pure_stand,
-                                 inputs.vhm_min_height, inputs.vhm_max_height)
+                                          params.vhm_10m, params.coniferous_raster_for_classification,
+                                          None, params.description,
+                                          params.min_tol, params.max_tol,
+                                          params.min_corr, params.max_corr,
+                                          params.min_valid_cells, params.min_cells_per_stand,
+                                          params.min_cells_per_pure_stand,
+                                          params.vhm_min_height, params.vhm_max_height)
 
         return {'WORKING_ROOT': output}
 

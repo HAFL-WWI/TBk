@@ -25,13 +25,12 @@ def write_dict_to_toml_file(toml_file_path: str,
     # If a TOML file path is given, use it as template. Use otherwise the default toml file as template
     toml_template_path = toml_file_path if toml_file_path else _DEFAULT_CONFIG_PATH
     toml_data = read_toml_file(toml_template_path)
-
+    print(dictionary)
+    # todo: for loop not needed anymore with the modularize core tbk algorithm. This implementation can be
+    #  adapted after the legacy algorithm has been deleted and the prepare algorithms adapted:
+    #  It can probably be replaced with toml_data = dictionary
     # Iterate over the dict and replace the values in the toml template
     for key, value in dictionary.items():
-        # todo: if the config file is not set, the parameter is somehow converted to a MULL QVariant before
-        #  the algorithm is processed. This conditional statement solves the issue. Furthermore, if the config file
-        #  is set, we still need to set the other parameters.
-        #  Solution to investigate: use the preprocessParameters function
 
         # Handle NULL and None values since they are not accepted in TOML syntax
         if (isinstance(value, QVariant) and value.isNull()) or value is None:
@@ -75,6 +74,8 @@ def read_toml_file(file_path: str) -> Optional[TOMLDocument]:
             return data
 
 
+# todo: Deprecated: See the solution used in the new modularized core TBK algorithm
+#  with the _extract_context_params function
 def to_params_with_layer_source(instance: QgsProcessingAlgorithm,
                                 parameters: dict,
                                 context:

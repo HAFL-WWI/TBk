@@ -9,8 +9,9 @@ coniferous_raster = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m.tif"             
 coniferous_raster_for_classification = "C:/dev/hafl/TBk_fork/data/tbk_hafl/MG_10m_binary.tif"   # Coniferous raster for classification
 perimeter = "C:/dev/hafl/TBk_fork/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl"  # Perimeter shapefile to clip final result
 
-# Output path
+# Output paths
 output_root = "C:/dev/hafl/TBk_fork/data/tbk_hafl"      # Folder in which to save the results output folder
+working_root = ""                                       # Folder in which to save the process outputs
 
 # Other
 del_tmp = true                                          # Need to delete temporary files and fields
