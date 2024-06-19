@@ -36,7 +36,7 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
-import os # os is used below, so make sure it's available in any case
+import os  # os is used below, so make sure it's available in any case
 import time
 from datetime import datetime, timedelta
 import math
@@ -156,7 +156,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "Suffix added to names of output files (.gpkg)"
                 "\nDefault _v11 stands for current development version of local densities"
             ),
-            defaultValue='_v11' # current development version of local densities
+            optional=True
         )
         self.addAdvancedParameter(parameter)
 
@@ -670,18 +670,18 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:dropgeometries", param)
         aggregates = [
-                {'aggregate': 'first_value', 'delimiter': ',', 'input': '"fid_stand"', 'length': 0, 'name': 'fid_stand',
-                 'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-                {'aggregate': 'first_value', 'delimiter': ',', 'input': '"class"', 'length': 0, 'name': 'class',
-                 'precision': 0, 'sub_type': 0, 'type': 10, 'type_name': 'text'},
-                {'aggregate': 'sum', 'delimiter': ',', 'input': '"area"', 'length': 0, 'name': 'area', 'precision': 0,
-                 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-                {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(area) / mean(area_stand), 2)',
-                 'length': 0, 'name': 'area_pct', 'precision': 0, 'sub_type': 0, 'type': 6,
-                 'type_name': 'double precision'},
-                {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(DG * area) / sum(area) * 100)',
-                 'length': 0, 'name': 'dg', 'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'integer'}
-            ]
+            {'aggregate': 'first_value', 'delimiter': ',', 'input': '"fid_stand"', 'length': 0, 'name': 'fid_stand',
+             'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'aggregate': 'first_value', 'delimiter': ',', 'input': '"class"', 'length': 0, 'name': 'class',
+             'precision': 0, 'sub_type': 0, 'type': 10, 'type_name': 'text'},
+            {'aggregate': 'sum', 'delimiter': ',', 'input': '"area"', 'length': 0, 'name': 'area', 'precision': 0,
+             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(area) / mean(area_stand), 2)',
+             'length': 0, 'name': 'area_pct', 'precision': 0, 'sub_type': 0, 'type': 6,
+             'type_name': 'double precision'},
+            {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(DG * area) / sum(area) * 100)',
+             'length': 0, 'name': 'dg', 'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'integer'}
+        ]
         if mg_use:
             aggregates.append(
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(NH * area) / sum(area))',

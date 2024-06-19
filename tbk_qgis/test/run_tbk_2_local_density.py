@@ -19,9 +19,12 @@ from qgis.core import (
     QgsVectorLayer
 )
 
+# Path to the TBk plugin folder/repository, containing plugin code and test data
+tbk_path = 'C:/dev/hafl/TBk'
+
 # The path to the plugin is environment specific
 # Appending it is only necessary if that path is not on the PYTHONPATH. Do so e.g. with:
-sys.path.append('C:/Users/bia3/aktuelle_Projekte/TBk')
+sys.path.append(tbk_path)
 from tbk_qgis.tbk_qgis_provider import TBkProvider
 
 # initialize QGIS Application
@@ -43,24 +46,19 @@ provider = TBkProvider()
 QgsApplication.processingRegistry().addProvider(provider)
 
 # Main call of the algorithm
-# paths to files are exemplary here and need to be adjusted to the local system
-
-processing.run(
-    "TBk:TBk postprocess local density",
-    {'path_tbk_input': 'C:\\Users\\bia3\\aktuelle_Projekte\\TBk\\data\\tbk_hafl\\20240520-1139',
-     'mg_use':True,
-     'mg_input': 'C:/Users/bia3/aktuelle_Projekte/TBk/data/tbk_hafl/MG_10m.tif',
-     # 'mg_input': None, # if 'mg_use':True & 'mg_input': None --> error
-     'tbk_input_file': 'TBk_Bestandeskarte.gpkg',
-     'output_suffix': "_v11",
-     'table_density_classes': [
-         1, 85, 100, 'False',
-         2, 60, 85, 'True',
-         3, 40, 60, 'True',
-         4, 25, 40, 'True',
-         5, 0, 25, 'False',
-         12, 60, 100, 'True'
-     ],
-     'calc_all_dg': True, 'mw_rad': 7, 'mw_rad_large': 14, 'min_size_clump': 1200, 'min_size_stand': 1200,
-     'holes_thresh': 400, 'buffer_smoothing': True, 'buffer_smoothing_dist': 7}
-)
+processing.run("TBk:TBk postprocess local density", {
+    'path_tbk_input': f'{tbk_path}/data/tbk_2012/20240619-1704_tbk_test_reference',
+    'mg_use': True, 'mg_input': f'{tbk_path}/data/tbk_2012/MG_10m.tif',
+    'tbk_input_file': 'TBk_Bestandeskarte.gpkg',
+    # 'output_suffix': '',
+    'table_density_classes': [
+        1, 85, 100, 'False',
+        2, 60, 85, 'True',
+        3, 40, 60, 'True',
+        4, 25, 40, 'True',
+        5, 0, 25, 'False',
+        12, 60, 100, 'True'
+    ],
+    'calc_all_dg': True, 'mw_rad': 7, 'mw_rad_large': 14,
+    'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400, 'buffer_smoothing': True,
+    'buffer_smoothing_dist': 7})
