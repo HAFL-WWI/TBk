@@ -40,7 +40,7 @@ from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
 
-from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_legagy import TBkAlgorithmLegacy
+from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
 from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
@@ -84,7 +84,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkStandDelineationAlgorithm())
         self.addAlgorithm(TBkSimplifyAndCleanAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
-        self.addAlgorithm(TBkAlgorithmLegacy())
+        self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(BkAGAlgorithm())
         # [grpID: postproc]     grpName: 2 Postprocessing
         self.addAlgorithm(TBkPostprocessCleanup())
