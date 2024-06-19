@@ -19,28 +19,29 @@ import sys
 # TBk version, update this string manually
 version = "0.9"
 
+
 def run_stand_classification(workingRoot,
                              tmp_output_folder,
                              inputRasterFile,
-                             coniferousRasterFile = 'null',
-                             zoneRasterFile = 'null',
-                             shortDescription = "No description",
-                             min_tol= 0.1,
-                             max_tol = 0.1,
-                             min_corr = 4,
-                             max_corr = 4,
-                             min_valid_cells = 0.5,
-                             min_cells_per_stand = 10,
-                             min_cells_per_pure_stand = 30,
-                             vhm_min_height = 0,
-                             vhm_max_height = 60):
+                             coniferousRasterFile = None,
+                             zoneRasterFile = None,
+                             shortDescription="No description",
+                             min_tol=0.1,
+                             max_tol=0.1,
+                             min_corr=4,
+                             max_corr=4,
+                             min_valid_cells=0.5,
+                             min_cells_per_stand=10,
+                             min_cells_per_pure_stand=30,
+                             vhm_min_height=0,
+                             vhm_max_height=60):
     '''
     Run stand classification based on VHM input raster.
 
     :param workingRoot: Working folder (ex. 'C:\\Temp\\Bestandeskarte\\'), use double backslash
     :param inputRasterFile: Input file, single band tif, 10x10m. In the working root folder!
-    :param coniferousRasterFile: Coniferous proportion (0-100). Same format as inputRasterFile. If not used, use 'null'.
-    :param zoneRasterFile: Same format as inputRasterFile. If no zone mask, use 'null'.
+    :param coniferousRasterFile: Coniferous proportion (0-100). Same format as inputRasterFile. If not used, use None.
+    :param zoneRasterFile: Same format as inputRasterFile. If no zone mask, use None.
     :param shortDescription: Description used in log file.
     :param min_tol: Min tolerance (example 0.25 = 25% less than the reference value)
     :param max_tol: Max tolerance (example 0.20 = 20% more than the reference value)
@@ -53,7 +54,7 @@ def run_stand_classification(workingRoot,
     :param vhm_max_height: Max VHM height in meters for cells to be processed -> set to zero
     '''
 
-    #-------- INIT --------#
+    # -------- INIT --------#
 
     print("--------------------------------------------")
     print("START stand delineation...")
@@ -62,13 +63,13 @@ def run_stand_classification(workingRoot,
     start_time = time.time()
 
     # Standard file names
-    outputRasterFileRaw = 'classified_raw.tif' # output filename, raw classification raster
-    outputRasterFileSmooth1 = 'classified_smooth_1.tif' # output filename, smoothing for not-assigned pixels
-    outputRasterFileSmooth2 = 'classified_smooth_2.tif' # output filename, smoothing for all pixels
+    outputRasterFileRaw = 'classified_raw.tif'  # output filename, raw classification raster
+    outputRasterFileSmooth1 = 'classified_smooth_1.tif'  # output filename, smoothing for not-assigned pixels
+    outputRasterFileSmooth2 = 'classified_smooth_2.tif'  # output filename, smoothing for all pixels
     outputRasterFileHmax = 'hmax.tif'  # output filename for Hmax (initial tree of each stand)
     outputRasterFileHdom = 'hdom.tif'  # output filename for Hdom (mean height per stand -> before smoothing)
-    outputVectorfile = 'stand_boundaries.gpkg' # shapefile, generated from raster (after polygonize)
-    logfile = 'tbk_log.log' # name of the logfile (config params)
+    outputVectorfile = 'stand_boundaries.gpkg'  # shapefile, generated from raster (after polygonize)
+    logfile = 'tbk_log.log'  # name of the logfile (config params)
 
     out_path = workingRoot
 
@@ -78,9 +79,6 @@ def run_stand_classification(workingRoot,
         os.makedirs(out_path)
 
     # Define input and output file paths
-    inputFilePath = inputRasterFile
-    coniferousFilePath =  coniferousRasterFile
-    zoneFilePath = zoneRasterFile
     outputRawFilePath = os.path.join(out_path, outputRasterFileRaw)
     outputSmooth1FilePath = os.path.join(out_path, outputRasterFileSmooth1)
     outputSmooth2FilePath = os.path.join(out_path, outputRasterFileSmooth2)
@@ -89,14 +87,14 @@ def run_stand_classification(workingRoot,
     outputHdomPath = os.path.join(out_path, outputRasterFileHdom)
 
     # Logging the configurations
-    logging.info('TBk version: %s' %version)
-    logging.info('Output path: %s' %out_path)
-    logging.info('VHM path: %s' % inputFilePath)
+    logging.info('TBk version: %s' % version)
+    logging.info('Output path: %s' % out_path)
+    logging.info('VHM path: %s' % inputRasterFile)
 
     # Opening the raster file and getting band 1 as numpy array
-    if not os.path.exists(inputFilePath):
-        sys.exit("Error: Raster input file (inputFilePath) not found!")
-    ds = gdal.Open(inputFilePath, GA_ReadOnly)
+    if not os.path.exists(inputRasterFile):
+        sys.exit(f"Error: Raster input file {inputRasterFile} not found!")
+    ds = gdal.Open(inputRasterFile, GA_ReadOnly)
     band = ds.GetRasterBand(1)
     data = band.ReadAsArray().astype(float)  # format: data[row, col] -> data[y, x]
 
@@ -104,8 +102,8 @@ def run_stand_classification(workingRoot,
     geotransform = ds.GetGeoTransform()
     projectionfrom = ds.GetProjection()
     print("VHM raster info: %s bands, %s rows x %s cols, %s resolution, X: %s, Y: %s, CRS: %s"
-          %(ds.RasterCount, data.shape[0], data.shape[1], geotransform[1], round(geotransform[0], 2),
-            round(geotransform[3], 2), osr.SpatialReference(wkt=projectionfrom).GetAttrValue('projcs')))
+          % (ds.RasterCount, data.shape[0], data.shape[1], geotransform[1], round(geotransform[0], 2),
+             round(geotransform[3], 2), osr.SpatialReference(wkt=projectionfrom).GetAttrValue('projcs')))
 
     # get NoData value
     nodata_value = band.GetNoDataValue()
@@ -129,27 +127,27 @@ def run_stand_classification(workingRoot,
 
     # if provided, load coniferous raster
     coniferous = None
-    if coniferousRasterFile != 'null' and coniferousRasterFile != None:
-        ds = gdal.Open(coniferousFilePath, GA_ReadOnly)
+    if coniferousRasterFile:
+        ds = gdal.Open(coniferousRasterFile, GA_ReadOnly)
         band = ds.GetRasterBand(1)
         coniferous = band.ReadAsArray().astype(int)  # format: data[row, col] -> data[y, x]
-        #logging.info('read coniferousRasterFile as ' + type(coniferous))
-        if not CH.compare_raster(inputFilePath, coniferousFilePath):
+        # logging.info('read coniferousRasterFile as ' + type(coniferous))
+        if not CH.compare_raster(inputRasterFile, coniferousRasterFile):
             logging.warning("VHM and MG raster have different extents and/or projections!")
 
     # if provided, load zone raster
     zone = np.ones(data.shape, dtype=int)
-    if zoneRasterFile != 'null' and zoneRasterFile != None:
-        ds = gdal.Open(zoneFilePath, GA_ReadOnly)
+    if zoneRasterFile:
+        ds = gdal.Open(zoneRasterFile, GA_ReadOnly)
         band = ds.GetRasterBand(1)
-        zone = band.ReadAsArray().astype(int) # format: data[row, col] -> data[y, x]
+        zone = band.ReadAsArray().astype(int)  # format: data[row, col] -> data[y, x]
         logging.info('read zone as ' + type(zone))
-        if not CH.compare_raster(inputFilePath, zoneFilePath):
+        if not CH.compare_raster(inputRasterFile, zoneRasterFile):
             logging.warning("VHM and ZONE raster have different extents and/or projections!")
 
-    print("--- %s minutes, input data loaded---" % round((time.time() - start_time)/60, 2))
+    print("--- %s minutes, input data loaded---" % round((time.time() - start_time) / 60, 2))
 
-    #------- STAND CLASSIFICATION -------#
+    # ------- STAND CLASSIFICATION -------#
 
     # Init stand number with one
     standNbr = 1
@@ -157,65 +155,65 @@ def run_stand_classification(workingRoot,
     if coniferous is not None:
         print("pre-classification with mixture information...")
         stand, standNbr, standList, hdom, hmax = classify_pixels(data, dataList, standNbr,
-                                                                 min_tol, max_tol, min_corr, max_corr, min_valid_cells, min_cells_per_pure_stand,
+                                                                 min_tol, max_tol, min_corr, max_corr, min_valid_cells,
+                                                                 min_cells_per_pure_stand,
                                                                  zone, coniferous,
                                                                  stand, standList, hdom, hmax)
 
     print("classification without mixture information...")
     stand, standNbr, standList, hdom, hmax = classify_pixels(data, dataList, standNbr,
-                                                             min_tol, max_tol, min_corr, max_corr, min_valid_cells, min_cells_per_stand,
+                                                             min_tol, max_tol, min_corr, max_corr, min_valid_cells,
+                                                             min_cells_per_stand,
                                                              zone, None,
                                                              stand, standList, hdom, hmax)
 
-    print("--- %s minutes, classification finished ---" % round((time.time() - start_time)/60, 2))
+    print("--- %s minutes, classification finished ---" % round((time.time() - start_time) / 60, 2))
 
     # classify all value not classified till now (assign standNbr - is last stand +1)
     m_tmp = (data >= 0) & (stand == 0)
     stand[m_tmp] = standNbr
 
-
-
     # Save raw classification file
     CH.store_raster(stand, outputRawFilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" %outputRawFilePath)
+    print("File %s saved" % outputRawFilePath)
 
     # Save hmax raster
     CH.store_raster(hmax, outputHmaxPath, projectionfrom, geotransform, gdal.GDT_Byte)
-    print("File %s saved" %outputHmaxPath)
+    print("File %s saved" % outputHmaxPath)
 
     # Save hdom raster
     CH.store_raster(hdom, outputHdomPath, projectionfrom, geotransform, gdal.GDT_Byte)
-    print("File %s saved" %outputHdomPath)
+    print("File %s saved" % outputHdomPath)
 
-    #------- SMOOTHING -------#
+    # ------- SMOOTHING -------#
 
     # focal majority for all pixels where no stand was found (last stand number)
     stand = CH.focal_majority(stand, 3, standNbr, 0)
     # save file after reclassify
     CH.store_raster(stand, outputSmooth1FilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" %outputSmooth1FilePath)
+    print("File %s saved" % outputSmooth1FilePath)
 
     # focal majority for all pixels
     stand = CH.focal_majority(stand, 3, None, 0)
     # save file after reclassify
     CH.store_raster(stand, outputSmooth2FilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" %outputSmooth2FilePath)
-    print("--- %s minutes, raster smoothed and saved  ---" % round((time.time() - start_time)/60, 2))
+    print("File %s saved" % outputSmooth2FilePath)
+    print("--- %s minutes, raster smoothed and saved  ---" % round((time.time() - start_time) / 60, 2))
 
-    #------- POLYGONIZE, ADD ATTRIBUTES -------#
+    # ------- POLYGONIZE, ADD ATTRIBUTES -------#
 
     # polygonize the raster -> to vector file
     CH.polygonize(outputSmooth2FilePath, outputVectorFilePath)
-    print("--- %s minutes, vector file saved ---" % round((time.time() - start_time)/60, 2))
+    print("--- %s minutes, vector file saved ---" % round((time.time() - start_time) / 60, 2))
 
     # add stand information to polygon vector file
     CH.add_stand_attributes(outputVectorFilePath, standList, standNbr)
-    print("--- %s minutes, stand attributes added ---" % round((time.time() - start_time)/60, 2))
+    print("--- %s minutes, stand attributes added ---" % round((time.time() - start_time) / 60, 2))
 
     # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
-    print("stats input file path", inputFilePath)
-    CH.add_vhm_stats(outputVectorFilePath, inputFilePath)
-    print("--- %s minutes, vhm stats calculated ---" % round((time.time() - start_time)/60, 2))
+    print("stats input file path", inputRasterFile)
+    CH.add_vhm_stats(outputVectorFilePath, inputRasterFile)
+    print("--- %s minutes, vhm stats calculated ---" % round((time.time() - start_time) / 60, 2))
 
     # DONE
     print('DONE ! ')
@@ -249,7 +247,7 @@ def classify_pixels(data,
         # print every 10 % of pixel processed
         if i > przPrint:
             print("%s%% pixels classified --> (%s from %s), value %s, standNbr %s" % (
-            round(przPrint / prz10) * 10, i, len(dataList), round(v, 1), standNbr))
+                round(przPrint / prz10) * 10, i, len(dataList), round(v, 1), standNbr))
             przPrint += prz10
 
         # proceed if not already classified
@@ -355,5 +353,3 @@ def classify_pixels(data,
                 # reset classification
                 stand[rows_classified, cols_classified] = 0
     return stand, standNbr, standList, hdom, hmax
-
-
