@@ -14,21 +14,19 @@ _DEFAULT_CONFIG_PATH = os.path.dirname(tbk_qgis.__file__) + '/' + 'config' + '/'
 
 # The writing relies for the moment on an existing toml file. It implies that the Toml keys correspond to the algorithm
 # parameter names. If not the writen file will contain the old and new key-value pair.
-def write_dict_to_toml_file(toml_file_path: str,
+def write_dict_to_toml_file(dictionary: dict,
                             output_folder_path: str,
-                            dictionary: dict,
+                            toml_template_path: str = _DEFAULT_CONFIG_PATH,
                             file_name: str = _CONFIG_FILE_NAME) -> None:
     """
         Write a dictionary to a TOML file.
+        If a TOML file path is given, use it as template. Use otherwise the default toml file as template
     """
-
-    # If a TOML file path is given, use it as template. Use otherwise the default toml file as template
-    toml_template_path = toml_file_path if toml_file_path else _DEFAULT_CONFIG_PATH
     toml_data = read_toml_file(toml_template_path)
 
     # Iterate over the dict and replace the values in the toml template
     for key, value in dictionary.items():
-        # todo: if the config file is not set, the parameter is somehow converted to a MULL QVariant before
+        # todo: if the config file is not set, the parameter is somehow converted to a NULL QVariant before
         #  the algorithm is processed. This conditional statement solves the issue. Furthermore, if the config file
         #  is set, we still need to set the other parameters.
         #  Solution to investigate: use the preprocessParameters function

@@ -71,6 +71,7 @@ from .clip_to_perimeter import *
 from .calculate_dg import *
 from .add_coniferous_proportion import *
 from .attributes_default import *
+from tbk_qgis.tbk.utility.tbk_utilities import dict_diff
 from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
 from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
                                                       write_dict_to_toml_file,
@@ -196,9 +197,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # Config file containing all parameter values
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      self.tr(
-                                                         'Configuration file to set the parameters of the algorithm. '
-                                                         'The parameters set in the file does not need to be set '
-                                                         'bellow'),
+                                                         'Configuration file to set the parameters of the algorithm.\n'
+                                                         'Parameters set in the file will overwrite the settings below.'),
                                                      extension='toml',
                                                      optional=True))
 
@@ -356,31 +356,44 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get configuration file path
         config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
-        # Set input parameters from config file
-        try:
-            config = read_dict_from_toml_file(config_path)
-        except FileNotFoundError:
-            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+        if config_path:
+            # Set input parameters from config file
+            try:
+                config = read_dict_from_toml_file(config_path)
+                # compare config file parameters and tool parameters
+                config_removed, config_added, config_changed = dict_diff(parameters, config)
+
+                # apply config_file to parameters (overwrite values in parameters if they have an entry in config_file values)
+                parameters.update(config)
+                feedback.pushInfo(f'Read config file: ')
+                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo(f'{list(config_changed.keys())}')
+                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo(f'{list(config_removed.keys())}')
+                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo(f'{list(config_added.keys())}')
+            except FileNotFoundError:
+                raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
         # get and check general input parameters
-        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
+        output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
         # get and check logfile
-        logfile_name = str(self.parameterAsString(config or parameters, self.LOGFILE_NAME, context))
+        logfile_name = str(self.parameterAsString(parameters, self.LOGFILE_NAME, context))
         if (not logfile_name) or logfile_name == "":
             raise QgsProcessingException("no logfile name specified")
 
         # get and check paths to VHMs
-        vhm_10m = str(self.parameterAsRasterLayer(config or parameters, self.VHM_10M, context).source())
+        vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file")
-        vhm_150cm = str(self.parameterAsRasterLayer(config or parameters, self.VHM_150CM, context).source())
+        vhm_150cm = str(self.parameterAsRasterLayer(parameters, self.VHM_150CM, context).source())
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
         # get and check coniferous Raster / settings
         # todo: Code difficult to read and understand from here
-        use_coniferous_raster = self.parameterAsBool(config or parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
-        coniferous_raster_layer = self.parameterAsRasterLayer(config or parameters, self.CONIFEROUS_RASTER, context)
+        use_coniferous_raster = self.parameterAsBool(parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
+        coniferous_raster_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER, context)
         coniferous_raster = None
         if coniferous_raster_layer:
             coniferous_raster = str(coniferous_raster_layer.source())
@@ -389,7 +402,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # init coniferous_raster_for_classification and read from parameters if provided
         coniferous_raster_for_classification = None
-        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(config or parameters,
+        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters,
                                                                                  self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
                                                                                  context)
         if coniferous_raster_for_classification_layer:
@@ -410,7 +423,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             print("Using coniferous raster for classification.")
             # feedback.pushInfo("Using coniferous raster for classification.")
 
-        calc_mixture_for_main_layer = self.parameterAsBool(config or parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
+        calc_mixture_for_main_layer = self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
                                                            context)
         # todo: some logic issue. CALC_MIXTURE_FOR_MAIN_LAYER is true per default and CONIFEROUS_RASTER optional in the
         #   initAlgorithm. CONIFEROUS_RASTER is therefore not really optional since we block per default the algorithm
@@ -419,11 +432,11 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("No coniferous_raster specified")  # todo: raised if parameter not set in QGIS
 
         # get and check perimeter file
-        perimeter = str(self.parameterAsVectorLayer(config or parameters, self.PERIMETER, context).source())
+        perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
         # TODO maybe check geometry?
 
         # get and check zone raster file
-        zoneRasterFile_layer = self.parameterAsRasterLayer(config or parameters, self.ZONE_RASTER_FILE, context)
+        zoneRasterFile_layer = self.parameterAsRasterLayer(parameters, self.ZONE_RASTER_FILE, context)
         zoneRasterFile = None
         if zoneRasterFile_layer:
             zoneRasterFile = str(zoneRasterFile_layer.source())
@@ -433,7 +446,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             zoneRasterFile = "null"
 
         # get and check description
-        description = str(self.parameterAsString(config or parameters, self.DESCRIPTION, context))
+        description = str(self.parameterAsString(parameters, self.DESCRIPTION, context))
         if (not description) or description == "":
             description = "TBk dataset"
         # TODO use description for naming the output/project file
@@ -457,27 +470,27 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("forestSiteLayer provided but no forestSiteLayerField for join")
 
         # get and check algorithm parameters
-        min_tol = self.parameterAsDouble(config or parameters, self.MIN_TOL, context)
-        max_tol = self.parameterAsDouble(config or parameters, self.MAX_TOL, context)
-        min_corr = self.parameterAsDouble(config or parameters, self.MIN_CORR, context)
-        max_corr = self.parameterAsDouble(config or parameters, self.MAX_CORR, context)
-        min_valid_cells = self.parameterAsDouble(config or parameters, self.MIN_VALID_CELLS, context)
-        min_cells_per_stand = self.parameterAsInt(config or parameters, self.MIN_CELLS_PER_STAND, context)
-        min_cells_per_pure_stand = self.parameterAsInt(config or parameters, self.MIN_CELLS_PER_PURE_STAND, context)
-        vhm_min_height = self.parameterAsDouble(config or parameters, self.VHM_MIN_HEIGHT, context)
-        vhm_max_height = self.parameterAsDouble(config or parameters, self.VHM_MAX_HEIGHT, context)
+        min_tol = self.parameterAsDouble(parameters, self.MIN_TOL, context)
+        max_tol = self.parameterAsDouble(parameters, self.MAX_TOL, context)
+        min_corr = self.parameterAsDouble(parameters, self.MIN_CORR, context)
+        max_corr = self.parameterAsDouble(parameters, self.MAX_CORR, context)
+        min_valid_cells = self.parameterAsDouble(parameters, self.MIN_VALID_CELLS, context)
+        min_cells_per_stand = self.parameterAsInt(parameters, self.MIN_CELLS_PER_STAND, context)
+        min_cells_per_pure_stand = self.parameterAsInt(parameters, self.MIN_CELLS_PER_PURE_STAND, context)
+        vhm_min_height = self.parameterAsDouble(parameters, self.VHM_MIN_HEIGHT, context)
+        vhm_max_height = self.parameterAsDouble(parameters, self.VHM_MAX_HEIGHT, context)
 
-        simplification_tolerance = self.parameterAsDouble(config or parameters, self.SIMPLIFICATION_TOLERANCE, context)
+        simplification_tolerance = self.parameterAsDouble(parameters, self.SIMPLIFICATION_TOLERANCE, context)
 
-        min_area_m2 = self.parameterAsInt(config or parameters, self.MIN_AREA_M2, context)
-        similar_neighbours_min_area = self.parameterAsInt(config or parameters, self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
+        min_area_m2 = self.parameterAsInt(parameters, self.MIN_AREA_M2, context)
+        similar_neighbours_min_area = self.parameterAsInt(parameters, self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
                                                           context)
-        similar_neighbours_hdom_diff_rel = self.parameterAsDouble(config or parameters,
+        similar_neighbours_hdom_diff_rel = self.parameterAsDouble(parameters,
                                                                   self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
                                                                   context)
 
         # get and check miscellaneous parameters
-        del_tmp = self.parameterAsBool(config or parameters, self.DEL_TMP, context)
+        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
         # --- init directory
         ensure_dir(output_root)
@@ -521,7 +534,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         qgis_console = QgisHandler(feedback)
         qgis_console.setLevel(logging.DEBUG)
         # add the handler to the root logger
-        logging.getLogger('').addHandler(console)
+        logging.getLogger('').addHandler(qgis_console)
 
         # logger = logging.getLogger(__name__)
         # logging.basicConfig(
@@ -540,11 +553,13 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # ------- TBk MAIN Processing --------#
 
         # Store the input parameters in a file
-        params_with_sources = to_params_with_layer_source(self, parameters, context)
+        # Todo: this isn't working with, ERROR 4: `NETCDF:".../test_input_config.toml"' does not exist in the file system, and is not recognized as a supported dataset name.
+        # params_with_sources = to_params_with_layer_source(self, parameters, context)
         try:
-            write_dict_to_toml_file(config_path, tbk_result_dir, config or params_with_sources)
-        except Exception:
-            feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
+            write_dict_to_toml_file(parameters, tbk_result_dir)
+        except Exception as error:
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
+            feedback.pushWarning(f'Error: {error}')
 
         # Run TBk
         start_time = time.time()
