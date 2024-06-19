@@ -138,7 +138,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Simplify and Clean'
+        return '2 Simplify and Clean'
 
     def shortHelpString(self):
         """

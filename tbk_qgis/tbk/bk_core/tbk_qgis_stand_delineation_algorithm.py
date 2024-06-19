@@ -215,7 +215,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'Delineate Stand'
+        return '1 Delineate Stand'
 
     def shortHelpString(self):
         """
