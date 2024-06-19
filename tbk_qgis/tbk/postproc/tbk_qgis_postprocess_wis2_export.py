@@ -30,11 +30,6 @@ import osgeo.gdal as gdal
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 
-import math
-
-import numpy as np
-from scipy import ndimage
-
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
