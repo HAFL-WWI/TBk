@@ -38,6 +38,7 @@ qgs.initQgis()
 # sys.path.append('C:/OSGeo4W/apps/qgis-ltr/python/plugins')
 import processing
 from processing.core.Processing import Processing
+
 Processing.initialize()
 
 # Add TBk Plugin Provider so that the QGIS instance knows about it's algorithms
@@ -45,22 +46,22 @@ provider = TBkProvider()
 QgsApplication.processingRegistry().addProvider(provider)
 
 # Main call of the algorithm
-# paths to files are exemplary here and need to be adjusted to the local system
-
-# TBk HAFL (BE)
-processing.run("TBk:Generate BK", {'config_file': f'{tbk_path}/data/tbk_hafl/input_config.toml',
-                                   'vhm_10m': f'{tbk_path}/data/tbk_hafl/VHM_10m.tif',
-                                   'vhm_150cm': f'{tbk_path}/data/tbk_hafl/VHM_150cm.tif',
-                                   'coniferous_raster': f'{tbk_path}/data/tbk_hafl/MG_10m.tif',
-                                   'coniferous_raster_for_classification': f'{tbk_path}/data/tbk_hafl/MG_10m_binary.tif',
-                                   'perimeter': f'{tbk_path}/data/data_hafl/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
-                                   'output_root': f'{tbk_path}/data/tbk_hafl',
-                                   'useConiferousRasterForClassification': True, 'logfile_name': 'tbk_processing.log',
-                                   'description': 'TBk dataset', 'min_tol': 0.1, 'max_tol': 0.1, 'min_corr': 4,
-                                   'max_corr': 4, 'min_valid_cells': 0.5, 'min_cells_per_stand': 10,
-                                   'min_cells_per_pure_stand': 30, 'vhm_min_height': 0, 'vhm_max_height': 60,
-                                   'simplification_tolerance': 8, 'min_area_m2': 1000,
-                                   'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
-                                   'calc_mixture_for_main_layer': True, 'del_tmp': True})
-
+processing.run("TBk:Generate BK", {
+    'config_file': f'',  # without config file
+    # 'config_file': f'{tbk_path}/tbk_qgis/config/default_input_config.toml', # with config file
+    'vhm_10m': f'{tbk_path}/data/tbk_2012/VHM_10m.tif',
+    'vhm_150cm': f'{tbk_path}/data/tbk_2012/VHM_150cm.tif',
+    'coniferous_raster': f'{tbk_path}/data/tbk_2012/MG_10m.tif',
+    'coniferous_raster_for_classification': f'{tbk_path}/data/tbk_2012/MG_10m_binary.tif',
+    'perimeter': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
+    'output_root': f'{tbk_path}/data/tbk_test_output',
+    'vegZoneDefault': 2, 'vegZoneLayer': None, 'vegZoneLayerField': '',
+    'forestSiteDefault': '', 'forestSiteLayer': None, 'forestSiteLayerField': '',
+    'useConiferousRasterForClassification': True, 'logfile_name': 'tbk_processing.log',
+    'description': 'TBk dataset', 'min_tol': 0.1, 'max_tol': 0.1, 'min_corr': 4,
+    'max_corr': 4, 'min_valid_cells': 0.5, 'min_cells_per_stand': 10,
+    'min_cells_per_pure_stand': 30, 'vhm_min_height': 0, 'vhm_max_height': 60,
+    'simplification_tolerance': 8, 'min_area_m2': 1000,
+    'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
+    'calc_mixture_for_main_layer': True, 'del_tmp': True})
 
