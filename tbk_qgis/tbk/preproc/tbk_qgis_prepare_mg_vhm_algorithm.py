@@ -40,6 +40,7 @@ import os # os is used below, so make sure it's available in any case
 import time
 from datetime import datetime, timedelta
 import glob
+import math
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (
@@ -54,7 +55,8 @@ from qgis.core import (
     QgsProcessingParameterDefinition,
     QgsVectorLayer,
     QgsApplication,
-    QgsProcessingException
+    QgsProcessingException,
+    QgsProcessingParameterEnum
 )
 
 import processing
@@ -100,7 +102,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
     #--- Advanced Parameters (Class) ---
 
     # advanced params
-    ALIGN_TO_MG = "align_to_mg"
+    ALIGN_METHOD = "align_method"
     DEL_TMP = "del_tmp"
 
     # advanced params
@@ -189,15 +191,22 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(parameter)
 
         #--- Advanced Parameters (Tool UI) ---
-
-        parameter = QgsProcessingParameterBoolean(
-            self.ALIGN_TO_MG,
+        parameter = QgsProcessingParameterEnum(
+            self.ALIGN_METHOD,
             self.tr(
-                "Align output VHM 10m to output mixture degree 10m"
-                "\n(if Forest mixture degree is specified and has pixel resolution 10m x 10m)"
+                'Method aligning output raster layers (for details s. description)'
+                '\n - Align to origin (X,Y) = (0,0)'
+                '\n - Align to mixture degree raster'
+                '\n - Random / driven by extent of mask'
             ),
-            defaultValue=True
-        )
+            options=[
+                'Align to origin (X,Y) = (0,0)',
+                'Align to mixture degree raster',
+                'Random / driven by extent of mask'
+            ],
+            defaultValue=0,
+            optional=False
+            )
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterBoolean(
@@ -318,7 +327,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         settings_path = QgsApplication.qgisSettingsDirPath()
         feedback.pushInfo(settings_path)
 
-        align_to_mg = self.parameterAsBool(parameters, self.ALIGN_TO_MG, context)
+        align_method = self.parameterAsInt(parameters, self.ALIGN_METHOD, context)
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
 
         # advanced params
@@ -431,12 +440,72 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
             )
             return(ext)
 
-        # check if mg_input's pixel resolution != 10m x 10m --> if so, in any case no alignment of VHM 10m to MG 10m
-        if mg_use:
+        def get_aligned_extent(vector_layer, res):
+            v = QgsVectorLayer(vector_layer)
+            ext = v.extent()
+            xmin = math.floor(ext.xMinimum() / res) * res
+            xmax = math.ceil(ext.xMaximum() / res) * res
+            ymin = math.floor(ext.yMinimum() / res) * res
+            ymax = math.ceil(ext.yMaximum() / res) * res
+            # epsg = v.crs().authid()[5:]  # remove suffix 'EPSG:', but is the suffix always == 'EPSG:'?
+            epsg = v.crs().authid()
+            # ext = "{0},{1},{2},{3} [EPSG:{4}]".format(xmin, xmax, ymin, ymax, epsg)  # using epsg without suffix 'EPSG:'
+            ext = "{0},{1},{2},{3} [{4}]".format(xmin, xmax, ymin, ymax, epsg)
+            return(ext)
+
+        # print("input of align_method: " + str( align_method))
+        # print("mg_use: " + str(mg_use))
+
+        # non-aligned extents used if align_method == 2 (raster alignment driven by extent of mask / random)
+        extent_10m = None
+        extent_150cm = None
+
+        # if align_method == 1 (to pixel of mg_input), but mg is not among inputs ...
+        if align_method == 1 and mg_use == False:
+            align_method = 0  # ... align to origin (X,Y) = (0,0)
+
+        # if align_method == 1 (to pixel of mg_input) and mg is among inputs ...
+        if align_method == 1 and mg_use:
             param = {'INPUT': mg_input, 'BAND': None}
             mg_input_properties = processing.run("native:rasterlayerproperties", param)
+            # ... but mg_input resolution != 10m x 10m ...
             if mg_input_properties['PIXEL_HEIGHT'] != 10.0 or mg_input_properties['PIXEL_WIDTH'] != 10.0:
-                align_to_mg = False
+                align_method = 0  # ... align to origin (X,Y) = (0,0)
+
+        print("reset of align_method: " + str(align_method))
+
+        # if raster 10m x 10m are aligned to origin (X,Y) = (0,0) ...
+        if align_method == 0:
+            # ... get corresponding extent
+            extent_10m = get_aligned_extent(mask, res=10)
+
+        # if raster 10m x 10m are aligned to mixture degree input ...
+        if align_method == 1:
+            # ... get overlapping part of mixture degree and ...
+            feedback.pushInfo("clip MG by mask extent...")
+            param = {
+                'INPUT': mg_input,
+                'PROJWIN': QgsVectorLayer(mask).extent(),
+                'OVERCRS': False,
+                'NODATA': None,
+                'OPTIONS': '',
+                'DATA_TYPE': 0,
+                'EXTRA': '',
+                'OUTPUT': tmp_mg_aligned
+            }
+            processing.run("gdal:cliprasterbyextent", param)
+            # ... get corresponding extent
+            extent_10m = get_raster_extent(tmp_mg_aligned)
+
+        # if raster alignment is not radom ...
+        if align_method != 2:
+            # ... align edges of 150cm x 150cm pixels to origin (X,Y) = (0,0)
+            extent_150cm = get_aligned_extent(mask, res=1.5)
+
+        # print("extent of mask aligned to 10m:")
+        # print(extent_10m)
+        # print("extent of mask aligned to 150cm:")
+        # print(extent_150cm)
 
         if vhm_convert_to_byte:
             feedback.pushInfo("Checking vhm input raster...")
@@ -511,7 +580,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
             'TARGET_RESOLUTION': 1.5,
             'OPTIONS': '',
             'DATA_TYPE': 0,
-            'TARGET_EXTENT': None,
+            'TARGET_EXTENT': extent_150cm,
             'TARGET_EXTENT_CRS': None,
             'MULTITHREADING': False,
             'EXTRA': '-co COMPRESS=LZW ',
@@ -519,66 +588,30 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         }
         processing.run("gdal:warpreproject", param)
 
-        if mg_use == False or align_to_mg == False:
-            feedback.pushInfo("aggregate vhm to 10m...")
-            if not os.path.exists(os.path.dirname(vhm_10m)):
-                os.makedirs(os.path.dirname(vhm_10m))
-            param = {
-                'INPUT': vhm_detail,
-                'SOURCE_CRS': None,
-                'TARGET_CRS': None,
-                'RESAMPLING': 7,  # maximum
-                'NODATA': None,
-                'TARGET_RESOLUTION': 10,
-                'OPTIONS': '',
-                'DATA_TYPE': 0,
-                'TARGET_EXTENT': None,
-                'TARGET_EXTENT_CRS': None,
-                'MULTITHREADING': False,
-                'EXTRA': '-co COMPRESS=LZW ',
-                'OUTPUT': vhm_10m
-            }
-            processing.run("gdal:warpreproject", param)
+        feedback.pushInfo("aggregate vhm to 10m...")
+        if not os.path.exists(os.path.dirname(vhm_10m)):
+            os.makedirs(os.path.dirname(vhm_10m))
+        param = {
+            'INPUT': vhm_detail,
+            'SOURCE_CRS': None,
+            'TARGET_CRS': None,
+            'RESAMPLING': 7,  # maximum
+            'NODATA': None,
+            'TARGET_RESOLUTION': 10,
+            'OPTIONS': '',
+            'DATA_TYPE': 0,
+            'TARGET_EXTENT': extent_10m,
+            'TARGET_EXTENT_CRS': None,
+            'MULTITHREADING': False,
+            'EXTRA': '-co COMPRESS=LZW ',
+            'OUTPUT': vhm_10m
+        }
+        processing.run("gdal:warpreproject", param)
 
         if mg_use:
-            if align_to_mg:
-                feedback.pushInfo("clip MG by mask extent...")
-                param = {
-                    'INPUT':mg_input,
-                    'PROJWIN':QgsVectorLayer(mask).extent(),
-                    'OVERCRS':False,
-                    'NODATA':None,
-                    'OPTIONS':'',
-                    'DATA_TYPE':0,
-                    'EXTRA':'',
-                    'OUTPUT':tmp_mg_aligned
-                }
-                processing.run("gdal:cliprasterbyextent", param)
-
-                extent = get_raster_extent(tmp_mg_aligned)
-                feedback.pushInfo("aggregate vhm to 10m...")
-                if not os.path.exists(os.path.dirname(vhm_10m)):
-                    os.makedirs(os.path.dirname(vhm_10m))
-                param = {
-                    'INPUT': vhm_detail,
-                    'SOURCE_CRS': None,
-                    'TARGET_CRS': None,
-                    'RESAMPLING': 7,  # maximum
-                    'NODATA': None,
-                    'TARGET_RESOLUTION': 10,
-                    'OPTIONS': '',
-                    'DATA_TYPE': 0,
-                    'TARGET_EXTENT': extent,
-                    'TARGET_EXTENT_CRS': None,
-                    'MULTITHREADING': False,
-                    'EXTRA': '-co COMPRESS=LZW ',
-                    'OUTPUT': vhm_10m
-                }
-                processing.run("gdal:warpreproject", param)
-            else:
+            # if raster 10m x 10m are NOT aligned to mixture degree input ...
+            if align_method != 1:
                 feedback.pushInfo("match VHM<>MG extent, align pixels...")
-                extent = get_raster_extent(vhm_10m)
-
                 param = {
                     'INPUT': mg_input,
                     'SOURCE_CRS': None,
@@ -588,7 +621,8 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
                     'TARGET_RESOLUTION': 10,
                     'OPTIONS': '',
                     'DATA_TYPE': 0,
-                    'TARGET_EXTENT': extent,
+                    # ... align mixture degree layers to VHM 10m layer (however that itself may or may not be aligned)
+                    'TARGET_EXTENT': get_raster_extent(vhm_10m),
                     'TARGET_EXTENT_CRS': None,
                     'MULTITHREADING': False,
                     'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES',
@@ -725,8 +759,20 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
 <p>Path to folder, where output layers are gathered. Ideally in this very folder, the later by TBk's main algorithm “Generate BK” produced output folder is saved.</p>
 
 <h2>Advanced parameters</h2>
-<h3>Align output VHM 10m to output mixture degree 10m</h3>
-<p>Check box: default True. Only workable, if optional input Forest mixture degree is specified and has pixel resolution 10m x 10m. Else alingment of VHM 10m is driven by extent of mask input, which is floating free, and thus somewhat random.</p>
+<h3>Method aligning output raster layers</h3>
+<p>Dropdown menu with three methods to choose from:
+
+Align to origin (X,Y) = (0,0) (default): All pixel edges match coordinates = k * pixel-resolution (1.5m or 10m), where k is an integer.
+
+Align to mixture degree raster: If forest mixture degree is among inputs and has pixel resolution 10m x 10m, all pixels of outputs VHM 10m, MG 10m and MG 10m binary are aligned to the original mixture degree among inputs, while alignment of VHM 150cm is handled as with the default method. If this method is chosen, but the preconditions for its usage are not fulfilled, the alignment is under hood switched to the default method. The advantage of aligning to the original mixture degree with resolution 10m x 10m is, that pixel of both MG 10 and MG 10m binary are not shifted.  
+
+Random / driven by extent of masks: Outputs VHM 10m, MG 10m and MG 10m are aligned to each other, but with a random offset from the origin. VHM 150cm has its own random offset.
+
+Notes:
+1) No alignment is applied to VHM detail, as this layer is only a (partial) copy of the original VHM. 
+2) Methods Align to origin and Align to mixture degree raster return the same outputs, if forest mixture degree (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for forest mixture degree (Mishunggrad) raster layer provided by WSL with EPSG:2056. 
+3) Raster outputs generated with different masks and thus covering different areas, align with each other, if method chosen is either Align to origin or Align to mixture degree raster.
+4) Method Random / driven by extent of masks is a legacy allowing to prepare inputs for TBk’s main algorithm Generate BK with the sole method in praxis until July 2024.</p>
 <h3>Delete temporary files</h3>
 <p>Check box: default True.</p>
 <h3>Crop VHM to mask</h3>
