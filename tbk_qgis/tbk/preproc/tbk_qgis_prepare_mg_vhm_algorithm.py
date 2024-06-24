@@ -462,6 +462,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
 
         # if align_method == 1 (to pixel of mg_input), but mg is not among inputs ...
         if align_method == 1 and mg_use == False:
+            feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput is not specified...")
             align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         # if align_method == 1 (to pixel of mg_input) and mg is among inputs ...
@@ -470,6 +471,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
             mg_input_properties = processing.run("native:rasterlayerproperties", param)
             # ... but mg_input resolution != 10m x 10m ...
             if mg_input_properties['PIXEL_HEIGHT'] != 10.0 or mg_input_properties['PIXEL_WIDTH'] != 10.0:
+                feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput resolution is not 10m x 10m...")
                 align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         print("reset of align_method: " + str(align_method))
@@ -477,6 +479,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         # if raster 10m x 10m are aligned to origin (X,Y) = (0,0) ...
         if align_method == 0:
             # ... get corresponding extent
+            feedback.pushInfo("Define extent of VHM 10m and optionally MG 10m as aligned to origin (X,Y) = (0,0)...")
             extent_10m = get_aligned_extent(mask, res=10)
 
         # if raster 10m x 10m are aligned to mixture degree input ...
@@ -495,11 +498,13 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
             }
             processing.run("gdal:cliprasterbyextent", param)
             # ... get corresponding extent
+            feedback.pushInfo("Defined extent of VHM 10m and MG 10m as aligned to mg_input...")
             extent_10m = get_raster_extent(tmp_mg_aligned)
 
         # if raster alignment is not radom ...
         if align_method != 2:
             # ... align edges of 150cm x 150cm pixels to origin (X,Y) = (0,0)
+            feedback.pushInfo("Define extent of VHM 150cm as aligned to origin (X,Y) = (0,0)...")
             extent_150cm = get_aligned_extent(mask, res=1.5)
 
         # print("extent of mask aligned to 10m:")
@@ -654,9 +659,6 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
                 copy_raster_tiff(tmp_mg_aligned, mg_10m)
 
             if mg_reclassify_values:
-                feedback.pushInfo(
-                    "{0}; {1}; {2}; {3}; {4}; {5};".format(mg_10m, mg_10m_binary, min_lh, max_lh, min_nh, max_nh)
-                )
                 feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")
                 PreProcessingHelper.reclassify_mixture(mg_10m, mg_10m_binary, min_lh, max_lh, min_nh, max_nh)
 
