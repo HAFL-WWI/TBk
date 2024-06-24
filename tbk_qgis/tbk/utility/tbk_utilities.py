@@ -1,7 +1,7 @@
 #######################################################################
 # Helper Classes and Functions for TBk.
 #
-# (C) Dominique Weber, Christoph Schaller, HAFL
+# (C) Hannes Horneber, Dominique Weber, Christoph Schaller, HAFL
 #######################################################################
 
 from qgis import core
@@ -120,11 +120,14 @@ def delete_shapefile_old(path):
         if (name == fnameNoExt or name == fnameNoExt + ".shp") and (extension in extensions): # handles the foo.shp.xml case too.
             os.remove(f)
 
-# Function to ensure that a directory exists
-# (creates directory if non existent)
 def ensure_dir (path):
+    """Function to ensure that a directory exists
+    (creates directory if non existent)
+
+    :param path: Path of directory to check
+    """
     if not os.path.isdir(path):
-        os.makedirs(path, exist_ok=True)
+        return os.makedirs(path, exist_ok=True)
 
 def getVectorSaveOptions(format, encoding, only_selected_features = False, in_crs = None, out_crs = None):
     save_options = QgsVectorFileWriter.SaveVectorOptions()
@@ -134,3 +137,34 @@ def getVectorSaveOptions(format, encoding, only_selected_features = False, in_cr
     if in_crs and out_crs:
         save_options.ct =  QgsCoordinateTransform(in_crs, out_crs, QgsProject.instance())
     return save_options
+
+def dict_diff(a, b):
+    """
+    Return differences from dictionaries a to b.
+
+    Return a tuple of three dicts: removed, added, changed.
+    'removed' has all keys and values removed from a. 'added' has
+    all keys and values that were added to b. 'changed' has all
+    keys and their values in b that are different from the corresponding
+    key in a.
+
+    Source: https://stackoverflow.com/questions/715234/python-dict-update-diff
+
+    :param a: base dictionary
+    :param b: updated dictionary
+    :return: Return a tuple of three dicts: removed, added , changed (from a to b)
+    """
+
+    removed = dict()
+    added = dict()
+    changed = dict()
+
+    for key, value in a.items():
+        if key not in b:
+            removed[key] = value
+        elif b[key] != value:
+            changed[key] = b[key]
+    for key, value in b.items():
+        if key not in a:
+            added[key] = value
+    return removed, added, changed

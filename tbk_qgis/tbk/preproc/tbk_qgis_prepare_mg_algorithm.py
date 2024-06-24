@@ -68,6 +68,9 @@ import processing
 from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from .pre_processing_helper import PreProcessingHelper
+from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
+                                                      write_dict_to_toml_file,
+                                                      to_params_with_layer_source)
 
 
 class TBkPrepareMgAlgorithm(QgsProcessingAlgorithm):
@@ -96,6 +99,8 @@ class TBkPrepareMgAlgorithm(QgsProcessingAlgorithm):
     # used when calling the algorithm from another algorithm, or when
     # calling from the QGIS console.
 
+    # File storing the parameters
+    CONFIG_FILE = "config_file"
 
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
@@ -123,6 +128,15 @@ class TBkPrepareMgAlgorithm(QgsProcessingAlgorithm):
         Here we define the inputs and output of the algorithm, along
         with some other properties.
         """
+
+        # Config file containing all parameter values
+        self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
+                                                     self.tr(
+                                                         'Configuration file to set the parameters of the algorithm. '
+                                                         'The parameters set in the file does not need to be set '
+                                                         'bellow'),
+                                                     extension='toml',
+                                                     optional=True))
 
         # input
         self.addParameter(QgsProcessingParameterRasterLayer(self.MG_INPUT, self.tr("Mixing degree 10m input (.tif)")))                                
@@ -161,47 +175,63 @@ class TBkPrepareMgAlgorithm(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
+
+        # get configuration file path
+        config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
+        # Set input parameters from config file
+        try:
+            config = read_dict_from_toml_file(config_path)
+        except FileNotFoundError:
+            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+
+        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
 
         settings_path = QgsApplication.qgisSettingsDirPath()
         feedback.pushInfo(settings_path)
 
         tbk_tool_path = os.path.join(settings_path,"python/plugins/tbk_qgis")
 
-
+        # todo: use same variable name/description/error as the main algorithm
         # input
-        mg_input = str(self.parameterAsRasterLayer(parameters, self.MG_INPUT, context).source())
+        mg_input = str(self.parameterAsRasterLayer(config or parameters, self.MG_INPUT, context).source())
         if not os.path.splitext(mg_input)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("mg_input must be TIFF file")
 
-        vhm_10m = str(self.parameterAsRasterLayer(parameters, self.VHM_10M, context).source())
+        vhm_10m = str(self.parameterAsRasterLayer(config or parameters, self.VHM_10M, context).source())
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_10m must be TIFF file")
 
         # Folder for algo output
-        output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
+        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
 
         # output
-        mg_output = str(self.parameterAsString(parameters, self.MG_OUTPUT, context))
+        mg_output = str(self.parameterAsString(config or parameters, self.MG_OUTPUT, context))
         if (not mg_output) or mg_output == "":
             raise QgsProcessingException("no MG output file name specified")
         if not os.path.splitext(mg_output)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("mg_output must be TIFF file")
 
         # reclassify values
-        min_lh = self.parameterAsInt(parameters, self.MIN_LH, context)
-        max_lh = self.parameterAsInt(parameters, self.MAX_LH, context)
-        min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
-        max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
+        min_lh = self.parameterAsInt(config or parameters, self.MIN_LH, context)
+        max_lh = self.parameterAsInt(config or parameters, self.MAX_LH, context)
+        min_nh = self.parameterAsInt(config or parameters, self.MIN_NH, context)
+        max_nh = self.parameterAsInt(config or parameters, self.MAX_NH, context)
 
-        reclassify_mg_values = self.parameterAsBool(parameters, self.RECLASSIFY_MG_VALUES, context)
-        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
+        reclassify_mg_values = self.parameterAsBool(config or parameters, self.RECLASSIFY_MG_VALUES, context)
+        del_tmp = self.parameterAsBool(config or parameters, self.DEL_TMP, context)
         
         ensure_dir(output_root)
         working_root = output_root
 
         mg_output = os.path.join(output_root,mg_output)
         self.deleteRasterIfExists(mg_output)
+
+        # Store the input parameters in a file
+        params_with_sources = to_params_with_layer_source(self, parameters, context)
+        try:
+            write_dict_to_toml_file(config_path, output_root, config or params_with_sources)
+        except Exception:
+            feedback.pushWarning(f'The TOML file was not writen in the output folder because an error occurred')
 
         start_time = time.time()
 

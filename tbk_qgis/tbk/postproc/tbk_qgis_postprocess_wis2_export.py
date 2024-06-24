@@ -30,11 +30,6 @@ import osgeo.gdal as gdal
 import osgeo.ogr as ogr
 import osgeo.osr as osr
 
-import math
-
-import numpy as np
-from scipy import ndimage
-
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
                        QgsFeatureSink,
@@ -377,9 +372,9 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                     fields_pX_tree_species[pkey] = default_tree_species_field
                 elif pkey == "p410":
                     # case b2: p410
-                    print(f"100 - Default tree species field will be used for p410: {default_tree_species_field}")
+                    print(f"100 - Default tree species field will be used for p410: 100-{default_tree_species_field}")
                     feedback.pushWarning(
-                        f"100 - Default tree species field will be used for p410: {default_tree_species_field}")
+                        f"100 - Default tree species field will be used for p410: 100-{default_tree_species_field}")
                     fields_pX_tree_species[pkey] = default_tree_species_field
 
         if stands_layer.fields().indexFromName(default_tree_species_field) == -1:
@@ -451,40 +446,59 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         "p800": 0  # Andere Laubhoelzer
                     }
 
-                    # init null values flag (used to display one message if any p-Fields other than p100/p410 contain NULL values)
+                    # init null values flag
+                    # used to display a single message if any p-Fields (other than p100/p410) contain NULL values
                     tree_species_null_flag = False
 
                     # iterate over tree species fields p100 - p800
                     for pkey, pvalue in pX_tree_species_values.items():
-                        # attempt to read value, if not valid set to default (0 or NH/100 - NH)
+                        # check if a field for tree species are set, do nothing otherwise
                         if not fields_pX_tree_species[pkey] == "":
-                            if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
-                                pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
-                            else:
-                                if pkey == "p100":
-                                    if not f[default_tree_species_field] == qgis.core.NULL:
-                                        # print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using {default_tree_species_field}")
-                                        pX_tree_species_values[pkey] = f[default_tree_species_field]
-                                    else:
-                                        print(
-                                            f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. "
-                                            f"Default (\'{default_tree_species_field}\') is also NULL, using p100 = 100")
-                                        pX_tree_species_values[pkey] = 100
-                                elif pkey == "p410":
-                                    if not f[default_tree_species_field] == qgis.core.NULL:
-                                        # print(f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using 100 - {default_tree_species_field}")
-                                        pX_tree_species_values[pkey] = 100 - f[default_tree_species_field]
-                                    else:
-                                        print(
-                                            f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. "
-                                            f"Default (\'{default_tree_species_field}\') is also NULL, using p410 = 0")
-                                        pX_tree_species_values[pkey] = 0
+                            # if no tree species fields were set in the beginning, p410 is relying only on the default_tree_species_field
+                            # this checks for that case and assigns 100-default_tree_species_field then
+                            if (pkey == "p410") and (fields_pX_tree_species[pkey] == default_tree_species_field):
+                                if not f[default_tree_species_field] == qgis.core.NULL:
+                                    print(
+                                        f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using {default_tree_species_field}")
+                                    pX_tree_species_values[pkey] = 100 - f[default_tree_species_field]
                                 else:
-                                    tree_species_null_flag = True
+                                    print(
+                                        f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. "
+                                        f"Default (\'{default_tree_species_field}\') is also NULL, using p100 = 100 / p410 = 0")
+                                    pX_tree_species_values[pkey] = 0
+                            else:
+                                # attempt to read value, if not valid set to default (0 or NH/100 - NH)
+                                if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
+                                    # read and assign anything other than NULL
+                                    pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
+                                else:
+                                    # fall back to default_tree_species_field
+                                    if pkey == "p100":
+                                        if not f[default_tree_species_field] == qgis.core.NULL:
+                                            print(
+                                                f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using {default_tree_species_field}")
+                                            pX_tree_species_values[pkey] = f[default_tree_species_field]
+                                        else:
+                                            print(
+                                                f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. "
+                                                f"Default (\'{default_tree_species_field}\') is also NULL, using p100 = 100")
+                                            pX_tree_species_values[pkey] = 100
+                                    elif pkey == "p410":
+                                        if not f[default_tree_species_field] == qgis.core.NULL:
+                                            print(
+                                                f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL, using 100 - {default_tree_species_field}")
+                                            pX_tree_species_values[pkey] = 100 - f[default_tree_species_field]
+                                        else:
+                                            print(
+                                                f" > stand {str(f['ID'])}: {pkey} ({fields_pX_tree_species[pkey]}) is NULL. "
+                                                f"Default (\'{default_tree_species_field}\') is also NULL, using p410 = 0")
+                                            pX_tree_species_values[pkey] = 0
+                                    else:
+                                        tree_species_null_flag = True
 
-                    # if tree_species_null_flag:
-                    #     feedback.pushWarning(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
-                    #     print(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
+                    if tree_species_null_flag:
+                        feedback.pushWarning(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
+                        print(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
 
                     # check whether tree species proportions add up to 100, otherwise scale up:
                     sum_tree_species = sum(pX_tree_species_values.values())
