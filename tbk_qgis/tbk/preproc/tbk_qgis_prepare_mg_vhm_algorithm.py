@@ -740,43 +740,43 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Processes VHM (Vegetation Height Model) and optionally Forest Mixture Degree (coniferous raster) raw data to ready to use raster inputs for TBk’s main algorithm Generate BK</p></body></html></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Processes VHM (<i>Vegetation Height Model</i>) and optionally <i>Forest Mixture Degree</i> (coniferous raster) raw data to ready to use raster inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p></body></html></p>
 
 <h2>Input parameters</h2>
 <h3>Detailed input VHM (.tif)</h3>
 <p>VHM raster layer with high resolution (&le; 1.5m x 1.5m)</p>
 <h3>Forest mixture degree input (.tif)</h3>
-<p>Optional raster layer with forest mixture degree</p>
+<p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / delicious share of (woody) vegetation</p>
 <h3>Polygon mask to clip final result</h3>
-<p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter "Crop VHM to mask" is True / checked.</p>
+<p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter <b><i>Crop VHM to mask</i></b> is True / checked.</p>
 <h3>Output folder</h3>
-<p>Path to folder, where output layers are gathered. Ideally in this very folder, the later by TBk's main algorithm “Generate BK” produced output folder is saved.</p>
+<p>Path to folder, where output layers are gathered. Ideally in this very folder the later by <b><i>TBk</i></b>'s main algorithm <b><i>Generate BK</i></b> produced output folder is saved.</p>
 
 <h2>Advanced parameters</h2>
 <h3>VHM detail output name (.tif)</h3>
-<p>string / filename: default VHM_detail.tif</p>
+<p>string / filename: default <i>VHM_detail.tif</i></p>
 <h3>VHM 10m output name (.tif)</h3>
-<p>string / filename: default VHM_10m.tif</p>
+<p>string / filename: default <i>VHM_10m.tif</i></p>
 <h3>VHM 150cm output name (.tif)</h3>
-<p>string / filename: default VHM_150cm.tif</p>
+<p>string / filename: default <i>VHM_150cm.tif</i></p>
 <h3>Mixture degree 10m output name (.tif)</h3>
-<p>string / filename: default MG_10m.tif</p>
+<p>string / filename: default <i>MG_10m.tif</i></p>
 <h3>Binary mixture degree 10m output name (.tif)</h3>
-<p>string / filename: default MG_10m_binary.tif</p>
+<p>string / filename: default <i>MG_10m_binary.tif</i></p>
 <h3>Method aligning output raster layers</h3>
 <p>Dropdown menu with three methods to choose from:
 
-Align to origin (X,Y) = (0,0) (default): All pixel edges match coordinates = k * pixel-resolution (1.5m or 10m), where k is an integer.
+<b><i>Align to origin (X,Y) = (0,0)</i></b> (default): All pixel edges match coordinates = <i>k</i> &#183; pixel-resolution (1.5m or 10m), where <i>k</i> is an integer.
 
-Align to mixture degree raster: If forest mixture degree is among inputs and has pixel resolution 10m x 10m, all pixels of outputs VHM 10m, MG 10m and MG 10m binary are aligned to the original mixture degree among inputs, while alignment of VHM 150cm is handled as with the default method. If this method is chosen, but the preconditions for its usage are not fulfilled, the alignment is under hood switched to the default method. The advantage of aligning to the original mixture degree with resolution 10m x 10m is, that pixel of both MG 10 and MG 10m binary are not shifted.  
+<b><i>Align to mixture degree raster</i></b>: If <i>Forest Mixture Degree</i> is among inputs and has pixel resolution 10m x 10m, all pixels of outputs <i>VHM 10m</i>, <i>MG 10m</i> and <i>MG 10m binary</i> are aligned to the original <i>Mixture Degree</i>, while alignment of <i>VHM 150cm</i> is handled as with the default method. If this method is chosen, but the preconditions for its usage are not fulfilled, the alignment is under hood switched to the default method. The advantage of aligning to the original <i>Mixture Degree</i> with resolution 10m x 10m is, that pixels of both <i>MG 10m</i> and <i>MG 10m binary</i> are not shifted.  
 
-Random / driven by extent of masks: Outputs VHM 10m, MG 10m and MG 10m are aligned to each other, but with a random offset from the origin. VHM 150cm has its own random offset.
+<b><i>Random / driven by extent of masks</i></b>: Outputs <i>VHM 10m</i>, <i>MG 10m</i> and <i>MG 10m binary</i> are aligned to each other, but with a random offset from the origin. <i>VHM 150cm</i> has its own random offset.
 
 Notes:
-1) No alignment is applied to VHM detail, as this layer is only a (partial) copy of the original VHM. 
-2) Methods Align to origin and Align to mixture degree raster return the same outputs, if forest mixture degree (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for forest mixture degree (Mishunggrad) raster layer provided by WSL with EPSG:2056. 
-3) Raster outputs generated with different masks and thus covering different areas, align with each other, if method chosen is either Align to origin or Align to mixture degree raster.
-4) Method Random / driven by extent of masks is a legacy allowing to prepare inputs for TBk’s main algorithm Generate BK with the sole method in praxis until July 2024.</p>
+1) No alignment is applied to <i>VHM detail</i>, as this layer is only a (partial) copy of the original VHM. 
+2) <b><i>Methods Align to origin</i></b> and <b><i>Align to mixture degree raster</i></b> return the same outputs, if <i>Forest Mixture Degree</i> (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for the <i>Forest Mixture Degree</i> (Mishunggrad) raster layer provided by WSL with EPSG:2056. 
+3) Raster outputs generated with different masks and thus covering different areas, align with each other, if method chosen is either <b><i>Align to origin</i></b> or <b><i>Align to mixture degree raster</i></b>.
+4) Method <b><i>Random / driven by extent of masks</i></b> is a legacy allowing to prepare inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b> with the sole method in praxis until July 2024.</p>
 <h3>Delete temporary files</h3>
 <p>Check box: default True.</p>
 <h3>Crop VHM to mask</h3>
@@ -805,7 +805,7 @@ Notes:
 <p>integer [%]: default 100%</p>
 
 <h2>Outputs</h2>
-<p>Three VHM and optionally two Forest Mixture Degree derivative raster layers placed in the "Output folder" (s. above). File names of these outputs are defined vai the five corresponding input parameters (s. above).</p>
+<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed in the <b><i>Output folder</i></b> (s. above). File names of these outputs are defined vai the five corresponding advanced parameters (s. above).</p>
 
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
