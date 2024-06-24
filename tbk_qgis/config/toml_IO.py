@@ -1,4 +1,3 @@
-import dataclasses
 from typing import Union, List, Dict, Any, Tuple
 from dataclasses import dataclass, field
 
@@ -37,35 +36,25 @@ class TOMLKeyValue:
 
     @staticmethod
     def _convert_value(value):
+        if not value:
+            return ''
+
         if isinstance(value, bool):
             return str(value).lower()
 
         if isinstance(value, str):
             if value.lower() in ("true", "false"):
                 return value
-            char = value[0]
-            # if the string does not have quote
-            if char != "'" and char != '"':
-                if value.isdigit():  # Check if value is an integer
-                    value = int(value)
-                elif '.' in value and all(part.isdigit() for part in value.split('.')):  # Check if value is a float
-                    value = float(value)
-                else:
-                    value = f'"{value}"'
+
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+
+            if value.isdigit():  # Check if value is an integer
+                value = int(value)
+            elif '.' in value and all(part.isdigit() for part in value.split('.')):  # Check if value is a float
+                value = float(value)
 
         return value
-
-        # if isinstance(value, bool):
-        #     if value:
-        #         return 'true'
-        #     return 'false'
-        # if isinstance(value, str) and value:
-        #     char = value[0]
-        #
-        #     # if the string does not have quote
-        #     if char != "'" and char != '"':
-        #         return f'"{value}"'
-        # return value
 
 
 @dataclass
@@ -87,8 +76,6 @@ class TOMLDocument:
         table_name, key_name = self._split_key(key)
         if key_name in self.key_values:
             self.key_values[key_name].value = value
-        else:
-            self.key_values[key_name] = TOMLKeyValue(key=key_name, value=value, table=table_name)
 
     def __getitem__(self, key: str) -> Any:
         """
@@ -221,8 +208,10 @@ class TomlIO:
         cls._write_comments(kv.comments, file)
         # Ensure that empty strings are handled properly when writing out to TOML
         value = kv.value
-
-        file.write(f'{kv.key} = {str(value)}\n')
+        if isinstance(value, str):
+            if value not in ("true", "false"):
+                value = f'"{value}"'
+        file.write(f'{kv.key} = {value}\n')
 
 
 # For testing purpose
