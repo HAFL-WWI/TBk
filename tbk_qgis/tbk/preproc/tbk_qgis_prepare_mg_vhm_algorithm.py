@@ -154,43 +154,45 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
 
+        # --- Advanced Parameters (Tool UI) ---
+
         ## output
         parameter = QgsProcessingParameterString(
             self.VHM_DETAIL,
             self.tr("VHM detail output name (.tif)"),
             defaultValue = "VHM_detail.tif"
         )
-        self.addParameter(parameter)
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterString(
             self.VHM_10M,
             self.tr("VHM 10m output name (.tif)"),
             defaultValue = "VHM_10m.tif"
         )
-        self.addParameter(parameter)
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterString(
             self.VHM_150CM,
             self.tr("VHM 150cm output name (.tif)"),
             defaultValue = "VHM_150cm.tif"
         )
-        self.addParameter(parameter)
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterString(
             self.MG_10M,
             self.tr("Mixture degree 10m output name (.tif)"),
             defaultValue = "MG_10m.tif"
         )
-        self.addParameter(parameter)
+        self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterString(
             self.MG_10M_BINARY,
             self.tr("Binary mixture degree 10m output name (.tif) (optional)"),
             defaultValue = "MG_10m_binary.tif"
         )
-        self.addParameter(parameter)
+        self.addAdvancedParameter(parameter)
 
-        #--- Advanced Parameters (Tool UI) ---
+        # alignment of rasters
         parameter = QgsProcessingParameterEnum(
             self.ALIGN_METHOD,
             self.tr(
@@ -747,6 +749,10 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
 <p>Optional raster layer with forest mixture degree</p>
 <h3>Polygon mask to clip final result</h3>
 <p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter "Crop VHM to mask" is True / checked.</p>
+<h3>Output folder</h3>
+<p>Path to folder, where output layers are gathered. Ideally in this very folder, the later by TBk's main algorithm “Generate BK” produced output folder is saved.</p>
+
+<h2>Advanced parameters</h2>
 <h3>VHM detail output name (.tif)</h3>
 <p>string / filename: default VHM_detail.tif</p>
 <h3>VHM 10m output name (.tif)</h3>
@@ -757,10 +763,6 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
 <p>string / filename: default MG_10m.tif</p>
 <h3>Binary mixture degree 10m output name (.tif)</h3>
 <p>string / filename: default MG_10m_binary.tif</p>
-<h3>Output folder</h3>
-<p>Path to folder, where output layers are gathered. Ideally in this very folder, the later by TBk's main algorithm “Generate BK” produced output folder is saved.</p>
-
-<h2>Advanced parameters</h2>
 <h3>Method aligning output raster layers</h3>
 <p>Dropdown menu with three methods to choose from:
 
