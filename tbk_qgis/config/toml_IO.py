@@ -9,10 +9,6 @@ class TOMLComment:
 
 @dataclass
 class TOMLKeyValue:
-    key: str
-    _value: Union[str, int, float, bool]  # Use _value as the private attribute to store the value
-    comments: List['TOMLComment'] = field(default_factory=list)
-    table: str = ""
 
     def __init__(self, key: str, value: Union[str, int, float, bool], comments: List['TOMLComment'] = None,
                  table: str = ""):
@@ -24,7 +20,7 @@ class TOMLKeyValue:
 
     def __post_init__(self):
         # Ensure value is the correct type
-        self._value = self._convert_value(self._value)
+        self._value = self._check_value_to_add(self._value)
 
     @property
     def value(self):
@@ -32,19 +28,22 @@ class TOMLKeyValue:
 
     @value.setter
     def value(self, new_value):
-        self._value = self._convert_value(new_value)
+        self._value = self._check_value_to_edit(new_value)
 
     @staticmethod
-    def _convert_value(value):
-        if not value:
-            return ''
-
+    def _check_value_to_edit(value):
         if isinstance(value, bool):
-            return str(value).lower()
+            value = str(value).lower()
+        return value
+
+    @staticmethod
+    def _check_value_to_add(value):
+        # if not value:
+        #     return ''
 
         if isinstance(value, str):
-            if value.lower() in ("true", "false"):
-                return value
+            # if value.lower() in ("true", "false"):
+            #     return value
 
             if value.startswith('"') and value.endswith('"'):
                 value = value[1:-1]
@@ -115,10 +114,10 @@ class TOMLDocument:
         return result
 
 
-@dataclass
 class TomlIO:
-    @classmethod
-    def _parse_toml_line(cls, line: str) -> Tuple[str, Union[str, Tuple[str, Any, str]]]:
+
+    @staticmethod
+    def _parse_toml_line(line: str) -> Tuple[str, Union[str, Tuple[str, Any, str]]]:
         """
         Reads a TOML line, detect which element type it is and return the element type and values.
         """
@@ -220,11 +219,9 @@ if __name__ == "__main__":
         file_content = toml_file.read()
 
     doc = TomlIO.toml_to_json(file_content)
-    print(doc)
     doc["vhm_10m"] = "test"
     doc["max_lh"] = 1
     doc["vMax"] = 1.0
     doc["reclassify_mg_values"] = True
-    print(doc)
 
     TomlIO.to_toml(doc, 'output.toml')
