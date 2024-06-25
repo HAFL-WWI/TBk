@@ -154,7 +154,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             self.OUTPUT_SUFFIX,
             self.tr(
                 "Suffix added to names of output files (.gpkg)"
-                "\nDefault _v11 stands for current development version of local densities"
+                "\n(different suffixes prevent overwriting)"
             ),
             optional=True
         )
@@ -850,7 +850,7 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <h3>Name of TBk-map-file (.gpkg) included in folder with TBk results</h3>
 <p>File name of the TBk stand map kept in the "Folder with TBk results". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
 <h3>Suffix added to names of output files (.gpkg)</h3>
-<p>String. Default = _v11, which stands for the current development version of local densities. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (local_densities, s. below Outputs). It's good practice to include a reference to local densities' development version in the suffixes: _v11_A, _v11_B, _v11_C, ..., ect.</p>
+<p>String. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (local_densities, s. below Outputs).</p>
 <h3>Table to define classe of local densities</h3>
 <p>Matrix with 4 columns to set 1 or multiple classes. By default 6 classes defined.</p>
 <h3>Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)</h3>
@@ -874,11 +874,11 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <h3>local_densities</h3>
 <p>A folder placed within the "Folder with TBk results" (s. inputs above) containing two files:
 
-- TBk_local_densities_v11.gpkg* holding a same named layer with polygons of all density classes.
+- TBk_local_densities.gpkg* holding a same named layer with polygons of all density classes.
 
-- TBk_Bestandeskarte_local_densities_v11.gpkg* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
+- TBk_Bestandeskarte_local_densities.gpkg* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
 
-* Note that the advanced parameter "Suffix added to ..." sets the suffix of the file names by default to _v11.</p>
+* Note that the advanced parameter "Suffix added to ..." allows to suffix file names.</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
