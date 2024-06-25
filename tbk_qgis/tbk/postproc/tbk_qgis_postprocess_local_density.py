@@ -588,11 +588,12 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_polygonized")
 
         # remove holes smaller than threshold
-        feedback.pushInfo("remove holes < " + str(holes_thresh) + "m^2 ...")
-        param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:deleteholes", param)
-        den_polys = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(den_polys, "den_polys_without_holes")
+        if holes_thresh > 0:
+            feedback.pushInfo("remove holes < " + str(holes_thresh) + "m^2 ...")
+            param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:deleteholes", param)
+            den_polys = algoOutput["OUTPUT"]
+            # f_save_as_gpkg(den_polys, "den_polys_without_holes")
 
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
