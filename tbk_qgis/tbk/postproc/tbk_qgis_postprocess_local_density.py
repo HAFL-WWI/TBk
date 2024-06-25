@@ -274,7 +274,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         feedback.pushInfo(settings_path)
 
         # boolean input: Use forest mixture degree / coniferous raster to calculate density zone mean?
-        mg_use = self.parameterAsDouble(parameters, self.MG_USE, context)
+        mg_use = self.parameterAsBool(parameters, self.MG_USE, context)
 
         # raster input: forest mixture degree / coniferous raster to calculate density zone mean
         if mg_use:
