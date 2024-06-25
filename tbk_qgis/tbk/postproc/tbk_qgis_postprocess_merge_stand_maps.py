@@ -270,7 +270,6 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
 <h2>Outputs</h2>
 <h3>Merged TBk map</h3>
 <p>One layer including the merged TBk stand map with a unique because remade attribute ID + two new attributes: ID_stand (suffix of ID) and ID_meta (prefix of ID).</p>
-<h2>Examples</h2>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
