@@ -108,6 +108,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     VHM_DETAIL = "vhm_detail"
     # relative path to detailed VHM (string)
     VHM_DETAIL_PATH = "vhm_detail_path"
+    # clip 3 VHM raster layers by extent, else by mask (boolean)
+    VHM_CLIP_BY_EXTENT = "vhm_clip_by_extent"
     # coniferous raster (boolean)
     MG_10M = "mg_10m"
     # relative path to coniferous raster (string)
@@ -261,6 +263,14 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # clip 3 VHM raster layers by extent, else by mask (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.VHM_CLIP_BY_EXTENT,
+            self.tr("Clip VHM 10m, VHM 150cm and VHM detail by extent, else by mask"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
         # coniferous raster (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.MG_10M,
@@ -391,6 +401,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         vhm_detail = self.parameterAsBool(parameters, self.VHM_DETAIL, context)
         # relative path to detailed VHM (string)
         vhm_detail_path = self.parameterAsString(parameters, self.VHM_DETAIL_PATH, context)
+
+        # clip 3 VHM raster layers by extent, else by mask (boolean)
+        vhm_clip_by_extent = self.parameterAsBool(parameters, self.VHM_CLIP_BY_EXTENT, context)
 
         # coniferous raster (boolean)
         mg_10m = self.parameterAsBool(parameters, self.MG_10M, context)
@@ -580,7 +593,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     # f_save_as_gpkg(extraction_perimeter_raster[str(res_i)], "extraction_perimeter_raster_" + str(res_i))
 
                 # if coniferous rasters and required to clip by extent
-                if ds in [mg_10m_path, mg_10m_binary_path] and mg_clip_by_extent:
+                if ((ds in [mg_10m_path, mg_10m_binary_path] and mg_clip_by_extent) or
+                        (ds in [vhm_10m_path, vhm_150cm_path, vhm_detail_path] and vhm_clip_by_extent)):
                     param = {
                         'INPUT': dataset_in,
                         'PROJWIN': extraction_perimeter_raster[str(res_i)].extent(),
@@ -709,7 +723,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Extracts all polygons from a TBk stands map intersecting with a perimeter. The extracted stands are saved in a .gpkg having the same name as the .gpkg holding the original stand map. Furthermore, the .gpkg with the extracted stands is placed within the user-defined output folder in a folder inheriting its name from the folder harboring the original .gpkg. Thus, file naming and folder architecture of original TBk-project is cloned.
 
-Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter.
+Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter. TBk-preprocessing can also return unmasked VHM-derivates, which is not its default behavior. By ticking the corresponding checkbox "Clip VHM 10m, VHM 150cm and VHM detail by extent, … " this alternative outcome of preprocessing can by mimicked.
 
 Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p></body></html></p>
 
@@ -754,6 +768,9 @@ Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p><
 <p>Check box: default True.</p>
 <h3>Relative path to detailed VHM layer</h3>
 <p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_detail.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+
+<h3>Clip VHM 10m, VHM 150cm and VHM detail by extent, else by mask</h3>
+<p>Check box: default False.</p>
 
 <h3>Coniferous raster / forest mixture degree with 10m resolution</h3>
 <p>Check box: default True.</p>
