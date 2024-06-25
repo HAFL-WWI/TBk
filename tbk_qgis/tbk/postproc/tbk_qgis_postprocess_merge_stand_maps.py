@@ -36,6 +36,7 @@ __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 __revision__ = '$Format:%H$'
 
+import math
 import time
 from datetime import datetime, timedelta
 import pandas as pd
@@ -131,18 +132,23 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
 
         # gather information: table index and most north-western bounding box coordinates of listed TBk map layers
         n = []
+        XMIN = []
         xmin = []
+        YMAX = []
         ymax = []
         for i in range(len(tbk_map_layers)):
             n.append(i)
             ext = tbk_map_layers[i].extent()
+            XMIN.append(math.floor(ext.xMinimum() / 1000)) # km-x-coordinate closed westwards
             xmin.append(ext.xMinimum())
+            YMAX.append(math.ceil(ext.yMaximum() / 1000)) # km-y-coordinate closed northwards
             ymax.append(ext.yMaximum())
-        info_tab = pd.DataFrame({'index': n, 'xmin': xmin, 'ymax': ymax})
+        info_tab = pd.DataFrame({'index': n, 'XMIN': XMIN, 'xmin': xmin, 'YMAX': YMAX, 'ymax': ymax})
         # print(info_tab)
 
-        # sort by 1) most western comes 1st & 2) most northern comes 1st
-        info_tab = info_tab.sort_values(by=['xmin', 'ymax'], ascending=[True, False])
+        # sort by 1) most northern comes 1st & 2) most western comes 1st
+        # in two phases 1) over all by a 1 km x 1 km grid, 2) within each grid cell
+        info_tab = info_tab.sort_values(by=['YMAX', 'XMIN', 'ymax', 'xmin'], ascending=[False, True, False, True])
         # print(info_tab)
 
         # add ID-prefixes to table
