@@ -780,8 +780,6 @@ Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p><
 
 <h2>Outputs</h2>
 <p>Output folder containing extracted material ("Folder where the extracted material will be stored" s. above). File naming and achitectur inherited form inputs (s. above).</p>
-    
-<h2>Examples</h2>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
