@@ -458,6 +458,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             QgsVectorFileWriter.writeAsVectorFormatV3(input, path_, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
 
         # select stands with min. area size
+        feedback.pushInfo("select stands with area > " + str(min_size_stand) + "m^2 ...")
         param = {'INPUT': stands_all, 'EXPRESSION': '$area > ' + str(min_size_stand), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         stands = algoOutput["OUTPUT"]
@@ -493,6 +494,12 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # if required focal statistic with "regular" moving window
         if any_non_large_window:
+            feedback.pushInfo(
+                "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                "with circular moving window having radius (" +
+                str(round(mw_rad, 2)) +
+                "m) ..."
+            )
             # size = width of moving window in pixels (odd nummer)
             size = math.floor(mw_rad / res_hs * 2)
             if size % 2 == 0:
@@ -507,6 +514,12 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # if required focal statistic with large moving window
         if any_large_window:
+            feedback.pushInfo(
+                "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                "with circular moving window having large radius (" +
+                str(round(mw_rad_large, 2)) +
+                "m) ..."
+            )
             # size = width of moving window in pixels (odd nummer)
             size = math.floor(mw_rad_large / res_hs * 2)
             if size % 2 == 0:
@@ -523,6 +536,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         den_polys = []
 
         for cl in den_classes:
+            feedback.pushInfo("polyognize local densities of class " + str(cl["class"]) + " ...")
             # input / parameters for a certain density class
             min = str(cl["min"] - 0.0001)
             max = str(cl["max"] + 0.0001)
@@ -563,6 +577,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys.append(polys_cl)
 
         # merge listed layers with density polygons of different classes
+        feedback.pushInfo("merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         # 'TEMPORARY_OUTPUT' does work as output! --> all off a sudden all listed layers are merged (unclear which code
         # manipulation(s) enable this) --> temp. .gpkg as output / workaround not needed any more!
@@ -573,6 +588,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_polygonized")
 
         # remove holes smaller than threshold
+        feedback.pushInfo("remove holes < " + str(holes_thresh) + "m^2 ...")
         param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deleteholes", param)
         den_polys = algoOutput["OUTPUT"]
@@ -580,6 +596,11 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
+            feedback.pushInfo(
+                'remove thin parts / “buffer smoothing" (buffer dist. = ' +
+                str(round(buffer_smoothing_dist ,2)) +
+                "m) ..."
+            )
             param = {'INPUT': den_polys, 'DISTANCE': -buffer_smoothing_dist, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -613,6 +634,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_sigle_parts")
 
         # drop local densities polygons having areas below min. area
+        feedback.pushInfo("filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         den_polys = algoOutput["OUTPUT"]
@@ -632,6 +654,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= hs = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
+        feedback.pushInfo("zonal statistic ...")
         if mg_use:
             param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
                      'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': hs.extent(),
@@ -659,6 +682,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
+        feedback.pushInfo("calculate local density metrics for overlapping stands ...")
         # from by now existing attributes of density polygons aggregate a (long) summary table for each combination of
         # density class & stand
         # - fid_stand: tmp. id of each stand allowing later to join to original stand layer
@@ -767,12 +791,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         algoOutput = processing.run("native:refactorfields", param)
         den_polys = algoOutput["OUTPUT"]
 
+        feedback.pushInfo("save output: TBk_local_densities" + output_suffix + ".gpkg ...")
         # save local densities output
         path_local_den_out = os.path.join(path_output, "TBk_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()
         QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
+        feedback.pushInfo("save output: TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg ...")
         # tmp. id (= fid_stand) is not part of output!
         param = {'INPUT': stands_all, 'COLUMN': ['fid_stand'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
