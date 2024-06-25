@@ -284,7 +284,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                     raise QgsProcessingException("mg_input must be TIFF file")
             except:
                 raise QgsProcessingException(
-                    'if "Use forest mixture degree / coniferous raster" is True, is mg_input must be TIFF file')
+                    'if "Use forest mixture degree / coniferous raster" is True, mg_input must be TIFF file')
 
         # TBk input file name (string)
         tbk_input_file = self.parameterAsString(parameters, self.TBK_INPUT_FILE, context)
