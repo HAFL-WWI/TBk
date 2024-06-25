@@ -832,39 +832,39 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (dg_layer / output of Generate BK). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m^2) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m^2) and having themself an area below another threshold (default also 1200m^2) are filtered out.
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (<i>dg_layer</i> / output of <b><i>Generate BK</i></b>). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m&sup2;) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m&sup2;) and having themself an area below another threshold (default also 1200m&sup2;) are filtered out.
 
-Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with _stand. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either to TBk Genertate’s input or output. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees is optional.
+Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with <i>_stand</i>. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either input or output of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees is optional.
 
 To a copy of the TBk stand map attributes with metrics about each local density class detected within a stand are added.</p></body></html></p>
 
 <h2>Input parameters</h2>
 <h3>Folder with TBk results</h3>
-<p>Path to folder containing returns of "Generate BK"</p>
+<p>Path to folder containing returns of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b></p>
 <h3>Use forest mixture degree (coniferous raster)</h3>
 <p>Check box: if checked (default) zonal statistic is applied to forest mixture degree raster layer.</p>
 <h3>Forest mixture degree (coniferous raster) 10m input</h3>
-<p>Path to forest mixture degree raster layer. Only required if "Use forest mixture degree ..." is checked.</p>
+<p>Path to forest mixture degree raster layer. Only required if <b><i>Use forest mixture degree ...</i></b> is checked.</p>
 
 <h2>Advanced parameters</h2>
 <h3>Name of TBk-map-file (.gpkg) included in folder with TBk results</h3>
-<p>File name of the TBk stand map kept in the "Folder with TBk results". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
+<p>File name of the TBk stand map kept in the <i><b>Folder with TBk results</i></b>. By default <i>TBk_Bestandeskarte.gpkg</i>, which is what <b><i>Generate BK</i></b> returns. The default can be replaced by aternatives like <i>TBk_Bestandeskarte_clean.gpkg</i>.</p>
 <h3>Suffix added to names of output files (.gpkg)</h3>
-<p>String. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (local_densities, s. below Outputs).</p>
+<p>String. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (<i><b>local_densities</i></b>, s. below <i><b>Outputs</i></b>).</p>
 <h3>Table to define classe of local densities</h3>
 <p>Matrix with 4 columns to set 1 or multiple classes. By default 6 classes defined.</p>
 <h3>Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)</h3>
-<p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees.</p>
+<p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees.</p>
 <h3>Radius of circular moving window</h3>
 <p>float / [m], default 7m. Note: In contrast to the large radius mention above as "normal" radius.</p>
 <h3>Large radius of circular moving window</h3>
 <p>float / [m], default 14m</p>
 <h3>Minimum size for 'clumps' of local densities</h3>
-<p>integer / [m^2], default 1200m^2</p>
+<p>integer / [m&sup2;], default 1200m&sup2;</p>
 <h3>Minimum size for stands to apply calculation of local densities</h3>
-<p>integer / [m^2], default 1200m^2</p>
+<p>integer / [m&sup2;], default 1200m&sup2;</p>
 <h3>Threshold for minimal holes within local density 'clump'</h3>
-<p>integer / [m^2], default 400m^2</p>
+<p>integer / [m&sup2;], default 400m&sup2;</p>
 <h3>Remove thin parts and details of density zones by minus / plus buffering.</h3>
 <p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
 <h3>Buffer distance of buffer smoothing</h3>
@@ -872,13 +872,13 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 
 <h2>Outputs</h2>
 <h3>local_densities</h3>
-<p>A folder placed within the "Folder with TBk results" (s. inputs above) containing two files:
+<p>A folder placed within the <i><b>Folder with TBk results</i></b> (s. <i><b>Inputs</i></b> above) containing two files:
 
-- TBk_local_densities.gpkg* holding a same named layer with polygons of all density classes.
+- <i>TBk_local_densities.gpkg</i>* holding a same named layer with polygons of all density classes.
 
-- TBk_Bestandeskarte_local_densities.gpkg* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
+- <i>TBk_Bestandeskarte_local_densities.gpkg</i>* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
 
-* Note that the advanced parameter "Suffix added to ..." allows to suffix file names.</p>
+* Note that the advanced parameter <i><b>Suffix added to ...</i></b> allows to suffix file names.</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
