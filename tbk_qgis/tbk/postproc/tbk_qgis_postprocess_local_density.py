@@ -370,13 +370,13 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         mw_rad_large = self.parameterAsDouble(parameters, self.MW_RAD_LARGE, context)
 
         # minimum size for dense/sparse "clumps" (m^2)
-        min_size_clump = self.parameterAsDouble(parameters, self.MIN_SIZE_CLUMP, context)
+        min_size_clump = self.parameterAsInt(parameters, self.MIN_SIZE_CLUMP, context)
 
         # minimum size for stands to apply calculation of local densities (m^2)
-        min_size_stand = self.parameterAsDouble(parameters, self.MIN_SIZE_STAND, context)
+        min_size_stand = self.parameterAsInt(parameters, self.MIN_SIZE_STAND, context)
 
         # threshold for minimal holes within local density polygons (m^2)
-        holes_thresh = self.parameterAsDouble(parameters, self.HOLES_THRESH, context)
+        holes_thresh = self.parameterAsInt(parameters, self.HOLES_THRESH, context)
 
         # method to remove thin parts and details of zones by minus / plus buffering (boolean)
         buffer_smoothing = self.parameterAsBool(parameters, self.BUFFER_SMOOTHING, context)
