@@ -435,9 +435,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         stands_all = algoOutput["OUTPUT"]
 
         # load dg raster "DG" (Hauptschicht = hs = DG_OS + DG_UEB)
-        hs = QgsRasterLayer(path_dg)
+        dg = QgsRasterLayer(path_dg)
 
-        res_hs = hs.rasterUnitsPerPixelY()
+        res_dg = dg.rasterUnitsPerPixelY()
 
         # load other DG rasters (needed only to determine DGs per zone)
         if calc_all_dg:
@@ -501,10 +501,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "m) ..."
             )
             # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad / res_hs * 2)
+            size = math.floor(mw_rad / res_dg * 2)
             if size % 2 == 0:
                 size = size + 1
-            param = {'input': hs, 'selection': hs, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
+            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
                      '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                      'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
                      'GRASS_RASTER_FORMAT_META': ''}
@@ -521,10 +521,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "m) ..."
             )
             # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad_large / res_hs * 2)
+            size = math.floor(mw_rad_large / res_dg * 2)
             if size % 2 == 0:
                 size = size + 1
-            param = {'input': hs, 'selection': hs, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
+            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
                      '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                      'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
                      'GRASS_RASTER_FORMAT_META': ''}
@@ -653,21 +653,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         algoOutput = processing.run("native:fieldcalculator", param)
         den_polys = algoOutput["OUTPUT"]
 
-        # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= hs = DG)
+        # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= dg = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
         feedback.pushInfo("zonal statistic ...")
         if mg_use:
             param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
-                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': hs.extent(),
+                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': dg.extent(),
                      'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("gdal:warpreproject", param)
             mg = algoOutput["OUTPUT"]
 
         # zonal statistics
         if calc_all_dg:
-            rasters_4_stats = {'DG': hs, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os, 'DG_ueb': dg_ueb}
+            rasters_4_stats = {'DG': dg, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os, 'DG_ueb': dg_ueb}
         else:
-            rasters_4_stats = {'DG': hs}
+            rasters_4_stats = {'DG': dg}
         if mg_use:
             rasters_4_stats['NH'] = mg
 
