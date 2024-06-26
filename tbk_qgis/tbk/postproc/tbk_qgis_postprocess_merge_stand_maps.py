@@ -267,15 +267,15 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Merges multiple TBk stand maps to one layer and remakes the attribute ID, such that it still functions as unique identifier for stands within the return. The former attribute ID is renamed and kept as ID_stand, which is equivalent to the new ID's suffix, while the new ID's prefix corresponds to a unique value for each TBk stand map being merged. The prefix is also included as attribute ID_meta.</p></body></html></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Merges multiple TBk stand maps to one layer and remakes the attribute <i>ID</i>, such that it still functions as unique identifier for stands within the return. The former attribute <i>ID</i> is renamed and kept as <i>ID_stand</i>, which is equivalent to the new <i>ID</i>'s suffix, while the new <i>ID</i>'s prefix corresponds to a unique value for each TBk stand map being merged. The prefix is also included as attribute <i>ID_meta</i>.</p></body></html></p>
 <h2>Input parameters</h2>
 <h3>TBk map layers</h3>
 <p>Liste of TBk stand maps to be merged</p>
 <h3>ID prefix</h3>
-<p>Type of prefix incorporated into the remade ID</p>
+<p>Type of prefix incorporated into the remade <i>ID</i></p>
 <h2>Outputs</h2>
 <h3>Merged TBk map</h3>
-<p>One layer including the merged TBk stand map with a unique because remade attribute ID + two new attributes: ID_stand (suffix of ID) and ID_meta (prefix of ID).</p>
+<p>One layer including the merged TBk stand map with a unique because remade attribute <i>ID</i> + two new attributes: <i>ID_stand</i> (suffix of <i>ID</i>) and <i>ID_meta</i> (prefix of <i>ID</i>).</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
