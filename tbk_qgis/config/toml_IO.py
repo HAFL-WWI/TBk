@@ -1,137 +1,43 @@
+# ######################################################################
+# Class for reading and writing custom TOML files.
+#
+# Note: This class does not fully comply with all TOML specifications (https://toml.io/en/)!
+# It currently handles simple key-value pairs (without inline comments) and line comments,
+# as seen in the provided default TOML file. Empty lines are ignored.
+# The following specifications are partially implemented but not tested: TOML tables,
+# multi-line comments, and inline comments.
+#
+# (C) David Coutrot, HAFL
+#######################################################################
 from typing import Union, List, Dict, Any, Tuple
-from dataclasses import dataclass, field
-
-
-@dataclass
-class TOMLComment:
-    comment: str
-
-
-@dataclass
-class TOMLKeyValue:
-
-    def __init__(self, key: str, value: Union[str, int, float, bool], comments: List['TOMLComment'] = None,
-                 table: str = ""):
-        self.key = key
-        self._value = value
-        self.comments = comments if comments is not None else []
-        self.table = table
-        self.__post_init__()
-
-    def __post_init__(self):
-        # Ensure value is the correct type
-        self._value = self._check_value_to_add(self._value)
-
-    @property
-    def value(self):
-        return self._value
-
-    @value.setter
-    def value(self, new_value):
-        self._value = self._check_value_to_edit(new_value)
-
-    @staticmethod
-    def _check_value_to_edit(value):
-        if isinstance(value, bool):
-            value = str(value).lower()
-        return value
-
-    @staticmethod
-    def _check_value_to_add(value):
-        # if not value:
-        #     return ''
-
-        if isinstance(value, str):
-            # if value.lower() in ("true", "false"):
-            #     return value
-
-            if value.startswith('"') and value.endswith('"'):
-                value = value[1:-1]
-
-            if value.isdigit():  # Check if value is an integer
-                value = int(value)
-            elif '.' in value and all(part.isdigit() for part in value.split('.')):  # Check if value is a float
-                value = float(value)
-
-        return value
-
-
-@dataclass
-class TOMLTable:
-    name: str
-    comments: List[TOMLComment] = field(default_factory=list)
-
-
-@dataclass
-class TOMLDocument:
-    key_values: Dict[str, TOMLKeyValue] = field(default_factory=dict)
-    tables: Dict[str, TOMLTable] = field(default_factory=dict)
-
-    def __setitem__(self, key: str, value: Any):
-        """
-        Allows dictionary-style item assignment for easy key-value modification.
-        If the key exists, updates the value. If it doesn't exist, creates a new TOMLKeyValue.
-        """
-        table_name, key_name = self._split_key(key)
-        if key_name in self.key_values:
-            self.key_values[key_name].value = value
-
-    def __getitem__(self, key: str) -> Any:
-        """
-        Allows dictionary-style item access for easy key-value retrieval.
-        """
-        table_name, key_name = self._split_key(key)
-        if key_name in self.key_values:
-            return self.key_values[key_name].value
-        else:
-            raise KeyError(f'Key "{key}" not found in the document.')
-
-    def _split_key(self, key: str) -> Tuple[str, str]:
-        """
-        Splits the key into table_name and key_name.
-        """
-        if '.' in key:
-            table_name, key_name = key.split('.', 1)
-        else:
-            table_name = ""
-            key_name = key
-        return table_name, key_name
-
-    def get_key_value(self, key: str) -> Union[TOMLKeyValue, None]:
-        """
-        Retrieves the TOMLKeyValue object corresponding to the given key.
-        """
-        table_name, key_name = self._split_key(key)
-        return self.key_values.get(key_name)
-
-    def extract_key_values(self) -> Dict[str, Any]:
-        """
-        Extracts all key-value pairs from the TOMLDocument.
-        """
-        result = {}
-        for key, key_value in self.key_values.items():
-            result[key] = key_value.value
-        return result
+from tbk_qgis.config.toml_document import TOMLDocument, TOMLComment, TOMLTable, TOMLKeyValue
 
 
 class TomlIO:
+    """
+    Handles the reading and writing of TOML files.
+    """
 
     @staticmethod
     def _parse_toml_line(line: str) -> Tuple[str, Union[str, Tuple[str, Any, str]]]:
         """
-        Reads a TOML line, detect which element type it is and return the element type and values.
+        Reads a line from a TOML file, detects its element type, and returns the element type, value, and inline comment
         """
+        # Handle line-comments
         if line.startswith("#"):
             return "comment", line
+        # Handle table names enclosed into single square brackets
         elif line.startswith("[") and line.endswith("]"):
             return "table", line[1:-1]
         else:
+            # Handle lines containing a key-value pair
             parts = line.split("=", 1)
             if len(parts) == 2:
                 key = parts[0].strip()
                 value = comment = None
                 value_with_comment = parts[1].strip()
 
+                # Handle inline-comments
                 if "#" in value_with_comment:
                     value, comment = value_with_comment.split("#", 1)
                     value = value.strip()
@@ -140,44 +46,54 @@ class TomlIO:
                     value = value_with_comment.strip()
 
                 return "key_value", (key, value, comment)
-            else:
-                raise ValueError(f"Invalid line: {line}")
+
+        # Throw an error in all other cases.
+        raise ValueError(f"Invalid line: {line}")
 
     @classmethod
-    def toml_to_json(cls, toml_str: str) -> TOMLDocument:
+    def read_toml(cls, toml_str: str) -> TOMLDocument:
+        """
+        Reads a TOML string, parses it, and returns a TOMLDocument object.
+        """
         document = TOMLDocument()
         current_table = None
         comments = []
 
+        # Iterate over each line in a string.
         for line in toml_str.splitlines():
             line = line.strip()
+            # Discard empty lines
             if not line:
                 continue
 
             line_type, content = cls._parse_toml_line(line)
 
-            if line_type == "comment":
-                comments.append(TOMLComment(content))
-            elif line_type == "table":
-                table_name = content
-                if table_name not in document.tables:
-                    document.tables[table_name] = TOMLTable(name=table_name)
-                current_table = table_name
+            # Process each line according to its content type.
+            match line_type:
+                case "comment":
+                    comments.append(TOMLComment(content))
+                case "table":
+                    table_name = content
+                    if table_name not in document.tables:
+                        document.tables[table_name] = TOMLTable(name=table_name)
+                    current_table = table_name
 
-                if comments:
-                    document.tables[table_name].comments.extend(comments)
+                    if comments:
+                        document.tables[table_name].comments.extend(comments)
+                        comments = []
+                case "key_value":
+                    key, value, inline_comment = content  # inline comment not used yet
+                    key_value = TOMLKeyValue(key=key, value=value, comments=comments, table=current_table)
+                    document.key_values[key] = key_value
                     comments = []
-            elif line_type == "key_value":
-                key, value, comment = content
-                key_value = TOMLKeyValue(key=key, value=value, comments=comments,
-                                         table=current_table)
-                document.key_values[key] = key_value
-                comments = []
 
         return document
 
     @classmethod
-    def to_toml(cls, document: TOMLDocument, file_path: str):
+    def write_toml(cls, document: TOMLDocument, file_path: str) -> None:
+        """
+        Writes a TOML document to a file.
+        """
         try:
             with open(file_path, 'w') as file:
                 cls._write_key_values(document.key_values, file)
@@ -188,28 +104,39 @@ class TomlIO:
                         if kv.table == table_name:
                             cls._write_key_value(kv, file)
                     file.write('\n')
-        except Exception as e:
+        except Exception:
             raise
 
     @classmethod
     def _write_comments(cls, comments: List[TOMLComment], file):
+        """
+        Writes TOML comments
+        """
         for comment in comments:
             file.write(comment.comment + '\n')
 
     @classmethod
     def _write_key_values(cls, key_values: Dict[str, TOMLKeyValue], file):
+        """
+        Writes TOML key-values
+        """
         for kv in key_values.values():
             if not kv.table:
                 cls._write_key_value(kv, file)
 
     @classmethod
     def _write_key_value(cls, kv: TOMLKeyValue, file):
+        """
+        Writes a TOML key-value
+        """
+        # First, write the comments linked to the key-value pair
         cls._write_comments(kv.comments, file)
-        # Ensure that empty strings are handled properly when writing out to TOML
+
         value = kv.value
         if isinstance(value, str):
             if value not in ("true", "false"):
                 value = f'"{value}"'
+
         file.write(f'{kv.key} = {value}\n')
 
 
@@ -218,10 +145,10 @@ if __name__ == "__main__":
     with open('default_input_config.toml', 'r') as toml_file:
         file_content = toml_file.read()
 
-    doc = TomlIO.toml_to_json(file_content)
+    doc = TomlIO.read_toml(file_content)
     doc["vhm_10m"] = "test"
     doc["max_lh"] = 1
     doc["vMax"] = 1.0
     doc["reclassify_mg_values"] = True
 
-    TomlIO.to_toml(doc, 'output.toml')
+    TomlIO.write_toml(doc, 'output.toml')

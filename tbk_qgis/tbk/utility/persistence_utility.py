@@ -27,7 +27,7 @@ def write_dict_to_toml_file(dictionary: dict,
     file_path = os.path.join(output_folder_path, file_name)
 
     # Writing the file
-    TomlIO.to_toml(document, file_path)
+    TomlIO.write_toml(document, file_path)
 
 
 # It is assumed that all the used algorithm parameter are set in the toml config file
@@ -46,5 +46,5 @@ def read_toml_file(file_path: str) -> Optional[TOMLDocument]:
     Read data contained in a TOML file
     """
     toml = Path(file_path).read_text()
-    document = TomlIO.toml_to_json(toml)
+    document = TomlIO.read_toml(toml)
     return document
