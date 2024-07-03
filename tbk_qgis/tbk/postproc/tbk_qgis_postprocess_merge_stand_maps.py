@@ -185,8 +185,8 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
             index = indexes[i]
             prefix = prefixes[i]
 
-            # rename ID --> ID_stand
-            param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_stand', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            # rename ID --> ID_pre_merge
+            param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_pre_merge', 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:renametablefield", param)
             tbk_map = algoOutput["OUTPUT"]
 
@@ -204,7 +204,7 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
             with edit(tbk_map):
                 for f in tbk_map.getFeatures():
                     f['ID_meta'] = prefix
-                    f['ID'] = str(prefix) + '_' + str(f['ID_stand'])
+                    f['ID'] = str(prefix) + '_' + str(f['ID_pre_merge'])
                     tbk_map.updateFeature(f)
 
             # insert manipulated TBk-map into list
@@ -267,7 +267,7 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Merges multiple TBk stand maps to one layer and remakes the attribute <i>ID</i>, such that it still functions as unique identifier for stands within the return. The former attribute <i>ID</i> is renamed and kept as <i>ID_stand</i>, which is equivalent to the new <i>ID</i>'s suffix, while the new <i>ID</i>'s prefix corresponds to a unique value for each TBk stand map being merged. The prefix is also included as attribute <i>ID_meta</i>.</p></body></html></p>
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Merges multiple TBk stand maps to one layer and remakes the attribute <i>ID</i>, such that it still functions as unique identifier for stands within the return. The former attribute <i>ID</i> is renamed and kept as <i>ID_pre_merge</i>, which is equivalent to the new <i>ID</i>'s suffix, while the new <i>ID</i>'s prefix corresponds to a unique value for each TBk stand map being merged. The prefix is also included as attribute <i>ID_meta</i>.</p></body></html></p>
 <h2>Input parameters</h2>
 <h3>TBk map layers</h3>
 <p>Liste of TBk stand maps to be merged</p>
@@ -275,7 +275,7 @@ class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
 <p>Type of prefix incorporated into the remade <i>ID</i></p>
 <h2>Outputs</h2>
 <h3>Merged TBk map</h3>
-<p>One layer including the merged TBk stand map with a unique because remade attribute <i>ID</i> + two new attributes: <i>ID_stand</i> (suffix of <i>ID</i>) and <i>ID_meta</i> (prefix of <i>ID</i>).</p>
+<p>One layer including the merged TBk stand map with a unique because remade attribute <i>ID</i> + two new attributes: <i>ID_pre_merge</i> (suffix of <i>ID</i>) and <i>ID_meta</i> (prefix of <i>ID</i>).</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
