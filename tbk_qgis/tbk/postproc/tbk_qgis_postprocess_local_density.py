@@ -762,6 +762,11 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         field_names.append('hdom_stand')
         # print(field_names)
 
+        # get ID_stand's meta data
+        ID_stand_field = den_polys.fields()['ID_stand']
+        ID_stand_type = ID_stand_field.type()
+        ID_stand_type_name = ID_stand_field.typeName()
+
         # select fields for local-density-output according sequence created above and prettify zonal-stats-attributes
         fields_mapping = []
         for field in field_names:
@@ -769,6 +774,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 type = int(10)
                 type_name = 'text'
                 exp = '"class"'  # keep as is
+            elif field == 'ID_stand':
+                type = ID_stand_type  # inherit data type
+                type_name = ID_stand_type_name # inherit data type
+                exp = '"ID_stand"'  # keep as is
             elif field == 'area_pct':
                 type = int(6)
                 type_name = 'double precision'
