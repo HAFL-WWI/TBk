@@ -51,6 +51,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException,
                        QgsProcessingParameterString,
+                       QgsProcessingParameterMatrix,
                        QgsVectorLayer,
                        QgsApplication)
 import processing
@@ -128,6 +129,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     LOCAL_DENSITIES = "local_densities"
     # relative path to folder local densities (string)
     LOCAL_DENSITIES_PATH = "local_densities_path"
+    # list of relative paths to additional material (matrix as one-dimensional list)
+    ADDITIONAL_MATERIAL_PATHS = "additional_material_paths"
 
     def initAlgorithm(self, config):
         """
@@ -344,6 +347,24 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # list of relative paths to additional material (matrix as one-dimensional list)
+        parameter = QgsProcessingParameterMatrix(
+            self.ADDITIONAL_MATERIAL_PATHS,
+            self.tr(
+                "List relative* paths to additional materials"
+                "\n- single vector layers / .gpkg files,"
+                "\n- single raster layers / .tif files or"
+                "\n- folders containing vector and/or raster layers"
+                "\ncan be listed."
+                '\n* relative to "Folder with TBk project to extract from"'
+            ),
+            hasFixedNumberRows=False,
+            headers=['relative path'],
+            defaultValue=[],
+            optional=True
+        )
+        self.addAdvancedParameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -427,6 +448,26 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         local_densities = self.parameterAsBool(parameters, self.LOCAL_DENSITIES, context)
         # relative path to folder with local densities (string)
         local_densities_path = self.parameterAsString(parameters, self.LOCAL_DENSITIES_PATH, context)
+
+        # list of relative paths to additional material (matrix as one-dimensional list)
+        additional_material_paths = self.parameterAsMatrix(parameters, self.ADDITIONAL_MATERIAL_PATHS, context)
+        # make sure paths to additional material are unique strings with length >= 0
+        if len(additional_material_paths) > 0:
+            # make strings
+            for i in range(len(additional_material_paths)):
+                additional_material_paths[i] = str(additional_material_paths[i])
+            # check string length
+            if True in (path == '' for path in additional_material_paths):
+                raise QgsProcessingException(
+                    "List with relative paths to additional materials includes at least one string with length 0" +
+                    " / an empty string. Make sure to include only valid paths."
+                )
+            # stop if duplicates among paths
+            dup = [path for path in set(additional_material_paths) if additional_material_paths.count(path) > 1]
+            message_end = ' more than once in list with relative paths to additional materials. But no duplicates are allowed.'
+            if len(dup) == 1: message_dup = dup[0] + ' appears' + message_end
+            if len(dup) > 1: message_dup = "{} and {}".format(', '.join(dup[:-1]), dup[-1]) + ' appear' + message_end
+            if len(dup) > 0: raise QgsProcessingException(message_dup)
 
         start_time = time.time()
 
@@ -516,6 +557,46 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             for file in file_list:
                 if file.endswith(".gpkg"):
                     tbk_vector_datasets.append(os.path.join(local_densities_path, file))
+
+        # if required add additional materials via relative paths to
+        # - single raster layers,
+        # - single vector layer and/or
+        # - folder containing raster and/or vector layers
+        if len(additional_material_paths) > 0:
+            for path in additional_material_paths:
+                path_complete = os.path.join(path_tbk_input, path)
+                if os.path.exists(path_complete) == False:
+                    raise QgsProcessingException(
+                        path +
+                        " is listed among addition materials to extract from, but " +
+                        "\n" + path_complete +
+                        "\ndoes not exist."
+                    )
+                if path.endswith(".gpkg"):
+                    tbk_vector_datasets.append(path)
+                elif path.endswith(".tif"):
+                    tbk_raster_datasets.append(path)
+                elif os.path.isdir(path_complete):
+                    file_list = os.listdir(path_complete)
+                    if (not True in (file.endswith(".gpkg") or file.endswith(".tif") for file in file_list)):
+                        raise QgsProcessingException(
+                            path +
+                            " is listed among addition materials to extract from, and " +
+                            "\n" + path_complete +
+                            "\ndoes exist. But this folder does not contain any .gpkg nor any .tif file. So there's no geodata to extract."
+                        )
+                    for file in file_list:
+                        if file.endswith(".gpkg"):
+                            tbk_vector_datasets.append(os.path.join(path, file))
+                        elif file.endswith(".tif"):
+                            tbk_raster_datasets.append(os.path.join(path, file))
+                else:
+                    raise QgsProcessingException(
+                        path +
+                        " is listed among addition materials to extract from, and " +
+                        "\n" + path_complete +
+                        "\ndoes exist. But it is not a .gpgk, a .tif nor a directory (potentially holding .gpkg and/or .tif files)."
+                    )
 
         # check gathered vector datatsets
         # for v in tbk_vector_datasets: print(v)
@@ -794,6 +875,13 @@ Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p><
 <p>Check box: default False. If True extracts all vector layers (.gpkg) held in local densities' folder.</p>
 <h3>Relative path to folder with local densities</h3>
 <p>Folder path relative to <i><b>Folder with TBk project to extract from</i></b>. By default <i>local_densities</i>, which where <b><i>TBk Postprocess Local Density</i></b> drops its outputs.</p>
+
+<h3>List relative* paths to additional material</h3>
+<p>Matrix with 1 columns to list paths relative <i><b>Folder with TBk project to extract from</i></b>. By default no path is listed.
+- single vector layers / .gpkg files,
+- single raster layers / .tif files or
+- folders containing vector and/or raster layers
+can be listed.</p>
 
 <h2>Outputs</h2>
 <p>Output folder containing extracted material (<i><b>Folder where the extracted material will be stored</i></b> s. above). File naming and achitectur inherited form inputs (s. above).</p>
