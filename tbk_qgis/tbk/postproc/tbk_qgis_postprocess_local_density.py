@@ -270,9 +270,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         path_output = os.path.join(path_tbk_input, "local_densities")
         ensure_dir(path_output)
 
-        settings_path = QgsApplication.qgisSettingsDirPath()
-        feedback.pushInfo(settings_path)
-
         # boolean input: Use forest mixture degree / coniferous raster to calculate density zone mean?
         mg_use = self.parameterAsBool(parameters, self.MG_USE, context)
 
