@@ -134,7 +134,6 @@ class TBkPrepareMgAlgorithm(QgsProcessingAlgorithm):
                                                          'Configuration file to set the parameters of the algorithm. '
                                                          'The parameters set in the file does not need to be set '
                                                          'bellow'),
-                                                     extension='toml',
                                                      optional=True))
 
         # input

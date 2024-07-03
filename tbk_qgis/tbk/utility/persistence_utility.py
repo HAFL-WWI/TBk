@@ -4,7 +4,9 @@ from typing import Optional
 import tbk_qgis
 from tbk_qgis.config.toml_IO import TomlIO, TOMLDocument
 
-_CONFIG_FILE_NAME = "input_config.toml"
+# Since a custom and partial TOML parser is implemented, the default writing format is TXT to reduce the risk of
+# using non-implemented TOML features.
+_CONFIG_FILE_NAME = "input_config.txt"
 _DEFAULT_CONFIG_PATH: str = os.path.join(os.path.dirname(tbk_qgis.__file__), 'config', 'default_input_config.toml')
 
 

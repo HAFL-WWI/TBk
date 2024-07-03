@@ -196,7 +196,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                      self.tr(
                                                          'Configuration file to set the parameters of the algorithm.\n'
                                                          'Parameters set in the file will overwrite the settings below.'),
-                                                     extension='toml',
                                                      optional=True))
 
         # VHM 10m as main TBk input
