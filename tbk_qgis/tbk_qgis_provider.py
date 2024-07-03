@@ -43,6 +43,7 @@ from PyQt5.QtGui import *
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
 from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
@@ -85,6 +86,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkStandDelineationAlgorithm())
         self.addAlgorithm(TBkSimplifyAndCleanAlgorithm())
         self.addAlgorithm(TBkMergeSimilarNeighboursAlgorithm())
+        self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(BkAGAlgorithm())
