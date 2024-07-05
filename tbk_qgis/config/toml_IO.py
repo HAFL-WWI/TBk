@@ -1,10 +1,10 @@
 # ######################################################################
 # Class for reading and writing custom TOML files.
 #
-# Note: This class does not fully comply with all TOML specifications (https://toml.io/en/)!
+# Note: This class does not fully comply with all TOML syntax (https://toml.io/en/)!
 # It currently handles simple key-value pairs (without inline comments) and line comments,
 # as seen in the provided default TOML file. Empty lines are ignored.
-# The following specifications are partially implemented but not tested: TOML tables,
+# The following syntax are partially implemented but not tested: TOML tables,
 # multi-line comments, and inline comments.
 #
 # (C) David Coutrot, HAFL

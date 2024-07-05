@@ -1,7 +1,7 @@
 #######################################################################
 # Custom TOML document class.
 #
-# This class does not fully comply with all TOML specifications (https://toml.io/en/).
+# This class does not fully comply with all TOML syntax (https://toml.io/en/).
 # It is designed as a model class with custom getter and setter rules for TOML documents.
 #
 # (C) David Coutrot, HAFL
