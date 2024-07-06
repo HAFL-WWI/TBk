@@ -474,17 +474,18 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No TBk-QGIS-project-file found:\n" + path_tbk_qgis_proj + "\ndoes not exist.")
 
-        # list to gather TBk vector layer for extraction (TBk main dataset not included)
-        tbk_vector_datasets = []
-        # list to gather TBk vector layer for extraction (TBk main dataset not included)
-        tbk_raster_datasets = []
+        # dictionary to gather vector layers for extraction (as key) and corresponding feedback message (as value),
+        # TBk main dataset / TBk-stand-map not included
+        tbk_vector_datasets = {}
+        # dictionary to gather raster layers for extraction (as key) and corresponding feedback message (as value)
+        tbk_raster_datasets = {}
 
         # if required add degree of cover to list of raster datasets
         if dg:
             path_dg = os.path.join(path_tbk_input, dg_path)
             if os.path.exists(path_dg) == False:
                 raise QgsProcessingException("No degree of cover raster layer found:\n" + path_dg + "\ndoes not exist.")
-            tbk_raster_datasets.append(dg_path)
+            tbk_raster_datasets[dg_path] = "extract degree of cover raster layer ..."
 
         # if required add degree of cover layer for specific height ranges (relative to hdom) to list of raster datasets
         if all_dg:
@@ -493,42 +494,42 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 if os.path.exists(path_dg_i) == False:
                     raise QgsProcessingException(
                         "For the " + i.upper() + " height range no degree of cover raster layer found:\n" + path_dg_i + "\ndoes not exist.")
-                tbk_raster_datasets.append(os.path.join(all_dg_path, "dg_layer_" + i + ".tif"))
+                tbk_raster_datasets[os.path.join(all_dg_path, "dg_layer_" + i + ".tif")] = "extract 5 degree of cover raster layers specific to height ranges relative to hdom ... "
 
         # if required add VHM with detail resolution to list of raster datasets
         if vhm_10m:
             path_vhm_10m = os.path.join(path_tbk_input, vhm_10m_path)
             if os.path.exists(path_vhm_10m) == False:
                 raise QgsProcessingException("No VHM with resolution 10m found:\n" + path_vhm_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_10m_path)
+            tbk_raster_datasets[vhm_10m_path] = "extract VHM with resolution 10m ..."
 
         # if required add VHM with 150cm resolution to list of raster datasets
         if vhm_150cm:
             path_vhm_150cm = os.path.join(path_tbk_input, vhm_150cm_path)
             if os.path.exists(path_vhm_150cm) == False:
                 raise QgsProcessingException("No VHM with resolution 150cm found:\n" + path_vhm_150cm + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_150cm_path)
+            tbk_raster_datasets[vhm_150cm_path] = "extract VHM with resolution 150cm ..."
 
         # if required add detailed VHM to list of raster datasets
         if vhm_detail:
             path_vhm_detail = os.path.join(path_tbk_input, vhm_detail_path)
             if os.path.exists(path_vhm_detail) == False:
                 raise QgsProcessingException("No detailed VHM with original resolution found:\n" + path_vhm_detail + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_detail_path)
+            tbk_raster_datasets[vhm_detail_path] = "extract detailed VHM with with original resolution ..."
 
         # if required add coniferous raster to list of raster datasets
         if mg_10m:
             path_mg_10m = os.path.join(path_tbk_input, mg_10m_path)
             if os.path.exists(path_mg_10m) == False:
                 raise QgsProcessingException("No coniferous raster found:\n" + path_mg_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(mg_10m_path)
+            tbk_raster_datasets[mg_10m_path] = "extract coniferous raster ..."
 
         # if required add coniferous raster to list of raster datasets
         if mg_10m_binary:
             path_mg_10m_binary = os.path.join(path_tbk_input, mg_10m_binary_path)
             if os.path.exists(path_mg_10m_binary) == False:
                 raise QgsProcessingException("No binary coniferous raster found:\n" + path_mg_10m_binary + "\ndoes not exist.")
-            tbk_raster_datasets.append(mg_10m_binary_path)
+            tbk_raster_datasets[mg_10m_binary_path] = "extract binary coniferous raster ..."
 
         # if required add intermediate layers from TBk-processing to lists of vector resp. raster datasets
         # note: .csv & folder tmp are not extracted
@@ -538,11 +539,21 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No folder with intermediate layers from TBk-processing found:\n" + path_bk_process + "\ndoes not exist.")
             file_list = os.listdir(path_bk_process)
+            n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+            plural = ""
+            if n_gpkg > 1: plural = "s"
+            message_gpkg = ("extract " + str(n_gpkg) + " vector layer" + plural +
+                            " (.gpkg) from folder holding intermediates from TBk-processing ...")
+            n_tif = sum(1 for file in file_list if file.endswith(".tif"))
+            plural = ""
+            if n_tif > 1: plural = "s"
+            message_tif = ("extract " + str(n_tif) + " raster layer" + plural +
+                           " (.tif) from folder holding intermediates from TBk-processing ...")
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join(bk_process_path, file))
+                    tbk_vector_datasets[os.path.join(bk_process_path, file)] = message_gpkg
                 elif file.endswith(".tif"):
-                    tbk_raster_datasets.append(os.path.join(bk_process_path, file))
+                    tbk_raster_datasets[os.path.join(bk_process_path, file)] = message_tif
 
         # if required add local densities to list of vector datasets
         if local_densities:
@@ -551,9 +562,13 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No local densities' folder found:\n" + path_local_densities + "\ndoes not exist.")
             file_list = os.listdir(path_local_densities)
+            n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+            plural = ""
+            if n_gpkg > 1: plural = "s"
+            message_gpkg = ("extract " + str(n_gpkg) + " vector layer" + plural + " (.gpkg) from local densities folder ...")
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join(local_densities_path, file))
+                    tbk_vector_datasets[os.path.join(local_densities_path, file)] = message_gpkg
 
         # if required add additional materials via relative paths to
         # - single raster layers,
@@ -570,9 +585,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                         "\ndoes not exist."
                     )
                 if path.endswith(".gpkg"):
-                    tbk_vector_datasets.append(path)
+                    tbk_vector_datasets[path] = "extract " + path + " (additional material) ..."
                 elif path.endswith(".tif"):
-                    tbk_raster_datasets.append(path)
+                    tbk_raster_datasets[path] = "extract " + path + " (additional material) ..."
                 elif os.path.isdir(path_complete):
                     file_list = os.listdir(path_complete)
                     if (not True in (file.endswith(".gpkg") or file.endswith(".tif") for file in file_list)):
@@ -582,11 +597,19 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                             "\n" + path_complete +
                             "\ndoes exist. But this folder does not contain any .gpkg nor any .tif file. So there's no geodata to extract."
                         )
+                    n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+                    plural = ""
+                    if n_gpkg > 1: plural = "s"
+                    message_gpkg = "extract " + str(n_gpkg) + " vector layer" + plural + " (.gpkg) from folder " + path + " (additional material) ..."
+                    n_tif = sum(1 for file in file_list if file.endswith(".tif"))
+                    plural = ""
+                    if n_tif > 1: plural = "s"
+                    message_tif = "extract " + str(n_tif) + " raster layer" + plural + " (.tif) from folder " + path + " (additional material) ..."
                     for file in file_list:
                         if file.endswith(".gpkg"):
-                            tbk_vector_datasets.append(os.path.join(path, file))
+                            tbk_vector_datasets[os.path.join(path, file)] = message_gpkg
                         elif file.endswith(".tif"):
-                            tbk_raster_datasets.append(os.path.join(path, file))
+                            tbk_raster_datasets[os.path.join(path, file)] = message_tif
                 else:
                     raise QgsProcessingException(
                         path +
@@ -595,10 +618,10 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                         "\ndoes exist. But it is not a .gpgk, a .tif nor a directory (potentially holding .gpkg and/or .tif files)."
                     )
 
-        # check gathered vector datatsets
-        # for v in tbk_vector_datasets: print(v)
-        # check gathered vector datatsets
-        # for r in tbk_raster_datasets: print(r)
+        # check gathered vector datatsets + corresponding feedback massages
+        # for key, value in tbk_vector_datasets.items(): print(f"{key}: {value}")
+        # check gathered vector datatsets + corresponding feedback massages
+        # for key, value in tbk_raster_datasets.items(): print(f"{key}: {value}")
 
         # helper function to save intermediate vector data & tables
         def f_save_as_gpkg(input, name, path=path_output):
@@ -610,6 +633,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # check perimeter
         # f_save_as_gpkg(perimeter, "perimeter")
+
+        # print("extract TBk-stand-map by intersecting perimeter ... ")
+        feedback.pushInfo("extract TBk-stand-map by intersecting perimeter ... ")
 
         # path to original main TBk layer
         path_tbk_main_in = os.path.join(path_tbk_input, tbk_input_file_path)
@@ -627,6 +653,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         algoOutput["OUTPUT"]
 
         if tbk_qgis_proj:
+            # print("copy TBk-QGIS-project-file ... ")
+            feedback.pushInfo("copy TBk-QGIS-project-file ... ")
             path_tbk_qgis_proj_in = os.path.join(path_tbk_input, tbk_qgis_proj_path)
             path_tbk_qgis_proj_out = os.path.join(path_output, tbk_qgis_proj_path)
             copyfile(path_tbk_qgis_proj_in, path_tbk_qgis_proj_out)
@@ -637,7 +665,18 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             # dict for buffered extraction perimeters according to resolution of raster layer to be extracted
             extraction_perimeter_raster = {}
 
+            # something to compare feedback message to and ...
+            # ... which is different from feedback message of 1st raster layer to be extracted
+            feedback_message = ""
+
             for i, ds in enumerate(tbk_raster_datasets):
+                # if raster layers have a common feedback message, that message is shown only once
+                feedback_message_i = tbk_raster_datasets[ds]
+                if feedback_message_i != feedback_message:
+                    # print(feedback_message_i)
+                    feedback.pushInfo(feedback_message_i)
+                feedback_message = feedback_message_i # update feedback message for comparison
+
                 # build input and output path
                 dataset_in = os.path.join(path_tbk_input, ds)
                 dataset_out = os.path.join(path_output, ds)
@@ -712,6 +751,10 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # extract vector datatsets
         if len(tbk_vector_datasets) > 0:
 
+            # something to compare feedback message to and ...
+            # ... which is different from feedback message of 1st vector layer to be extracted
+            feedback_message = ""
+
             # create extraction perimeter of vector datasets
             param = {
                 'INPUT': path_tbk_main_out,   # extracted main TBk layer
@@ -730,6 +773,13 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             # f_save_as_gpkg(extraction_perimeter_vector, "extraction_perimeter_vector")
 
             for i, ds in enumerate(tbk_vector_datasets):
+                # if vector layers have a common feedback message, that message is shown only once
+                feedback_message_i = tbk_vector_datasets[ds]
+                if feedback_message_i != feedback_message:
+                    # print(feedback_message_i)
+                    feedback.pushInfo(feedback_message_i)
+                feedback_message = feedback_message_i  # update feedback message for comparison
+
                 # build input and output path
                 dataset_in = os.path.join(path_tbk_input, ds)
                 dataset_out = os.path.join(path_output, ds)
