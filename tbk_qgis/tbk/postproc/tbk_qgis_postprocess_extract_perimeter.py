@@ -386,9 +386,6 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         ensure_dir(path_output)
         # print(path_output)
 
-        settings_path = QgsApplication.qgisSettingsDirPath()
-        feedback.pushInfo(settings_path)
-
         # relative path to TBk-map-file (string)
         tbk_input_file_path = self.parameterAsString(parameters, self.TBK_INPUT_FILE_PATH, context)
 
