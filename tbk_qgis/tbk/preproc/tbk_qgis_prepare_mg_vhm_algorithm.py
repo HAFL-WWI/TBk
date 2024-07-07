@@ -474,7 +474,7 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput resolution is not 10m x 10m...")
                 align_method = 0  # ... align to origin (X,Y) = (0,0)
 
-        print("reset of align_method: " + str(align_method))
+        # print("reset of align_method: " + str(align_method))
 
         # if raster 10m x 10m are aligned to origin (X,Y) = (0,0) ...
         if align_method == 0:
