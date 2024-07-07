@@ -326,8 +326,6 @@ class TBkPrepareMgVhmAlgorithm(QgsProcessingAlgorithm):
         """
 
         #--- Init Parameters
-        settings_path = QgsApplication.qgisSettingsDirPath()
-        feedback.pushInfo(settings_path)
 
         align_method = self.parameterAsInt(parameters, self.ALIGN_METHOD, context)
         del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
