@@ -159,10 +159,12 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
+        # prepare the algorithm
+        self.prepare(parameters, context, feedback)
+
         # --- get and check input parameters
 
-        # use the config file parameters if given, else input parameters
-        params = self._get_input_or_config_params(parameters, context)
+        params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
         output_root = params.output_root

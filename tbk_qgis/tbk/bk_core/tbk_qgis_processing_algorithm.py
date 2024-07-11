@@ -13,12 +13,43 @@ from qgis.core import (QgsProcessingAlgorithm,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException)
 from tbk_qgis.tbk.utility.persistence_utility import read_dict_from_toml_file
+from tbk_qgis.tbk.utility.tbk_utilities import dict_diff
 
 
 class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     """
     A base class for the core TBk algorithms. It can be inherited, so that each child algorithm can use its functions.
     """
+
+    #todo: setting all parameters is not required anymore  --> adapt UI text and check if all parameters set
+    def prepare(self, parameters, context, feedback):
+        """
+        todo
+        """
+        # get configuration file path
+        config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
+        if config_path:
+            # Set input parameters from config file
+            try:
+                config = read_dict_from_toml_file(config_path)
+
+                # compare config file parameters and tool parameters
+                config_removed, config_added, config_changed = dict_diff(parameters, config)
+
+                # apply config_file to parameters (overwrite values in parameters if they have an entry in
+                # config_file values)
+                parameters.update(config)
+
+                feedback.pushInfo(f'Read config file: ')
+                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo(f'{list(config_changed.keys())}')
+                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo(f'{list(config_removed.keys())}')
+                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo(f'{list(config_added.keys())}')
+            except FileNotFoundError:
+                raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+        return True
 
     @staticmethod
     def _get_working_root_path(output_root):
@@ -98,23 +129,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         """
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
         return self.addParameter(parameter)
-
-    def _get_input_or_config_params(self, parameters, context):
-        """
-        Retrieve and determine the appropriate parameters to use. By default, if a config file is provided,
-        the parameters from the config file are returned.
-        """
-        inputs_params = self._extract_context_params(parameters, context)
-        used_params = inputs_params
-        config_path = used_params.config_file
-        try:
-            config_params_dict = read_dict_from_toml_file(config_path)
-            if config_params_dict:
-                used_params = SimpleNamespace(**config_params_dict)
-        except FileNotFoundError:
-            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
-
-        return used_params
 
     def _extract_context_params(self, parameters, context):
         """

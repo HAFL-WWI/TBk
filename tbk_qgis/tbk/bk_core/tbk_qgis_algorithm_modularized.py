@@ -36,9 +36,10 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
+        
+        # --- get and check input parameters
 
-        # Use the parameters from the config file if provided; otherwise, use the input parameters.
-        params = self._get_input_or_config_params(parameters, context)
+        params = self._extract_context_params(parameters, context)
 
         outputs = self.stand_delineation_algorithm.processAlgorithm(params.__dict__, context, feedback)
         # Set the working root, so that it can be read in the simplify algorithm

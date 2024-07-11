@@ -82,10 +82,12 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        # --- Get input parameters
+        # prepare the algorithm
+        self.prepare(parameters, context, feedback)
 
-        # Use the parameters from the config file if provided; otherwise, use the input parameters.
-        params = self._get_input_or_config_params(parameters, context)
+        # --- get and check input parameters
+
+        params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
         working_root = params.working_root
