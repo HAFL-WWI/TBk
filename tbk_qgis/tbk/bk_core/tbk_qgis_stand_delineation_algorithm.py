@@ -181,7 +181,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
         # Write the used parameters in a toml file
         try:
-            write_dict_to_toml_file(params.config_file, working_root, params.__dict__)
+            write_dict_to_toml_file(params.__dict__, working_root)
         except Exception:
             feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
