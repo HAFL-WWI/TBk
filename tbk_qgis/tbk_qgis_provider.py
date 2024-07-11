@@ -39,7 +39,7 @@ import os
 from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
-
+from tbk_qgis.tbk.bk_core.tbk_qgis_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
 from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
@@ -89,6 +89,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkMergeSimilarNeighboursAlgorithm())
         self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
+        self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(BkAGAlgorithm())
