@@ -13,7 +13,7 @@ from qgis.core import (QgsProcessingAlgorithm,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException)
 from tbk_qgis.tbk.utility.persistence_utility import read_dict_from_toml_file
-from tbk_qgis.tbk.utility.tbk_utilities import dict_diff
+from tbk_qgis.tbk.utility.tbk_utilities import dict_diff, ensure_dir
 
 
 class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
@@ -52,15 +52,37 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return True
 
     @staticmethod
-    def _get_working_root_path(output_root):
+    def _get_result_dir(output_root):
         """
-        Return the working root folder path
+        Return the output directory path
         """
-        # Set up directory with timestamp in working_root
-        output_directory = datetime.now().strftime("%Y%m%d-%H%M")
-        working_root = os.path.join(output_root, output_directory, 'bk_process')
+        # Set up directory with timestamp in output_root
+        time = datetime.now().strftime("%Y%m%d-%H%M")
+        result_directory = os.path.join(output_root, time)
 
-        return working_root
+        ensure_dir(result_directory)
+
+        return result_directory
+
+    @staticmethod
+    def _get_bk_output_dir(result_directory):
+        """
+        Return the output folder for the data related to stand map processing
+        """
+        bk_output = os.path.join(result_directory, 'bk_process')
+        ensure_dir(bk_output)
+
+        return bk_output
+
+    @staticmethod
+    def _get_dg_output_dir(result_directory):
+        """
+        Return the output folder for the data related to crown coverage processing
+        """
+        dg_output = os.path.join(result_directory, 'dg_layers')
+        ensure_dir(dg_output)
+
+        return dg_output
 
     @staticmethod
     def _get_tmp_output_path(working_root):
