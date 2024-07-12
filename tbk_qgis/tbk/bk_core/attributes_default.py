@@ -22,7 +22,7 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 #
 ########################################################################################
 
-def calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=True):
+def calc_attributes(working_root, tmp_output_folder, del_tmp=True):
     print("--------------------------------------------")
     print("START CALC specific attributes")
 

@@ -48,6 +48,7 @@ from tbk_qgis.tbk.bk_core.tbk_qgis_clip_and_patch_algorithm import TBkClipToPeri
 from tbk_qgis.tbk.bk_core.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
@@ -90,6 +91,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
         self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
+        self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(BkAGAlgorithm())
