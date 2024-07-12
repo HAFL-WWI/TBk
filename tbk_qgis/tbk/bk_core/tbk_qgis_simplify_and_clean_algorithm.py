@@ -35,8 +35,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
     # These constants will be used when calling the algorithm from another algorithm,
     # or when calling from the QGIS console.
 
-    OUTPUT = "OUTPUT"
-
     # Folder for storing all input files and saving output files
     WORKING_ROOT = "working_root"
     # File storing configuration parameters
@@ -63,7 +61,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      'Configuration file to set the algorithm parameters. The bellow '
                                                      'non-optional parameters must still be set but will not be used.',
-                                                     extension='toml',
                                                      optional=True))
 
         # These parameters are only displayed a config parameter is given
@@ -121,10 +118,12 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         # --- Simplify & Clean
         log.info('Starting')
 
-        post_process(params.working_root, tmp_output_folder, params.min_area_m2, params.simplification_tolerance,
-                     params.del_tmp)
+        results = post_process(params.working_root, tmp_output_folder, params.min_area_m2,
+                               params.simplification_tolerance, params.del_tmp)
 
-        return {self.WORKING_ROOT: params.working_root}
+        # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
+        #  results
+        # return results
 
     def createInstance(self):
         """

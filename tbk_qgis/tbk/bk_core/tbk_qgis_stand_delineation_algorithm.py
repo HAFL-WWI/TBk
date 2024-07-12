@@ -16,6 +16,7 @@ __email__ = "christian.rosset@bfh.ch"
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
+import logging
 from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
@@ -39,8 +40,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
     # Directory containing the output files
     OUTPUT_ROOT = "output_root"
-    # Folder for storing all input files and saving output files
-    WORKING_ROOT = "working_root"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
     # Default log file name
@@ -80,7 +79,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      'Configuration file to set the algorithm parameters. The bellow '
                                                      'non-optional parameters must still be set but will not be used.',
-                                                     extension='toml',
                                                      optional=True))
 
         # VHM 10m as main TBk input
@@ -98,12 +96,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
-
-        # Working root folder. This is set only to be displayed when calling the algorithm help from the console
-        self._add_hidden_parameter(QgsProcessingParameterFolderDestination(self.WORKING_ROOT,
-                                                                          "Output subfolder containing the working "
-                                                                          "root files",
-                                                                           optional=True))
 
         # --- Advanced Parameters
 
@@ -174,7 +166,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         tmp_output_folder = self._get_tmp_output_path(bk_dir)
 
         # set logger
-        log = self._configure_logging(bk_dir, params.logfile_name)
+        self._configure_logging(result_dir, params.logfile_name)
+        log = logging.getLogger(self.name())
 
         # check tif files extension
         self._check_tif_extension(params.vhm_10m, self.VHM_10M)
@@ -193,16 +186,18 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         log.info(f'Starting')
 
         # None correspond to the zone_raster_file that is not used yet
-        output = run_stand_classification(bk_dir, tmp_output_folder,
-                                          params.vhm_10m, params.coniferous_raster_for_classification,
-                                          None, params.description,
-                                          params.min_tol, params.max_tol,
-                                          params.min_corr, params.max_corr,
-                                          params.min_valid_cells, params.min_cells_per_stand,
-                                          params.min_cells_per_pure_stand,
-                                          params.vhm_min_height, params.vhm_max_height)
+        results = run_stand_classification(bk_dir, tmp_output_folder,
+                                           params.vhm_10m, params.coniferous_raster_for_classification,
+                                           None, params.description,
+                                           params.min_tol, params.max_tol,
+                                           params.min_corr, params.max_corr,
+                                           params.min_valid_cells, params.min_cells_per_stand,
+                                           params.min_cells_per_pure_stand,
+                                           params.vhm_min_height, params.vhm_max_height)
 
-        return {'WORKING_ROOT': output}
+        # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
+        #  results
+        return results
 
     def createInstance(self):
         """
