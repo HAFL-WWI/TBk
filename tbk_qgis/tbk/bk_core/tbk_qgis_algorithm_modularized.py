@@ -1,4 +1,7 @@
 # todo: set header
+import processing
+import logging
+from collections import ChainMap
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
@@ -8,27 +11,31 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
     """
     todo
     """
-
-    # todo: store the algorithm instances in a list and run them in a for loop? Put the instanciations in the initAlgorithm method
-    def __init__(self):
-        TBkProcessingAlgorithm.__init__(self)
-        self.stand_delineation_algorithm = TBkStandDelineationAlgorithm()
-        self.simplify_and_clean_algorithm = TBkSimplifyAndCleanAlgorithm()
+    # array containing the algorithms to use
+    algorithms = [
+        TBkStandDelineationAlgorithm(),
+        TBkSimplifyAndCleanAlgorithm(),
+    ]
 
     # todo: avoid repetition + ensure that a parameter is not added twice
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
+        params = []
 
-        self.stand_delineation_algorithm.initAlgorithm(config)
-        # Add the child algorithm's parameters to this algorithm
-        for param in self.stand_delineation_algorithm.parameterDefinitions():
-            self.addParameter(param.clone())
+        # init all used algorithm and add there parameters to parameters list
+        for alg in self.algorithms:
+            alg.initAlgorithm(config)
+            alg_params = alg.parameterDefinitions()
+            alg_params_dict = {p.name(): p for p in alg_params}
+            params.append(alg_params_dict)
 
-        self.simplify_and_clean_algorithm.initAlgorithm(config)
+        # parameters chain map used as a simple way to avoid duplicate parameter
+        params_chain = ChainMap(*params)
 
-        for param in self.simplify_and_clean_algorithm.parameterDefinitions():
+        unique_param_definitions = list(params_chain.values())
+        for param in unique_param_definitions:
             if param.name() != 'working_root':
                 self.addParameter(param.clone())
 
@@ -36,15 +43,22 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        
         # --- get and check input parameters
 
-        params = self._extract_context_params(parameters, context)
+        # Handle the working root and temp output folders
+        output_root = parameters["output_root"]
+        result_dir = self._get_result_dir(output_root)
+        parameters.update({'result_dir': result_dir})
 
-        outputs = self.stand_delineation_algorithm.processAlgorithm(params.__dict__, context, feedback)
-        # Set the working root, so that it can be read in the simplify algorithm
-        params.working_root = outputs['WORKING_ROOT']
-        self.simplify_and_clean_algorithm.processAlgorithm(params.__dict__, context, feedback)
+        # set logger
+        self._configure_logging(result_dir, parameters['logfile_name'])
+        log = logging.getLogger(self.name())
+
+        # --- run main algorithm
+        log.info('Starting')
+
+        for alg in self.algorithms:
+            results = processing.run(f"TBk:{alg.name()}", parameters)
 
         return {}  # todo
 
