@@ -21,7 +21,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     A base class for the core TBk algorithms. It can be inherited, so that each child algorithm can use its functions.
     """
 
-    #todo: setting all parameters is not required anymore  --> adapt UI text and check if all parameters set
     def prepare(self, parameters, context, feedback):
         """
         todo
@@ -100,6 +99,13 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         # The output folder must exist
         logfile_tmp_path = str(os.path.join(output_folder_path, logfile_name))
 
+        # Get the root logger
+        logger = logging.getLogger()
+
+        # Check if the logger already has handlers. If it does, return to avoid duplicated log messages
+        if logger.hasHandlers():
+            return
+
         # Set up logging to file
         log_format = '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s'
         date_format = '%H:%M:%S'
@@ -116,7 +122,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         console.setFormatter(console_formatter)
 
         # Create logger and add the handlers to it
-        logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
         logger.addHandler(console)
         logger.addHandler(file_handler)
@@ -127,8 +132,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         # qgis_console.setLevel(logging.DEBUG)
         # # add the handler to the root logger
         # logging.getLogger().addHandler(console)
-
-        return logger
 
     @staticmethod
     def _check_tif_extension(file, input_name):
