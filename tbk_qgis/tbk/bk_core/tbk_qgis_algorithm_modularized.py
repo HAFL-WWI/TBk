@@ -17,16 +17,18 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
         TBkSimplifyAndCleanAlgorithm(),
     ]
 
-    # todo: avoid repetition + ensure that a parameter is not added twice
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
         params = []
 
+        # Initialisation config used to adapt the output root UI description
+        init_config = {'output_root': {'name': "output_root", 'description': "Output folder"}}
+
         # init all used algorithm and add there parameters to parameters list
         for alg in self.algorithms:
-            alg.initAlgorithm(config)
+            alg.initAlgorithm(init_config)
             alg_params = alg.parameterDefinitions()
             alg_params_dict = {p.name(): p for p in alg_params}
             params.append(alg_params_dict)
@@ -54,13 +56,19 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
         self._configure_logging(result_dir, parameters['logfile_name'])
         log = logging.getLogger(self.name())
 
+        # list for storing all results
+        results = []
+
         # --- run main algorithm
         log.info('Starting')
 
         for alg in self.algorithms:
-            results = processing.run(f"TBk:{alg.name()}", parameters)
+            results += processing.run(alg, parameters, context=context, feedback=feedback)
 
-        return {}  # todo
+        log.debug(f"Results: {results}")
+        log.info(f"Finished")
+
+        return {}
 
     def createInstance(self):
         """
