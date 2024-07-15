@@ -99,13 +99,18 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        working_root = params.working_root
+        if hasattr(params, self.WORKING_ROOT):
+            # if run as standalone
+            working_root = params.working_root
+        else:
+            # if not wun as standalone, compute the working root from the provided result_dir
+            working_root = self._get_bk_output_dir(parameters['result_dir'])
         ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(params.working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger('Simplify & Clean')
 
         # Write the used parameters in a toml file
@@ -117,13 +122,15 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         # ------- TBk Processing --------#
         # --- Simplify & Clean
         log.info('Starting')
+        log.debug(f"used parameters: {working_root}, {tmp_output_folder}, "
+                  f"{params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
 
-        results = post_process(params.working_root, tmp_output_folder, params.min_area_m2,
+        results = post_process(working_root, tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
         # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
         #  results
-        # return results
+        return {}
 
     def createInstance(self):
         """
