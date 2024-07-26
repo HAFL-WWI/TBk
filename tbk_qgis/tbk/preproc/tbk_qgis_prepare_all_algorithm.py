@@ -528,7 +528,7 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         should be localised.
         """
         # return self.tr(self.groupId())
-        return '0 TBk preprocessing tools'
+        return 'Y Testing and Legacy'
 
     def groupId(self):
         """
@@ -538,7 +538,7 @@ class TBkPrepareAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'preproc'
+        return 'testing'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
