@@ -66,7 +66,7 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 from .pre_processing_helper import PreProcessingHelper
 
 
-class TBkPrepareVhmMGAlgorithm(QgsProcessingAlgorithm):
+class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
     def addAdvancedParameter(self, parameter):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
