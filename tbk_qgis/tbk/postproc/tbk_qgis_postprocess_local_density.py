@@ -612,6 +612,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
+        feedback.pushInfo("intersection of local densities and selected stands ...")
         # check attribute of selected stands
         # for field in stands.fields(): print(field.name(), field.typeName())
         # list all fields of selected stands (fid is not included!)
@@ -626,6 +627,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
 
         # multi parts --> single parts
+        feedback.pushInfo("turn local density multi parts into single parts ...")
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:multiparttosingleparts", param)
         den_polys = algoOutput["OUTPUT"]
@@ -639,6 +641,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_larger_than_min_area")
 
         # calculate area of local densities
+        feedback.pushInfo("calculate area of local densities and its ratio to area of stand...")
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fieldcalculator", param)
