@@ -620,6 +620,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for field in stands.fields():
             stands_fields.append(field.name())
         # print(stands_fields)
+        # creat spatial index for local densities
+        processing.run("native:createspatialindex", {'INPUT': den_polys})
+        # creat spatial index for selected stands
+        processing.run("native:createspatialindex", {'INPUT': stands})
         param = {'INPUT': den_polys, 'OVERLAY': stands, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
                  'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
         algoOutput = processing.run("native:intersection", param)
