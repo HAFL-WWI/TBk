@@ -154,7 +154,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             self.OUTPUT_SUFFIX,
             self.tr(
                 "Suffix added to names of output files (.gpkg)"
-                "\nDefault _v11 stands for current development version of local densities"
+                "\n(different suffixes prevent overwriting)"
             ),
             optional=True
         )
@@ -270,11 +270,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         path_output = os.path.join(path_tbk_input, "local_densities")
         ensure_dir(path_output)
 
-        settings_path = QgsApplication.qgisSettingsDirPath()
-        feedback.pushInfo(settings_path)
-
         # boolean input: Use forest mixture degree / coniferous raster to calculate density zone mean?
-        mg_use = self.parameterAsDouble(parameters, self.MG_USE, context)
+        mg_use = self.parameterAsBool(parameters, self.MG_USE, context)
 
         # raster input: forest mixture degree / coniferous raster to calculate density zone mean
         if mg_use:
@@ -284,7 +281,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                     raise QgsProcessingException("mg_input must be TIFF file")
             except:
                 raise QgsProcessingException(
-                    'if "Use forest mixture degree / coniferous raster" is True, is mg_input must be TIFF file')
+                    'if "Use forest mixture degree / coniferous raster" is True, mg_input must be TIFF file')
 
         # TBk input file name (string)
         tbk_input_file = self.parameterAsString(parameters, self.TBK_INPUT_FILE, context)
@@ -370,13 +367,13 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         mw_rad_large = self.parameterAsDouble(parameters, self.MW_RAD_LARGE, context)
 
         # minimum size for dense/sparse "clumps" (m^2)
-        min_size_clump = self.parameterAsDouble(parameters, self.MIN_SIZE_CLUMP, context)
+        min_size_clump = self.parameterAsInt(parameters, self.MIN_SIZE_CLUMP, context)
 
         # minimum size for stands to apply calculation of local densities (m^2)
-        min_size_stand = self.parameterAsDouble(parameters, self.MIN_SIZE_STAND, context)
+        min_size_stand = self.parameterAsInt(parameters, self.MIN_SIZE_STAND, context)
 
         # threshold for minimal holes within local density polygons (m^2)
-        holes_thresh = self.parameterAsDouble(parameters, self.HOLES_THRESH, context)
+        holes_thresh = self.parameterAsInt(parameters, self.HOLES_THRESH, context)
 
         # method to remove thin parts and details of zones by minus / plus buffering (boolean)
         buffer_smoothing = self.parameterAsBool(parameters, self.BUFFER_SMOOTHING, context)
@@ -435,9 +432,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         stands_all = algoOutput["OUTPUT"]
 
         # load dg raster "DG" (Hauptschicht = hs = DG_OS + DG_UEB)
-        hs = QgsRasterLayer(path_dg)
+        dg = QgsRasterLayer(path_dg)
 
-        res_hs = hs.rasterUnitsPerPixelY()
+        res_dg = dg.rasterUnitsPerPixelY()
 
         # load other DG rasters (needed only to determine DGs per zone)
         if calc_all_dg:
@@ -458,6 +455,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             QgsVectorFileWriter.writeAsVectorFormatV3(input, path_, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
 
         # select stands with min. area size
+        feedback.pushInfo("select stands with area > " + str(min_size_stand) + "m^2 ...")
         param = {'INPUT': stands_all, 'EXPRESSION': '$area > ' + str(min_size_stand), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         stands = algoOutput["OUTPUT"]
@@ -493,11 +491,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # if required focal statistic with "regular" moving window
         if any_non_large_window:
+            feedback.pushInfo(
+                "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                "with circular moving window having radius (" +
+                str(round(mw_rad, 2)) +
+                "m) ..."
+            )
             # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad / res_hs * 2)
+            size = math.floor(mw_rad / res_dg * 2)
             if size % 2 == 0:
                 size = size + 1
-            param = {'input': hs, 'selection': hs, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
+            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
                      '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                      'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
                      'GRASS_RASTER_FORMAT_META': ''}
@@ -507,11 +511,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # if required focal statistic with large moving window
         if any_large_window:
+            feedback.pushInfo(
+                "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                "with circular moving window having large radius (" +
+                str(round(mw_rad_large, 2)) +
+                "m) ..."
+            )
             # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad_large / res_hs * 2)
+            size = math.floor(mw_rad_large / res_dg * 2)
             if size % 2 == 0:
                 size = size + 1
-            param = {'input': hs, 'selection': hs, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
+            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
                      '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                      'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
                      'GRASS_RASTER_FORMAT_META': ''}
@@ -523,6 +533,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         den_polys = []
 
         for cl in den_classes:
+            feedback.pushInfo("polyognize local densities of class " + str(cl["class"]) + " ...")
             # input / parameters for a certain density class
             min = str(cl["min"] - 0.0001)
             max = str(cl["max"] + 0.0001)
@@ -563,6 +574,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys.append(polys_cl)
 
         # merge listed layers with density polygons of different classes
+        feedback.pushInfo("merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         # 'TEMPORARY_OUTPUT' does work as output! --> all off a sudden all listed layers are merged (unclear which code
         # manipulation(s) enable this) --> temp. .gpkg as output / workaround not needed any more!
@@ -573,13 +585,20 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_polygonized")
 
         # remove holes smaller than threshold
-        param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:deleteholes", param)
-        den_polys = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(den_polys, "den_polys_without_holes")
+        if holes_thresh > 0:
+            feedback.pushInfo("remove holes < " + str(holes_thresh) + "m^2 ...")
+            param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:deleteholes", param)
+            den_polys = algoOutput["OUTPUT"]
+            # f_save_as_gpkg(den_polys, "den_polys_without_holes")
 
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
+            feedback.pushInfo(
+                'remove thin parts / “buffer smoothing" (buffer dist. = ' +
+                str(round(buffer_smoothing_dist ,2)) +
+                "m) ..."
+            )
             param = {'INPUT': den_polys, 'DISTANCE': -buffer_smoothing_dist, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -593,6 +612,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
+        feedback.pushInfo("intersection of local densities and selected stands ...")
         # check attribute of selected stands
         # for field in stands.fields(): print(field.name(), field.typeName())
         # list all fields of selected stands (fid is not included!)
@@ -600,6 +620,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for field in stands.fields():
             stands_fields.append(field.name())
         # print(stands_fields)
+        # creat spatial index for local densities
+        processing.run("native:createspatialindex", {'INPUT': den_polys})
+        # creat spatial index for selected stands
+        processing.run("native:createspatialindex", {'INPUT': stands})
         param = {'INPUT': den_polys, 'OVERLAY': stands, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
                  'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
         algoOutput = processing.run("native:intersection", param)
@@ -607,18 +631,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
 
         # multi parts --> single parts
+        feedback.pushInfo("turn local density multi parts into single parts ...")
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:multiparttosingleparts", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_sigle_parts")
 
         # drop local densities polygons having areas below min. area
+        feedback.pushInfo("filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_larger_than_min_area")
 
         # calculate area of local densities
+        feedback.pushInfo("calculate area of local densities and its ratio to area of stand...")
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fieldcalculator", param)
@@ -630,20 +657,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         algoOutput = processing.run("native:fieldcalculator", param)
         den_polys = algoOutput["OUTPUT"]
 
-        # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= hs = DG)
+        # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= dg = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
+        feedback.pushInfo("zonal statistic ...")
         if mg_use:
             param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
-                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': hs.extent(),
+                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': dg.extent(),
                      'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("gdal:warpreproject", param)
             mg = algoOutput["OUTPUT"]
 
         # zonal statistics
         if calc_all_dg:
-            rasters_4_stats = {'DG': hs, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os, 'DG_ueb': dg_ueb}
+            rasters_4_stats = {'DG': dg, 'DG_ks': dg_ks, 'DG_us': dg_us, 'DG_ms': dg_ms, 'DG_os': dg_os, 'DG_ueb': dg_ueb}
         else:
-            rasters_4_stats = {'DG': hs}
+            rasters_4_stats = {'DG': dg}
         if mg_use:
             rasters_4_stats['NH'] = mg
 
@@ -659,6 +687,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
+        feedback.pushInfo("calculate local density metrics for overlapping stands ...")
         # from by now existing attributes of density polygons aggregate a (long) summary table for each combination of
         # density class & stand
         # - fid_stand: tmp. id of each stand allowing later to join to original stand layer
@@ -737,6 +766,11 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         field_names.append('hdom_stand')
         # print(field_names)
 
+        # get ID_stand's meta data
+        ID_stand_field = den_polys.fields()['ID_stand']
+        ID_stand_type = ID_stand_field.type()
+        ID_stand_type_name = ID_stand_field.typeName()
+
         # select fields for local-density-output according sequence created above and prettify zonal-stats-attributes
         fields_mapping = []
         for field in field_names:
@@ -744,6 +778,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 type = int(10)
                 type_name = 'text'
                 exp = '"class"'  # keep as is
+            elif field == 'ID_stand':
+                type = ID_stand_type  # inherit data type
+                type_name = ID_stand_type_name # inherit data type
+                exp = '"ID_stand"'  # keep as is
             elif field == 'area_pct':
                 type = int(6)
                 type_name = 'double precision'
@@ -767,12 +805,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         algoOutput = processing.run("native:refactorfields", param)
         den_polys = algoOutput["OUTPUT"]
 
+        feedback.pushInfo("save output: TBk_local_densities" + output_suffix + ".gpkg ...")
         # save local densities output
         path_local_den_out = os.path.join(path_output, "TBk_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()
         QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
+        feedback.pushInfo("save output: TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg ...")
         # tmp. id (= fid_stand) is not part of output!
         param = {'INPUT': stands_all, 'COLUMN': ['fid_stand'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
@@ -832,39 +872,39 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (dg_layer / output of Generate BK). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m^2) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m^2) and having themself an area below another threshold (default also 1200m^2) are filtered out.
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (<i>dg_layer</i> / output of <b><i>Generate BK</i></b>). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m&sup2;) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m&sup2;) and having themself an area below another threshold (default also 1200m&sup2;) are filtered out.
 
-Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with _stand. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either to TBk Genertate’s input or output. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees is optional.
+Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with <i>_stand</i>. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either input or output of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees is optional.
 
 To a copy of the TBk stand map attributes with metrics about each local density class detected within a stand are added.</p></body></html></p>
 
 <h2>Input parameters</h2>
 <h3>Folder with TBk results</h3>
-<p>Path to folder containing returns of "Generate BK"</p>
+<p>Path to folder containing returns of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b></p>
 <h3>Use forest mixture degree (coniferous raster)</h3>
 <p>Check box: if checked (default) zonal statistic is applied to forest mixture degree raster layer.</p>
 <h3>Forest mixture degree (coniferous raster) 10m input</h3>
-<p>Path to forest mixture degree raster layer. Only required if "Use forest mixture degree ..." is checked.</p>
+<p>Path to forest mixture degree raster layer. Only required if <b><i>Use forest mixture degree ...</i></b> is checked.</p>
 
 <h2>Advanced parameters</h2>
 <h3>Name of TBk-map-file (.gpkg) included in folder with TBk results</h3>
-<p>File name of the TBk stand map kept in the "Folder with TBk results". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
+<p>File name of the TBk stand map kept in the <i><b>Folder with TBk results</i></b>. By default <i>TBk_Bestandeskarte.gpkg</i>, which is what <b><i>Generate BK</i></b> returns. The default can be replaced by aternatives like <i>TBk_Bestandeskarte_clean.gpkg</i>.</p>
 <h3>Suffix added to names of output files (.gpkg)</h3>
-<p>String. Default = _v11, which stands for the current development version of local densities. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (local_densities, s. below Outputs). It's good practice to include a reference to local densities' development version in the suffixes: _v11_A, _v11_B, _v11_C, ..., ect.</p>
+<p>String. When generating multiple versions of local densities based on the same TBk map using different suffixes prevents from overwriting previous results as returns are dropped in same folder (<i><b>local_densities</i></b>, s. below <i><b>Outputs</i></b>).</p>
 <h3>Table to define classe of local densities</h3>
 <p>Matrix with 4 columns to set 1 or multiple classes. By default 6 classes defined.</p>
 <h3>Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)</h3>
-<p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (KS, US, MS, OS, UEB) relative to height of the stand’s dominate trees.</p>
+<p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees.</p>
 <h3>Radius of circular moving window</h3>
 <p>float / [m], default 7m. Note: In contrast to the large radius mention above as "normal" radius.</p>
 <h3>Large radius of circular moving window</h3>
 <p>float / [m], default 14m</p>
 <h3>Minimum size for 'clumps' of local densities</h3>
-<p>integer / [m^2], default 1200m^2</p>
+<p>integer / [m&sup2;], default 1200m&sup2;</p>
 <h3>Minimum size for stands to apply calculation of local densities</h3>
-<p>integer / [m^2], default 1200m^2</p>
+<p>integer / [m&sup2;], default 1200m&sup2;</p>
 <h3>Threshold for minimal holes within local density 'clump'</h3>
-<p>integer / [m^2], default 400m^2</p>
+<p>integer / [m&sup2;], default 400m&sup2;</p>
 <h3>Remove thin parts and details of density zones by minus / plus buffering.</h3>
 <p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
 <h3>Buffer distance of buffer smoothing</h3>
@@ -872,15 +912,13 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 
 <h2>Outputs</h2>
 <h3>local_densities</h3>
-<p>A folder placed within the "Folder with TBk results" (s. inputs above) containing two files:
+<p>A folder placed within the <i><b>Folder with TBk results</i></b> (s. <i><b>Inputs</i></b> above) containing two files:
 
-- TBk_local_densities_v11.gpkg* holding a same named layer with polygons of all density classes.
+- <i>TBk_local_densities.gpkg</i>* holding a same named layer with polygons of all density classes.
 
-- TBk_Bestandeskarte_local_densities_v11.gpkg* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
+- <i>TBk_Bestandeskarte_local_densities.gpkg</i>* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
 
-* Note that the advanced parameter "Suffix added to ..." sets the suffix of the file names by default to _v11.</p>
-
-<h2>Examples</h2>
+* Note that the advanced parameter <i><b>Suffix added to ...</i></b> allows to suffix file names.</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">

@@ -74,8 +74,7 @@ from .attributes_default import *
 from tbk_qgis.tbk.utility.tbk_utilities import dict_diff
 from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
 from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
-                                                      write_dict_to_toml_file,
-                                                      to_params_with_layer_source)
+                                                      write_dict_to_toml_file)
 
 
 class TBkAlgorithm(QgsProcessingAlgorithm):
@@ -149,8 +148,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     FORESTSITE_LAYER_FIELD = "forestSiteLayerField"
 
     # Main TBk parameters (for details see run_stand_classification function)
-    # If to consider it for classification
-    USE_CONFEROUS_FOR_CLASSIFICATION = "useConiferousRasterForClassification"
     # Zone raster
     ZONE_RASTER_FILE = "zoneRasterFile"
     # Short description
@@ -199,7 +196,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                      self.tr(
                                                          'Configuration file to set the parameters of the algorithm.\n'
                                                          'Parameters set in the file will overwrite the settings below.'),
-                                                     extension='toml',
                                                      optional=True))
 
         # VHM 10m as main TBk input
@@ -258,11 +254,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                         optional=True))
 
         # Main TBk Algorithm parameters
-        parameter = QgsProcessingParameterBoolean(self.USE_CONFEROUS_FOR_CLASSIFICATION,
-                                                  self.tr("Consider coniferous raster for classification"),
-                                                  defaultValue=True)
-        self.addAdvancedParameter(parameter)
-
         parameter = QgsProcessingParameterRasterLayer(self.ZONE_RASTER_FILE, self.tr("Zone raster (.tif)"),
                                                       optional=True)
         self.addHiddenParameter(parameter)
@@ -332,7 +323,8 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER,
-                                                  self.tr("Also calc coniferous prop. for main layer"),
+                                                  self.tr("Also calc coniferous prop. for main layer (Oberschicht).\n"
+                                                          "Has no effect if no mixture raster is provided."),
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
 
@@ -390,60 +382,43 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif", ".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file")
 
-        # get and check coniferous Raster / settings
-        # todo: Code difficult to read and understand from here
-        use_coniferous_raster = self.parameterAsBool(parameters, self.USE_CONFEROUS_FOR_CLASSIFICATION, context)
+        # get coniferous_raster_layer path and check for TIFF if provided (else it is "")
         coniferous_raster_layer = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER, context)
-        coniferous_raster = None
+        # convert raster layer to path and check for TIFF
+        coniferous_raster = ""
         if coniferous_raster_layer:
             coniferous_raster = str(coniferous_raster_layer.source())
         if coniferous_raster and (not os.path.splitext(coniferous_raster)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster must be a TIFF file")
 
-        # init coniferous_raster_for_classification and read from parameters if provided
-        coniferous_raster_for_classification = None
-        coniferous_raster_for_classification_layer = self.parameterAsRasterLayer(parameters,
-                                                                                 self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
-                                                                                 context)
+        # get coniferous_raster_for_classification path and check for TIFF if provided (else it is "")
+        coniferous_raster_for_classification_layer \
+            = self.parameterAsRasterLayer(parameters, self.CONIFEROUS_RASTER_FOR_CLASSIFICATION, context)
+        # convert raster layer to path and check for TIFF
+        coniferous_raster_for_classification = ""
         if coniferous_raster_for_classification_layer:
             coniferous_raster_for_classification = str(coniferous_raster_for_classification_layer.source())
-        if coniferous_raster_for_classification and (
-                not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif", ".tiff")):
+            use_coniferous_raster = True
+            print("Using coniferous raster for classification.")
+        if coniferous_raster_for_classification and \
+                (not os.path.splitext(coniferous_raster_for_classification)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("coniferous_raster_for_classification must be a TIFF file")
 
-        # if no explicit coniferous_raster_for_classification is provided, try using coniferous_raster, else complain
-        if use_coniferous_raster and (coniferous_raster_for_classification is None):
-            if coniferous_raster is None:
-                coniferous_raster_for_classification = coniferous_raster
-                print("Using coniferous raster for classification.")
-                # feedback.pushInfo("Using coniferous raster for classification.")
-            else:
-                raise QgsProcessingException("coniferous_raster is not not specified")
-        else:
-            print("Using coniferous raster for classification.")
-            # feedback.pushInfo("Using coniferous raster for classification.")
-
+        # get calc_mixture_for_main_layer flag
         calc_mixture_for_main_layer = self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
                                                            context)
-        # todo: some logic issue. CALC_MIXTURE_FOR_MAIN_LAYER is true per default and CONIFEROUS_RASTER optional in the
-        #   initAlgorithm. CONIFEROUS_RASTER is therefore not really optional since we block per default the algorithm
-        #   if it is not set
-        if calc_mixture_for_main_layer and coniferous_raster is None:
-            raise QgsProcessingException("No coniferous_raster specified")  # todo: raised if parameter not set in QGIS
 
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
-        # TODO maybe check geometry?
 
         # get and check zone raster file
+        # get coniferous_raster_for_classification path and check for TIFF if provided (else it is None)
         zoneRasterFile_layer = self.parameterAsRasterLayer(parameters, self.ZONE_RASTER_FILE, context)
-        zoneRasterFile = None
+        zoneRasterFile = ""
         if zoneRasterFile_layer:
             zoneRasterFile = str(zoneRasterFile_layer.source())
         if zoneRasterFile and (not os.path.splitext(zoneRasterFile)[1].lower() in (".tif", ".tiff")):
             raise QgsProcessingException("zoneRasterFile must be a TIFF file")
-        if (not zoneRasterFile) or (zoneRasterFile == "") or zoneRasterFile is None:
-            zoneRasterFile = "null"
 
         # get and check description
         description = str(self.parameterAsString(parameters, self.DESCRIPTION, context))
@@ -553,10 +528,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # ------- TBk MAIN Processing --------#
 
         # Store the input parameters in a file
-        # Todo: this isn't working with, ERROR 4: `NETCDF:".../test_input_config.toml"' does not exist in the file system, and is not recognized as a supported dataset name.
-        # params_with_sources = to_params_with_layer_source(self, parameters, context)
+        params_with_sources = self.asMap(parameters, context)['inputs']
         try:
-            write_dict_to_toml_file(parameters, tbk_result_dir)
+            write_dict_to_toml_file(params_with_sources, tbk_result_dir)
         except Exception as error:
             feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
             feedback.pushWarning(f'Error: {error}')
@@ -567,8 +541,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # --- Stand delineation (Main)
         log.info('Stand delineation')
         run_stand_classification(working_root, tmp_output_folder,
-                                 vhm_10m, coniferous_raster_for_classification,
-                                 zoneRasterFile, description,
+                                 vhm_10m,
+                                 coniferous_raster_for_classification,  # is None if not provided, handled in function
+                                 zoneRasterFile,
+                                 description,
                                  min_tol, max_tol,
                                  min_corr, max_corr,
                                  min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
@@ -597,7 +573,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
 
         # --- Add coniferous proportion
-        if calc_mixture_for_main_layer:
+        if coniferous_raster:
             log.info('Add coniferous proportion')
             add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster,
                                       calc_mixture_for_main_layer, del_tmp=del_tmp)

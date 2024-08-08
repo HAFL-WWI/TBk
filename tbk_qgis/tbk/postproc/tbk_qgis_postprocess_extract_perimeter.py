@@ -51,6 +51,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException,
                        QgsProcessingParameterString,
+                       QgsProcessingParameterMatrix,
                        QgsVectorLayer,
                        QgsApplication)
 import processing
@@ -108,6 +109,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     VHM_DETAIL = "vhm_detail"
     # relative path to detailed VHM (string)
     VHM_DETAIL_PATH = "vhm_detail_path"
+    # clip 3 VHM raster layers by extent, else by mask (boolean)
+    VHM_CLIP_BY_EXTENT = "vhm_clip_by_extent"
     # coniferous raster (boolean)
     MG_10M = "mg_10m"
     # relative path to coniferous raster (string)
@@ -126,6 +129,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
     LOCAL_DENSITIES = "local_densities"
     # relative path to folder local densities (string)
     LOCAL_DENSITIES_PATH = "local_densities_path"
+    # list of relative paths to additional material (matrix as one-dimensional list)
+    ADDITIONAL_MATERIAL_PATHS = "additional_material_paths"
 
     def initAlgorithm(self, config):
         """
@@ -261,6 +266,14 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # clip 3 VHM raster layers by extent, else by mask (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.VHM_CLIP_BY_EXTENT,
+            self.tr("Clip VHM 10m, VHM 150cm and VHM detail by extent, else by mask"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
         # coniferous raster (boolean)
         parameter = QgsProcessingParameterBoolean(
             self.MG_10M,
@@ -334,6 +347,24 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        # list of relative paths to additional material (matrix as one-dimensional list)
+        parameter = QgsProcessingParameterMatrix(
+            self.ADDITIONAL_MATERIAL_PATHS,
+            self.tr(
+                "List relative* paths to additional materials"
+                "\n- single vector layers / .gpkg files,"
+                "\n- single raster layers / .tif files or"
+                "\n- folders containing vector and/or raster layers"
+                "\ncan be listed."
+                '\n* relative to "Folder with TBk project to extract from"'
+            ),
+            hasFixedNumberRows=False,
+            headers=['relative path'],
+            defaultValue=[],
+            optional=True
+        )
+        self.addAdvancedParameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -354,9 +385,6 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         path_output = os.path.join(output_root, tbk_folder)
         ensure_dir(path_output)
         # print(path_output)
-
-        settings_path = QgsApplication.qgisSettingsDirPath()
-        feedback.pushInfo(settings_path)
 
         # relative path to TBk-map-file (string)
         tbk_input_file_path = self.parameterAsString(parameters, self.TBK_INPUT_FILE_PATH, context)
@@ -392,6 +420,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # relative path to detailed VHM (string)
         vhm_detail_path = self.parameterAsString(parameters, self.VHM_DETAIL_PATH, context)
 
+        # clip 3 VHM raster layers by extent, else by mask (boolean)
+        vhm_clip_by_extent = self.parameterAsBool(parameters, self.VHM_CLIP_BY_EXTENT, context)
+
         # coniferous raster (boolean)
         mg_10m = self.parameterAsBool(parameters, self.MG_10M, context)
         # relative path to coniferous raster (string)
@@ -415,6 +446,26 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # relative path to folder with local densities (string)
         local_densities_path = self.parameterAsString(parameters, self.LOCAL_DENSITIES_PATH, context)
 
+        # list of relative paths to additional material (matrix as one-dimensional list)
+        additional_material_paths = self.parameterAsMatrix(parameters, self.ADDITIONAL_MATERIAL_PATHS, context)
+        # make sure paths to additional material are unique strings with length >= 0
+        if len(additional_material_paths) > 0:
+            # make strings
+            for i in range(len(additional_material_paths)):
+                additional_material_paths[i] = str(additional_material_paths[i])
+            # check string length
+            if True in (path == '' for path in additional_material_paths):
+                raise QgsProcessingException(
+                    "List with relative paths to additional materials includes at least one string with length 0" +
+                    " / an empty string. Make sure to include only valid paths."
+                )
+            # stop if duplicates among paths
+            dup = [path for path in set(additional_material_paths) if additional_material_paths.count(path) > 1]
+            message_end = ' more than once in list with relative paths to additional materials. But no duplicates are allowed.'
+            if len(dup) == 1: message_dup = dup[0] + ' appears' + message_end
+            if len(dup) > 1: message_dup = "{} and {}".format(', '.join(dup[:-1]), dup[-1]) + ' appear' + message_end
+            if len(dup) > 0: raise QgsProcessingException(message_dup)
+
         start_time = time.time()
 
         if tbk_qgis_proj:
@@ -423,17 +474,18 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No TBk-QGIS-project-file found:\n" + path_tbk_qgis_proj + "\ndoes not exist.")
 
-        # list to gather TBk vector layer for extraction (TBk main dataset not included)
-        tbk_vector_datasets = []
-        # list to gather TBk vector layer for extraction (TBk main dataset not included)
-        tbk_raster_datasets = []
+        # dictionary to gather vector layers for extraction (as key) and corresponding feedback message (as value),
+        # TBk main dataset / TBk-stand-map not included
+        tbk_vector_datasets = {}
+        # dictionary to gather raster layers for extraction (as key) and corresponding feedback message (as value)
+        tbk_raster_datasets = {}
 
         # if required add degree of cover to list of raster datasets
         if dg:
             path_dg = os.path.join(path_tbk_input, dg_path)
             if os.path.exists(path_dg) == False:
                 raise QgsProcessingException("No degree of cover raster layer found:\n" + path_dg + "\ndoes not exist.")
-            tbk_raster_datasets.append(dg_path)
+            tbk_raster_datasets[dg_path] = "extract degree of cover raster layer ..."
 
         # if required add degree of cover layer for specific height ranges (relative to hdom) to list of raster datasets
         if all_dg:
@@ -442,42 +494,42 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 if os.path.exists(path_dg_i) == False:
                     raise QgsProcessingException(
                         "For the " + i.upper() + " height range no degree of cover raster layer found:\n" + path_dg_i + "\ndoes not exist.")
-                tbk_raster_datasets.append(os.path.join(all_dg_path, "dg_layer_" + i + ".tif"))
+                tbk_raster_datasets[os.path.join(all_dg_path, "dg_layer_" + i + ".tif")] = "extract 5 degree of cover raster layers specific to height ranges relative to hdom ... "
 
         # if required add VHM with detail resolution to list of raster datasets
         if vhm_10m:
             path_vhm_10m = os.path.join(path_tbk_input, vhm_10m_path)
             if os.path.exists(path_vhm_10m) == False:
                 raise QgsProcessingException("No VHM with resolution 10m found:\n" + path_vhm_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_10m_path)
+            tbk_raster_datasets[vhm_10m_path] = "extract VHM with resolution 10m ..."
 
         # if required add VHM with 150cm resolution to list of raster datasets
         if vhm_150cm:
             path_vhm_150cm = os.path.join(path_tbk_input, vhm_150cm_path)
             if os.path.exists(path_vhm_150cm) == False:
                 raise QgsProcessingException("No VHM with resolution 150cm found:\n" + path_vhm_150cm + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_150cm_path)
+            tbk_raster_datasets[vhm_150cm_path] = "extract VHM with resolution 150cm ..."
 
         # if required add detailed VHM to list of raster datasets
         if vhm_detail:
             path_vhm_detail = os.path.join(path_tbk_input, vhm_detail_path)
             if os.path.exists(path_vhm_detail) == False:
                 raise QgsProcessingException("No detailed VHM with original resolution found:\n" + path_vhm_detail + "\ndoes not exist.")
-            tbk_raster_datasets.append(vhm_detail_path)
+            tbk_raster_datasets[vhm_detail_path] = "extract detailed VHM with with original resolution ..."
 
         # if required add coniferous raster to list of raster datasets
         if mg_10m:
             path_mg_10m = os.path.join(path_tbk_input, mg_10m_path)
             if os.path.exists(path_mg_10m) == False:
                 raise QgsProcessingException("No coniferous raster found:\n" + path_mg_10m + "\ndoes not exist.")
-            tbk_raster_datasets.append(mg_10m_path)
+            tbk_raster_datasets[mg_10m_path] = "extract coniferous raster ..."
 
         # if required add coniferous raster to list of raster datasets
         if mg_10m_binary:
             path_mg_10m_binary = os.path.join(path_tbk_input, mg_10m_binary_path)
             if os.path.exists(path_mg_10m_binary) == False:
                 raise QgsProcessingException("No binary coniferous raster found:\n" + path_mg_10m_binary + "\ndoes not exist.")
-            tbk_raster_datasets.append(mg_10m_binary_path)
+            tbk_raster_datasets[mg_10m_binary_path] = "extract binary coniferous raster ..."
 
         # if required add intermediate layers from TBk-processing to lists of vector resp. raster datasets
         # note: .csv & folder tmp are not extracted
@@ -487,11 +539,21 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No folder with intermediate layers from TBk-processing found:\n" + path_bk_process + "\ndoes not exist.")
             file_list = os.listdir(path_bk_process)
+            n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+            plural = ""
+            if n_gpkg > 1: plural = "s"
+            message_gpkg = ("extract " + str(n_gpkg) + " vector layer" + plural +
+                            " (.gpkg) from folder holding intermediates from TBk-processing ...")
+            n_tif = sum(1 for file in file_list if file.endswith(".tif"))
+            plural = ""
+            if n_tif > 1: plural = "s"
+            message_tif = ("extract " + str(n_tif) + " raster layer" + plural +
+                           " (.tif) from folder holding intermediates from TBk-processing ...")
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join(bk_process_path, file))
+                    tbk_vector_datasets[os.path.join(bk_process_path, file)] = message_gpkg
                 elif file.endswith(".tif"):
-                    tbk_raster_datasets.append(os.path.join(bk_process_path, file))
+                    tbk_raster_datasets[os.path.join(bk_process_path, file)] = message_tif
 
         # if required add local densities to list of vector datasets
         if local_densities:
@@ -500,14 +562,66 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                 raise QgsProcessingException(
                     "No local densities' folder found:\n" + path_local_densities + "\ndoes not exist.")
             file_list = os.listdir(path_local_densities)
+            n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+            plural = ""
+            if n_gpkg > 1: plural = "s"
+            message_gpkg = ("extract " + str(n_gpkg) + " vector layer" + plural + " (.gpkg) from local densities folder ...")
             for file in file_list:
                 if file.endswith(".gpkg"):
-                    tbk_vector_datasets.append(os.path.join(local_densities_path, file))
+                    tbk_vector_datasets[os.path.join(local_densities_path, file)] = message_gpkg
 
-        # check gathered vector datatsets
-        # for v in tbk_vector_datasets: print(v)
-        # check gathered vector datatsets
-        # for r in tbk_raster_datasets: print(r)
+        # if required add additional materials via relative paths to
+        # - single raster layers,
+        # - single vector layer and/or
+        # - folder containing raster and/or vector layers
+        if len(additional_material_paths) > 0:
+            for path in additional_material_paths:
+                path_complete = os.path.join(path_tbk_input, path)
+                if os.path.exists(path_complete) == False:
+                    raise QgsProcessingException(
+                        path +
+                        " is listed among addition materials to extract from, but " +
+                        "\n" + path_complete +
+                        "\ndoes not exist."
+                    )
+                if path.endswith(".gpkg"):
+                    tbk_vector_datasets[path] = "extract " + path + " (additional material) ..."
+                elif path.endswith(".tif"):
+                    tbk_raster_datasets[path] = "extract " + path + " (additional material) ..."
+                elif os.path.isdir(path_complete):
+                    file_list = os.listdir(path_complete)
+                    if (not True in (file.endswith(".gpkg") or file.endswith(".tif") for file in file_list)):
+                        raise QgsProcessingException(
+                            path +
+                            " is listed among addition materials to extract from, and " +
+                            "\n" + path_complete +
+                            "\ndoes exist. But this folder does not contain any .gpkg nor any .tif file. So there's no geodata to extract."
+                        )
+                    n_gpkg = sum(1 for file in file_list if file.endswith(".gpkg"))
+                    plural = ""
+                    if n_gpkg > 1: plural = "s"
+                    message_gpkg = "extract " + str(n_gpkg) + " vector layer" + plural + " (.gpkg) from folder " + path + " (additional material) ..."
+                    n_tif = sum(1 for file in file_list if file.endswith(".tif"))
+                    plural = ""
+                    if n_tif > 1: plural = "s"
+                    message_tif = "extract " + str(n_tif) + " raster layer" + plural + " (.tif) from folder " + path + " (additional material) ..."
+                    for file in file_list:
+                        if file.endswith(".gpkg"):
+                            tbk_vector_datasets[os.path.join(path, file)] = message_gpkg
+                        elif file.endswith(".tif"):
+                            tbk_raster_datasets[os.path.join(path, file)] = message_tif
+                else:
+                    raise QgsProcessingException(
+                        path +
+                        " is listed among addition materials to extract from, and " +
+                        "\n" + path_complete +
+                        "\ndoes exist. But it is not a .gpgk, a .tif nor a directory (potentially holding .gpkg and/or .tif files)."
+                    )
+
+        # check gathered vector datatsets + corresponding feedback massages
+        # for key, value in tbk_vector_datasets.items(): print(f"{key}: {value}")
+        # check gathered vector datatsets + corresponding feedback massages
+        # for key, value in tbk_raster_datasets.items(): print(f"{key}: {value}")
 
         # helper function to save intermediate vector data & tables
         def f_save_as_gpkg(input, name, path=path_output):
@@ -519,6 +633,9 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 
         # check perimeter
         # f_save_as_gpkg(perimeter, "perimeter")
+
+        # print("extract TBk-stand-map by intersecting perimeter ... ")
+        feedback.pushInfo("extract TBk-stand-map by intersecting perimeter ... ")
 
         # path to original main TBk layer
         path_tbk_main_in = os.path.join(path_tbk_input, tbk_input_file_path)
@@ -536,6 +653,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         algoOutput["OUTPUT"]
 
         if tbk_qgis_proj:
+            # print("copy TBk-QGIS-project-file ... ")
+            feedback.pushInfo("copy TBk-QGIS-project-file ... ")
             path_tbk_qgis_proj_in = os.path.join(path_tbk_input, tbk_qgis_proj_path)
             path_tbk_qgis_proj_out = os.path.join(path_output, tbk_qgis_proj_path)
             copyfile(path_tbk_qgis_proj_in, path_tbk_qgis_proj_out)
@@ -546,7 +665,18 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             # dict for buffered extraction perimeters according to resolution of raster layer to be extracted
             extraction_perimeter_raster = {}
 
+            # something to compare feedback message to and ...
+            # ... which is different from feedback message of 1st raster layer to be extracted
+            feedback_message = ""
+
             for i, ds in enumerate(tbk_raster_datasets):
+                # if raster layers have a common feedback message, that message is shown only once
+                feedback_message_i = tbk_raster_datasets[ds]
+                if feedback_message_i != feedback_message:
+                    # print(feedback_message_i)
+                    feedback.pushInfo(feedback_message_i)
+                feedback_message = feedback_message_i # update feedback message for comparison
+
                 # build input and output path
                 dataset_in = os.path.join(path_tbk_input, ds)
                 dataset_out = os.path.join(path_output, ds)
@@ -580,7 +710,8 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
                     # f_save_as_gpkg(extraction_perimeter_raster[str(res_i)], "extraction_perimeter_raster_" + str(res_i))
 
                 # if coniferous rasters and required to clip by extent
-                if ds in [mg_10m_path, mg_10m_binary_path] and mg_clip_by_extent:
+                if ((ds in [mg_10m_path, mg_10m_binary_path] and mg_clip_by_extent) or
+                        (ds in [vhm_10m_path, vhm_150cm_path, vhm_detail_path] and vhm_clip_by_extent)):
                     param = {
                         'INPUT': dataset_in,
                         'PROJWIN': extraction_perimeter_raster[str(res_i)].extent(),
@@ -620,6 +751,10 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         # extract vector datatsets
         if len(tbk_vector_datasets) > 0:
 
+            # something to compare feedback message to and ...
+            # ... which is different from feedback message of 1st vector layer to be extracted
+            feedback_message = ""
+
             # create extraction perimeter of vector datasets
             param = {
                 'INPUT': path_tbk_main_out,   # extracted main TBk layer
@@ -638,6 +773,13 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
             # f_save_as_gpkg(extraction_perimeter_vector, "extraction_perimeter_vector")
 
             for i, ds in enumerate(tbk_vector_datasets):
+                # if vector layers have a common feedback message, that message is shown only once
+                feedback_message_i = tbk_vector_datasets[ds]
+                if feedback_message_i != feedback_message:
+                    # print(feedback_message_i)
+                    feedback.pushInfo(feedback_message_i)
+                feedback_message = feedback_message_i  # update feedback message for comparison
+
                 # build input and output path
                 dataset_in = os.path.join(path_tbk_input, ds)
                 dataset_out = os.path.join(path_output, ds)
@@ -709,7 +851,7 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Extracts all polygons from a TBk stands map intersecting with a perimeter. The extracted stands are saved in a .gpkg having the same name as the .gpkg holding the original stand map. Furthermore, the .gpkg with the extracted stands is placed within the user-defined output folder in a folder inheriting its name from the folder harboring the original .gpkg. Thus, file naming and folder architecture of original TBk-project is cloned.
 
-Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter.
+Extraction of further layers included in the original TBk-project is possible by setting the advanced parameters. Geometries from vector layers are extracted if being fully within the area covering the extracted stands. While raster layers are extracted by a mask, which equates to the area covering the extracted stands buffered with the very raster layer’s pixel resolution. By default, two coniferous raster layers are not extracted by their specific buffer-mask itself but by its extent. This default setting mimics the TBk-preprocessing, which generates coniferous raster layers for the whole extent of the input-perimeter. TBk-preprocessing can also return unmasked VHM-derivates, which is not its default behavior. By ticking the corresponding checkbox <i><b>Clip VHM 10m, VHM 150cm and VHM detail by extent, … </i></b> this alternative outcome of preprocessing can by mimicked.
 
 Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p></body></html></p>
 
@@ -723,65 +865,73 @@ Copying the TBk-QGIS-project-file is also feasible via advanced parameters.</p><
 
 <h2>Advanced parameters</h2>
 <h3>Relative path to TBk-map-file (.gpkg)</h3>
-<p>File name of the TBk stand map kept in the "Folder with TBk project to extract from". By default TBk_Bestandeskarte.gpkg, which is what "Generate BK" returns. The default can be replaced by aternatives like TBk_Bestandeskarte_clean.gpkg.</p>
+<p>File name of the TBk stand map kept in the <i><b>Folder with TBk project to extract from</i></b>. By default <i>TBk_Bestandeskarte.gpkg</i>, which is what <b><i>Generate BK</i></b> returns. The default can be replaced by aternatives like <i>TBk_Bestandeskarte_clean.gpkg</i>.</p>
 
 <h3>Copy TBk-QGIS-project-file</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to TBk-QGIS-project-file (.qgz / .qgs)</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default TBk_Project.qgz, which is what "Generate BK" returns.</p>
+<p>File path relative to <i><b>Folder with TBk project to extract from</i></b>. By default <i>TBk_Project.qgz</i>, which is what <b><i>Generate BK</i></b> returns.</p>
 
 <h3>Degree of cover raster layer</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to degree of cover raster layer</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default dg_layers\dg_layer.tif, which is what "Generate BK" returns.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default <i>dg_layers</i>\<i>dg_layer.tif</i>, which is what <b><i>Generate BK</i></b> returns.</p>
 
 <h3>Degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
-<p>Folder path relative to "Folder with TBk project to extract from". By default dg_layers, which is what "Generate BK" returns populates with the five DG-layers.</p>
+<p>Folder path relative to <b><i>Folder with TBk project to extract from</i></b>. By default <i>dg_layers</i>, which is what <b><i>Generate BK</i></b> returns populates with the five DG-layers.</p>
 
 <h3>VHM with 10m resolution, main input to generate TBk-stand-map</h3>
 <p>Check box: default True.</p>
 <h3>Relative path VHM 10m layer</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default ..\<i>VHM_10m.tif</i>, which is where <b><i>Generate BK</i></b> mostly gets this input (preprocessing return) form.</p>
 
 <h3>VHM with 150cm resolution, main input to generate TBk-stand-map</h3>
 <p>Check box: default True.</p>
 <h3>Relative path VHM 150cm layer</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_150cm.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default ..\<i>VHM_150cm.tif</i>, which is where <b><i>Generate BK</i></b> mostly gets this input (preprocessing return) form.</p>
 
 <h3>Detailed VHM raster with original resolution</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to detailed VHM layer</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default ..\VHM_detail.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default ..\<i>VHM_detail.tif</i>, which is where <b><i>Generate BK</i></b> mostly gets this input (preprocessing return) form.</p>
+
+<h3>Clip VHM 10m, VHM 150cm and VHM detail by extent, else by mask</h3>
+<p>Check box: default False.</p>
 
 <h3>Coniferous raster / forest mixture degree with 10m resolution</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to coniferous raster</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default ..\<i>MG_10m.tif</i>, which is where <b><i>Generate BK</i></b> mostly gets this input (preprocessing return) form.</p>
 
 <h3>Binary coniferous raster with 10m resolution, used for stand delineation</h3>
 <p>Check box: default True.</p>
 <h3>Relative path to binary coniferous raster</h3>
-<p>File path relative to "Folder with TBk project to extract from". By default ..\MG_10m_binary.tif, which is where "Generate BK" mostly gets this input (preprocessing return) form.</p>
+<p>File path relative to <b><i>Folder with TBk project to extract from</i></b>. By default ..\<i>MG_10m_binary.tif</i>, which is where <b><i>Generate BK</i></b> mostly gets this input (preprocessing return) form.</p>
 
 <h3>Clip both coniferous raster and binary coniferous raster by extent, else by mask</h3>
 <p>Check box: default True.</p>
 
 <h3>Intermediate layers from TBk-proecessing</h3>
 <p>Check box: default False. If True extracts all raster (.tif) and vector (.gpkg) layers held in folder with intermediate layers, but not any content held there in subfolders or .cvs-files.</p>
-<h3>Relative path to folder with degree of cover raster layers of single height-ranges (KS, US, MS, OS, UEB)</h3>
-<p>Folder path relative to "Folder with TBk project to extract from". By default bk_process, which is what "Generate BK" returns populates with intermediate material.</p>
+<h3>Relative path to folder with intermediate layers</h3>
+<p>Folder path relative to <b><i>Folder with TBk project to extract from</i></b>. By default <i>bk_process</i>, which is what <b><i>Generate BK</i></b> returns populates with intermediate material.</p>
 
 <h3>Local densities within TBk-stands (post-process output)</h3>
 <p>Check box: default False. If True extracts all vector layers (.gpkg) held in local densities' folder.</p>
 <h3>Relative path to folder with local densities</h3>
-<p>Folder path relative to "Folder with TBk project to extract from". By default local_densities, which where "TBk Postprocess Local Density" drops its outputs.</p>
+<p>Folder path relative to <i><b>Folder with TBk project to extract from</i></b>. By default <i>local_densities</i>, which where <b><i>TBk Postprocess Local Density</i></b> drops its outputs.</p>
+
+<h3>List relative* paths to additional material</h3>
+<p>Matrix with 1 columns to list paths relative <i><b>Folder with TBk project to extract from</i></b>. By default no path is listed.
+- single vector layers / .gpkg files,
+- single raster layers / .tif files or
+- folders containing vector and/or raster layers
+can be listed.</p>
 
 <h2>Outputs</h2>
-<p>Output folder containing extracted material ("Folder where the extracted material will be stored" s. above). File naming and achitectur inherited form inputs (s. above).</p>
-    
-<h2>Examples</h2>
+<p>Output folder containing extracted material (<i><b>Folder where the extracted material will be stored</i></b> s. above). File naming and achitectur inherited form inputs (s. above).</p>
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
