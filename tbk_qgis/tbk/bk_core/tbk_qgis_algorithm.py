@@ -74,8 +74,7 @@ from .attributes_default import *
 from tbk_qgis.tbk.utility.tbk_utilities import dict_diff
 from tbk_qgis.tbk.utility.qgis_processing_utility import QgisHandler
 from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
-                                                      write_dict_to_toml_file,
-                                                      to_params_with_layer_source)
+                                                      write_dict_to_toml_file)
 
 
 class TBkAlgorithm(QgsProcessingAlgorithm):
@@ -197,7 +196,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                      self.tr(
                                                          'Configuration file to set the parameters of the algorithm.\n'
                                                          'Parameters set in the file will overwrite the settings below.'),
-                                                     extension='toml',
                                                      optional=True))
 
         # VHM 10m as main TBk input
@@ -530,10 +528,9 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # ------- TBk MAIN Processing --------#
 
         # Store the input parameters in a file
-        # Todo: this isn't working with, ERROR 4: `NETCDF:".../test_input_config.toml"' does not exist in the file system, and is not recognized as a supported dataset name.
-        # params_with_sources = to_params_with_layer_source(self, parameters, context)
+        params_with_sources = self.asMap(parameters, context)['inputs']
         try:
-            write_dict_to_toml_file(parameters, tbk_result_dir)
+            write_dict_to_toml_file(params_with_sources, tbk_result_dir)
         except Exception as error:
             feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
             feedback.pushWarning(f'Error: {error}')
