@@ -811,4 +811,4 @@ Notes:
 <p style="-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;"><br /></p></body></html></p><br><p align="right">Algorithm authors: Attilio Benini, Hannes Horneber @ BFH-HAFL (2024)</p></body></html>"""
 
     def createInstance(self):
-        return TBkPrepareVhmMGAlgorithm()
+        return TBkPrepareVhmMgAlgorithm()
