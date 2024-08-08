@@ -84,7 +84,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return ' Generate BK Modularized'
+        return 'Generate BK Modularized'
 
     # todo
     def shortHelpString(self):
