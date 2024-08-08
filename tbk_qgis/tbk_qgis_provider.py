@@ -89,7 +89,7 @@ class TBkProvider(QgsProcessingProvider):
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: legacy]     grpName: Y LEGACY
-        self.addAlgorithm(BkAGAlgorithm())
+        # self.addAlgorithm(BkAGAlgorithm())
         self.addAlgorithm(TBkPrepareVhmAlgorithm())
         self.addAlgorithm(TBkPrepareMgAlgorithm())
         self.addAlgorithm(TBkPrepareAlgorithm())
