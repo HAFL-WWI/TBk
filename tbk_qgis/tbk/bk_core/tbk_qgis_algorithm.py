@@ -604,7 +604,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # --- Calc specific attributes
         log.info('Calc specific attributes')
-        stands_file_attributed = calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=del_tmp)
+        stands_file_attributed = calc_attributes(working_root, tmp_output_folder, del_tmp=del_tmp)
 
         # --- Cleanup stand file
         log.info('Run clean up')

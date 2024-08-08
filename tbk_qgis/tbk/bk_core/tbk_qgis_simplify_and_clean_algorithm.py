@@ -35,8 +35,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
     # These constants will be used when calling the algorithm from another algorithm,
     # or when calling from the QGIS console.
 
-    OUTPUT = "OUTPUT"
-
     # Folder for storing all input files and saving output files
     WORKING_ROOT = "working_root"
     # File storing configuration parameters
@@ -63,7 +61,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      'Configuration file to set the algorithm parameters. The bellow '
                                                      'non-optional parameters must still be set but will not be used.',
-                                                     extension='toml',
                                                      optional=True))
 
         # These parameters are only displayed a config parameter is given
@@ -94,35 +91,46 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        # --- Get input parameters
+        # prepare the algorithm
+        self.prepare(parameters, context, feedback)
 
-        # Use the parameters from the config file if provided; otherwise, use the input parameters.
-        params = self._get_input_or_config_params(parameters, context)
+        # --- get and check input parameters
+
+        params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        working_root = params.working_root
+        if hasattr(params, self.WORKING_ROOT):
+            # if run as standalone
+            working_root = params.working_root
+        else:
+            # if not wun as standalone, compute the working root from the provided result_dir
+            working_root = self._get_bk_output_dir(parameters['result_dir'])
         ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(params.working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger('Simplify & Clean')
 
         # Write the used parameters in a toml file
         try:
-            write_dict_to_toml_file(params.config_file, working_root, params.__dict__)
+            write_dict_to_toml_file(params.__dict__, working_root)
         except Exception:
             feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
         # ------- TBk Processing --------#
         # --- Simplify & Clean
         log.info('Starting')
+        log.debug(f"used parameters: {working_root}, {tmp_output_folder}, "
+                  f"{params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
 
-        post_process(params.working_root, tmp_output_folder, params.min_area_m2, params.simplification_tolerance,
-                     params.del_tmp)
+        results = post_process(working_root, tmp_output_folder, params.min_area_m2,
+                               params.simplification_tolerance, params.del_tmp)
 
-        return {self.WORKING_ROOT: params.working_root}
+        # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
+        #  results
+        return {}
 
     def createInstance(self):
         """

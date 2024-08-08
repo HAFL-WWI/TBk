@@ -15,13 +15,20 @@ __date__ = '2020-08-03'
 __email__ = "christian.rosset@bfh.ch"
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
+__version__ = '0.9'
 
+import logging
+import os
+import time
+import numpy as np
+from osgeo import gdal, osr
+from osgeo.gdalconst import GA_ReadOnly
+from tbk_qgis.tbk.bk_core.Classification import ClassificationHelper as helper
 from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
                        QgsProcessingParameterNumber)
-from tbk_qgis.tbk.bk_core.tbk_create_stands import run_stand_classification
 from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.utility.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.utility.tbk_utilities import ensure_dir
@@ -39,8 +46,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
     # Directory containing the output files
     OUTPUT_ROOT = "output_root"
-    # Folder for storing all input files and saving output files
-    WORKING_ROOT = "working_root"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
     # Default log file name
@@ -80,7 +85,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
                                                      'Configuration file to set the algorithm parameters. The bellow '
                                                      'non-optional parameters must still be set but will not be used.',
-                                                     extension='toml',
                                                      optional=True))
 
         # VHM 10m as main TBk input
@@ -98,12 +102,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
-
-        # Working root folder. This is set only to be displayed when calling the algorithm help from the console
-        self._add_hidden_parameter(QgsProcessingParameterFolderDestination(self.WORKING_ROOT,
-                                                                          "Output subfolder containing the working "
-                                                                          "root files",
-                                                                           optional=True))
 
         # --- Advanced Parameters
 
@@ -159,19 +157,24 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
+        # prepare the algorithm
+        self.prepare(parameters, context, feedback)
+
         # --- get and check input parameters
 
-        # use the config file parameters if given, else input parameters
-        params = self._get_input_or_config_params(parameters, context)
+        params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
         output_root = params.output_root
-        working_root = self._get_working_root_path(output_root)
-        ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(working_root)
+        # the result folder(with time stamp) can be passed as parameter from the modularized main algorithm but can
+        #  not be extracted from the context as for the other parameters
+        result_dir = self._get_result_dir(output_root) if "result_dir" not in parameters else parameters["result_dir"]
+        bk_dir = self._get_bk_output_dir(result_dir)
+        ensure_dir(bk_dir)
 
         # set logger
-        log = self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(result_dir, params.logfile_name)
+        log = logging.getLogger(self.name())
 
         # check tif files extension
         self._check_tif_extension(params.vhm_10m, self.VHM_10M)
@@ -181,7 +184,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
 
         # Write the used parameters in a toml file
         try:
-            write_dict_to_toml_file(params.config_file, working_root, params.__dict__)
+            write_dict_to_toml_file(params.__dict__, bk_dir)
         except Exception:
             feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
@@ -190,16 +193,30 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         log.info(f'Starting')
 
         # None correspond to the zone_raster_file that is not used yet
-        output = run_stand_classification(working_root, tmp_output_folder,
-                                          params.vhm_10m, params.coniferous_raster_for_classification,
-                                          None, params.description,
-                                          params.min_tol, params.max_tol,
-                                          params.min_corr, params.max_corr,
-                                          params.min_valid_cells, params.min_cells_per_stand,
-                                          params.min_cells_per_pure_stand,
-                                          params.vhm_min_height, params.vhm_max_height)
+        params_args = {
+            'out_path': bk_dir,
+            'input_vhm_raster': params.vhm_10m,
+            'coniferous_raster_file': params.coniferous_raster_for_classification,
+            'zone_raster': None,
+            'min_tol': params.min_tol,
+            'max_tol': params.max_tol,
+            'min_corr': params.min_corr,
+            'max_corr': params.max_corr,
+            'min_valid_cells': params.min_valid_cells,
+            'min_cells_per_stand': params.min_cells_per_stand,
+            'min_cells_per_pure_stand': params.min_cells_per_pure_stand,
+            'vhm_min_height': params.vhm_min_height,
+            'vhm_max_height': params.vhm_max_height
+        }
 
-        return {'WORKING_ROOT': output}
+        log.debug(f"used parameters: {params_args}")
+
+        results = self.run_stand_delineation(**params_args)
+
+        log.debug(f"Results: {results}")
+        log.info(f"Finished")
+
+        return results
 
     def createInstance(self):
         """
@@ -223,3 +240,316 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
         """
         return ('Stand classification based on a vegetation height raster. The vegetation height raster (VHM) is '
                 'usually a 10x10m max height raster from LiDAR or stereo image matching data.')
+
+    def run_stand_delineation(self,
+                              out_path,
+                              input_vhm_raster,
+                              coniferous_raster_file,
+                              zone_raster,
+                              min_tol,
+                              max_tol,
+                              min_corr,
+                              max_corr,
+                              min_valid_cells,
+                              min_cells_per_stand,
+                              min_cells_per_pure_stand,
+                              vhm_min_height,
+                              vhm_max_height):
+        """
+        Run stand classification based on vegetation height model input raster.
+
+        :param out_path: Folder path in which to save the outputs
+        :param input_vhm_raster: Input file, single band tif
+        :param coniferous_raster_file: Coniferous proportion (0-100), single band tif
+        :param zone_raster: single band tif
+        :param min_tol: Min tolerance (example 0.25 = 25% less than the reference value)
+        :param max_tol: Max tolerance (example 0.20 = 20% more than the reference value)
+        :param min_corr: Additional correction of the min value. This is important to improve classification of smaller trees.
+        :param max_corr: additional correction of the max value. This is important to improve classification of smaller trees.
+        :param min_valid_cells: This is the factor of how many cells inside the search window must be found within the range to be assign to the stand.
+        :param min_cells_per_stand: Min amount of cells assigned to the same stand to be kept as a separate stand at the end.
+        :param min_cells_per_pure_stand: Min amount of cells to be classified as pure mixture stand if option is chosen.
+        :param vhm_min_height: Min VHM height in meters for cells to be processed -> set to zero
+        :param vhm_max_height: Max VHM height in meters for cells to be processed -> set to zero
+        """
+
+        #-------- INIT --------#
+
+        log = logging.getLogger(self.name())
+        gdal.UseExceptions()
+        start_time = time.time()
+        ensure_dir(out_path)
+
+        # Define output file paths
+        output_files = {
+            "raw_classified": os.path.join(out_path, "classified_raw.tif"),
+            "smooth_1": os.path.join(out_path, "classified_smooth_1.tif"),
+            "smooth_2": os.path.join(out_path, "classified_smooth_2.tif"),
+            "hmax": os.path.join(out_path, "hmax.tif"),
+            "hdom": os.path.join(out_path, "hdom.tif"),
+            "stand_boundaries": os.path.join(out_path, "stand_boundaries.gpkg")
+        }
+
+        # Log configurations
+        log.info(f"TBk version: {__version__}")
+        log.info(f"Output path: {out_path}")
+        log.info(f"VHM input path: {input_vhm_raster}")
+        log.info(f"Coniferous input path: {coniferous_raster_file}")
+
+        # Load VHM data
+        vhm_dataset = gdal.Open(input_vhm_raster, GA_ReadOnly)
+        vhm_band = vhm_dataset.GetRasterBand(1)
+        vhm_data = vhm_band.ReadAsArray().astype(float)  # format: data[row, col] -> data[y, x]
+        geotransform = vhm_dataset.GetGeoTransform()
+        vhm_projection = vhm_dataset.GetProjection()
+
+        log.info(f"VHM raster info: "
+                 f"{vhm_dataset.RasterCount} bands, "
+                 f"{vhm_data.shape[0]} rows x {vhm_data.shape[1]} cols, "
+                 f"{geotransform[1]} resolution, "
+                 f"X: {round(geotransform[0], 2)}, "
+                 f"Y: {round(geotransform[3], 2)}, "
+                 f"CRS: {osr.SpatialReference(wkt=vhm_projection).GetAttrValue('projcs')}")
+
+        # handle unrealistic values and NoData values
+        nodata_value = vhm_band.GetNoDataValue()
+        vhm_data[vhm_data == nodata_value] = np.nan
+        tmp_zero_mask = (vhm_data < vhm_min_height) | (vhm_data > vhm_max_height)
+        vhm_data[tmp_zero_mask] = 0
+
+        # Sort VHM data (biggest tree on top)
+        sorted_vhm_data = helper.getSortedList(vhm_data, vhm_data.size)
+
+        # Init stand, hmax, hdom arrays
+        stand = np.zeros(vhm_data.shape, dtype=int)
+        hmax = np.zeros(vhm_data.shape, dtype=float)
+        hdom = np.zeros(vhm_data.shape, dtype=float)
+
+        # Init list to store stand information [ID, hmax, hdom]
+        stands = []
+
+        # if provided, load zone raster
+        zone = np.ones(vhm_data.shape, dtype=int)
+        if zone_raster:
+            zone = self._load_raster(zone_raster, int)
+            if not helper.compare_raster(input_vhm_raster, zone_raster):
+                log.warning("VHM and ZONE raster have different extents and/or projections!")
+
+        # if provided, load coniferous raster
+        coniferous_data = None
+        if coniferous_raster_file:
+            coniferous_data = self._load_raster(coniferous_raster_file, int)
+
+            if not helper.compare_raster(input_vhm_raster, coniferous_raster_file):
+                log.warning("VHM and MG raster have different extents and/or projections!")
+
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, input data loaded---")
+
+        #------- STAND CLASSIFICATION -------#
+
+        # Init stand number with one
+        stand_nbr = 1
+
+        if coniferous_data is not None:
+            log.info("pre-classification with mixture information...")
+            stand, stand_nbr, stands, hdom, hmax = self.classify_pixels(vhm_data, sorted_vhm_data, stand_nbr,
+                                                                        min_tol, max_tol, min_corr, max_corr,
+                                                                        min_valid_cells, min_cells_per_pure_stand,
+                                                                        zone, coniferous_data,
+                                                                        stand, stands, hdom, hmax)
+
+        log.info("classification without mixture information...")
+        stand, stand_nbr, stands, hdom, hmax = self.classify_pixels(vhm_data, sorted_vhm_data, stand_nbr,
+                                                                    min_tol, max_tol, min_corr, max_corr,
+                                                                    min_valid_cells, min_cells_per_stand,
+                                                                    zone, None,
+                                                                    stand, stands, hdom, hmax)
+
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, classification finished ---")
+
+        # Assign remaining pixels to last stand number
+        m_tmp = (vhm_data >= 0) & (stand == 0)
+        stand[m_tmp] = stand_nbr
+
+        # Save results
+        helper.store_raster(stand, output_files["raw_classified"], vhm_projection, geotransform, gdal.GDT_UInt32)
+        helper.store_raster(hmax, output_files["hmax"], vhm_projection, geotransform, gdal.GDT_Byte)
+        helper.store_raster(hdom, output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raw_classified, hmax and hdom saved  ---")
+
+        #------- SMOOTHING -------#
+
+        # focal majority for all pixels where no stand was found (last stand number)
+        stand = helper.focal_majority(stand, 3, stand_nbr, 0)
+        helper.store_raster(stand, output_files["smooth_1"], vhm_projection, geotransform, gdal.GDT_UInt32)
+
+        # focal majority for all pixels
+        stand = helper.focal_majority(stand, 3, None, 0)
+        helper.store_raster(stand, output_files["smooth_2"], vhm_projection, geotransform, gdal.GDT_UInt32)
+
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raster smoothed and saved  ---")
+
+        #------- POLYGONIZE, ADD ATTRIBUTES -------#
+
+        # polygonize the raster -> to vector file
+        helper.polygonize(output_files["smooth_2"], output_files["stand_boundaries"])
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, stand boundaries vector file saved ---")
+
+        # add stand information to polygon vector file
+        helper.add_stand_attributes(output_files["stand_boundaries"], stands, stand_nbr)
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, stand attributes added ---")
+
+        # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
+        # todo: A statistic file is created. Its path should be added in the output array and given as parameter below
+        helper.add_vhm_stats(output_files["stand_boundaries"], input_vhm_raster)
+        log.info(f"--- {self._get_elapsed_time(start_time)} minutes, vhm stats calculated ---")
+
+        return output_files
+
+    def classify_pixels(self,
+                        vhm_data,
+                        sorted_vhm_data,
+                        stand_nbr,
+                        min_tol,
+                        max_tol,
+                        min_corr,
+                        max_corr,
+                        min_valid_cells,
+                        min_cells_per_stand,
+                        zone,
+                        coniferous_data,
+                        stand,
+                        stands,
+                        hdom,
+                        hmax):
+
+        log = logging.getLogger(self.name())
+        progress_print_step = len(sorted_vhm_data) / 10
+        next_print_threshold = progress_print_step
+
+        def log_progress(i, value):
+            log.info(f"{round(i / progress_print_step) * 10}% pixels classified --> "
+                     f"({i} from {len(sorted_vhm_data)}), value {round(value, 1)}, standNbr {stand_nbr}")
+
+        # loop over all pixels, starting with the biggest value
+        for i, (value, row, col) in enumerate(sorted_vhm_data):
+
+            # log every 10 % of pixel processed
+            if i >= next_print_threshold:
+                log_progress(i, value)
+                next_print_threshold += progress_print_step
+
+            # proceed if not already classified
+            if stand[row, col] == 0 and value > 0:
+                # store starting pixel value since it is later updated if the counter == 1
+                start_value = value
+
+                # lists to process
+                rows_todo = [row]
+                cols_todo = [col]
+
+                # lists processed
+                rows_classified = []
+                cols_classified = []
+
+                counter = 0
+                while rows_todo:
+                    row, col = rows_todo[0], cols_todo[0]
+
+                    # calculate window size
+                    if counter < 2:
+                        s = helper.getWindowSize(value)
+
+                    # get matrix subsets
+                    vhm_data_sub = helper.get_matrix_subset(vhm_data, row, col, s)
+                    stand_sub = helper.get_matrix_subset(stand, row, col, s)
+                    zone_sub = helper.get_matrix_subset(zone, row, col, s)
+
+                    # create True / False matrices
+                    m_tol = helper.get_similar_neighbours(vhm_data_sub, value, min_tol, max_tol, min_corr, max_corr)
+                    m_stand = np.logical_or(stand_sub == 0, stand_sub == stand_nbr)
+                    m_zone = zone_sub == zone[row, col]
+
+                    # get coniferous matrix if raster is provided
+                    m_coniferous = np.ones(m_tol.shape, dtype=bool)
+                    if coniferous_data is not None:
+                        coniferous_sub = helper.get_matrix_subset(coniferous_data, row, col, s)
+                        if counter == 0 and coniferous_sub[m_tol].size:
+                            coniferous_mean = np.mean(coniferous_sub[m_tol])
+                        m_coniferous = helper.get_similar_neighbours_coniferous(coniferous_sub, coniferous_mean)
+
+                    # combine matrices to get final filters
+                    m_comb = m_tol & m_stand & m_zone & m_coniferous
+                    m_expand = m_tol & (stand_sub == 0) & m_zone & m_coniferous
+
+                    # check if enough similar cells found -> start searching for more, otherwise skip entry pixel
+                    if np.sum(m_comb) > int(round(s * s * min_valid_cells)):
+                        counter += 1
+                        # classify already found pixels -> reference to stand matrix
+                        stand_sub[m_comb] = stand_nbr
+
+                        # calculate new check value
+                        if counter == 1:
+                            value = np.mean(vhm_data_sub[m_comb])
+
+                        # add cell coordinates to processing lists
+                        r_sub, c_sub = np.ogrid[row - s // 2: row + s // 2 + 1, col - s // 2: col + s // 2 + 1]
+
+                        m_r_sub = np.repeat(r_sub, s).reshape(s, s)
+                        m_c_sub = np.repeat(c_sub, s).reshape(s, s).T
+
+                        # To make sure that no cells outside the raster will be added to the todo_lists
+                        if m_r_sub.size != m_expand.shape[0] or m_c_sub.size != m_expand.shape[1]:
+                            m_r_sub = m_r_sub[0:m_expand.shape[0], 0:m_expand.shape[1]]
+                            m_c_sub = m_c_sub[0:m_expand.shape[0], 0:m_expand.shape[1]]
+
+                        rows_todo.extend(m_r_sub[m_expand])
+                        cols_todo.extend(m_c_sub[m_expand])
+
+                    # add to finished list
+                    rows_classified.append(rows_todo[0])
+                    cols_classified.append(cols_todo[0])
+
+                    #  remove processed entries
+                    rows_todo.pop(0)
+                    cols_todo.pop(0)
+
+                # because of last iteration which was not successful but still added to the list
+                classified_pixels = len(rows_classified) - 1
+
+                # a minimum amount of pixels is needed, otherwise reset classification
+                #       stand numbers are already stored in stand, as the subset is a reference to the main matrix
+                if classified_pixels >= min_cells_per_stand:
+                    # get hmax, which is the initial value for this stand (crystallisation point)
+                    hmax_stand = start_value
+                    # get hdom, which is the mean height of all classified cells within the stand
+                    hdom_stand = np.mean(vhm_data[rows_classified, cols_classified])
+
+                    # add stand information to the list
+                    stands.append([stand_nbr, hmax_stand, hdom_stand])
+
+                    # store information as arrays
+                    hmax[row, col] = hmax_stand
+                    hdom[rows_classified, cols_classified] = hdom_stand
+
+                    stand_nbr += 1
+                else:
+                    # reset classification
+                    stand[rows_classified, cols_classified] = 0
+        return stand, stand_nbr, stands, hdom, hmax
+
+    @staticmethod
+    def _get_elapsed_time(start_time):
+        """
+        return the elapsed minutes between the start time and now
+        """
+        return round((time.time() - start_time) / 60, 2)
+
+    @staticmethod
+    def _load_raster(raster_path, dtype):
+        """
+        Load a raster file and read the data from its first band
+        """
+        dataset = gdal.Open(raster_path, gdal.GA_ReadOnly)
+        band = dataset.GetRasterBand(1)
+        return band.ReadAsArray().astype(dtype)

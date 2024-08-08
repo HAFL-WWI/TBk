@@ -13,6 +13,7 @@ from qgis.core import (QgsProcessingAlgorithm,
                        QgsProcessingParameterDefinition,
                        QgsProcessingException)
 from tbk_qgis.tbk.utility.persistence_utility import read_dict_from_toml_file
+from tbk_qgis.tbk.utility.tbk_utilities import dict_diff, ensure_dir
 
 
 class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
@@ -20,16 +21,67 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     A base class for the core TBk algorithms. It can be inherited, so that each child algorithm can use its functions.
     """
 
-    @staticmethod
-    def _get_working_root_path(output_root):
+    def prepare(self, parameters, context, feedback):
         """
-        Return the working root folder path
+        todo
         """
-        # Set up directory with timestamp in working_root
-        output_directory = datetime.now().strftime("%Y%m%d-%H%M")
-        working_root = os.path.join(output_root, output_directory, 'bk_process')
+        # get configuration file path
+        config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
+        if config_path:
+            # Set input parameters from config file
+            try:
+                config = read_dict_from_toml_file(config_path)
 
-        return working_root
+                # compare config file parameters and tool parameters
+                config_removed, config_added, config_changed = dict_diff(parameters, config)
+
+                # apply config_file to parameters (overwrite values in parameters if they have an entry in
+                # config_file values)
+                parameters.update(config)
+
+                feedback.pushInfo(f'Read config file: ')
+                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo(f'{list(config_changed.keys())}')
+                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo(f'{list(config_removed.keys())}')
+                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo(f'{list(config_added.keys())}')
+            except FileNotFoundError:
+                raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+        return True
+
+    @staticmethod
+    def _get_result_dir(output_root):
+        """
+        Return the output directory path
+        """
+        # Set up directory with timestamp in output_root
+        time = datetime.now().strftime("%Y%m%d-%H%M")
+        result_directory = os.path.join(output_root, time)
+
+        ensure_dir(result_directory)
+
+        return result_directory
+
+    @staticmethod
+    def _get_bk_output_dir(result_directory):
+        """
+        Return the output folder for the data related to stand map processing
+        """
+        bk_output = os.path.join(result_directory, 'bk_process')
+        ensure_dir(bk_output)
+
+        return bk_output
+
+    @staticmethod
+    def _get_dg_output_dir(result_directory):
+        """
+        Return the output folder for the data related to crown coverage processing
+        """
+        dg_output = os.path.join(result_directory, 'dg_layers')
+        ensure_dir(dg_output)
+
+        return dg_output
 
     @staticmethod
     def _get_tmp_output_path(working_root):
@@ -47,6 +99,13 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         # The output folder must exist
         logfile_tmp_path = str(os.path.join(output_folder_path, logfile_name))
 
+        # Get the root logger
+        logger = logging.getLogger()
+
+        # Check if the logger already has handlers. If it does, return to avoid duplicated log messages
+        if logger.hasHandlers():
+            return
+
         # Set up logging to file
         log_format = '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s'
         date_format = '%H:%M:%S'
@@ -63,7 +122,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         console.setFormatter(console_formatter)
 
         # Create logger and add the handlers to it
-        logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
         logger.addHandler(console)
         logger.addHandler(file_handler)
@@ -74,8 +132,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         # qgis_console.setLevel(logging.DEBUG)
         # # add the handler to the root logger
         # logging.getLogger().addHandler(console)
-
-        return logger
 
     @staticmethod
     def _check_tif_extension(file, input_name):
@@ -98,23 +154,6 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         """
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
         return self.addParameter(parameter)
-
-    def _get_input_or_config_params(self, parameters, context):
-        """
-        Retrieve and determine the appropriate parameters to use. By default, if a config file is provided,
-        the parameters from the config file are returned.
-        """
-        inputs_params = self._extract_context_params(parameters, context)
-        used_params = inputs_params
-        config_path = used_params.config_file
-        try:
-            config_params_dict = read_dict_from_toml_file(config_path)
-            if config_params_dict:
-                used_params = SimpleNamespace(**config_params_dict)
-        except FileNotFoundError:
-            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
-
-        return used_params
 
     def _extract_context_params(self, parameters, context):
         """

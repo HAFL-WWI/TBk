@@ -39,12 +39,16 @@ import os
 from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
-
+from tbk_qgis.tbk.bk_core.tbk_qgis_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
 from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
 from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
@@ -83,6 +87,11 @@ class TBkProvider(QgsProcessingProvider):
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkStandDelineationAlgorithm())
         self.addAlgorithm(TBkSimplifyAndCleanAlgorithm())
+        self.addAlgorithm(TBkMergeSimilarNeighboursAlgorithm())
+        self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
+        self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
+        self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
+        self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(BkAGAlgorithm())
