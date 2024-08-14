@@ -5,6 +5,11 @@ from collections import ChainMap
 from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
+from tbk_qgis.tbk.bk_core.tbk_qgis_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
 
 
 class TBkAlgorithmModularized(TBkProcessingAlgorithm):
@@ -15,6 +20,11 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithm):
     algorithms = [
         TBkStandDelineationAlgorithm(),
         TBkSimplifyAndCleanAlgorithm(),
+        TBkMergeSimilarNeighboursAlgorithm(),
+        TBkClipToPerimeterAndEliminateGapsAlgorithm(),
+        TBkCalculateCrownCoverageAlgorithm(),
+        TBkAddConiferousProportionAlgorithm(),
+        TBkUpdateStandAttributesAlgorithm()
     ]
 
     def initAlgorithm(self, config=None):
