@@ -448,8 +448,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # helper function to save intermediate vector data & tables
         def f_save_as_gpkg(input, name, path=path_output):
-            if type(input) == str:
-                input = QgsVectorLayer(input, '', 'ogr')
+            # if type(input) == str:
+            #    input = QgsVectorLayer(input, '', 'ogr')
             path_ = os.path.join(path, name + ".gpkg")
             ctc = QgsProject.instance().transformContext()
             QgsVectorFileWriter.writeAsVectorFormatV3(input, path_, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
