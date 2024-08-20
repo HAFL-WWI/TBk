@@ -629,15 +629,81 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for field in stands.fields():
             stands_fields.append(field.name())
         # print(stands_fields)
-        # creat spatial index for local densities
-        processing.run("native:createspatialindex", {'INPUT': den_polys})
+
+        # group selected stands by x_min & y_min intersecting with grid cells (attribute group is not exported)
+        grid_width = 1000
+        formular = ("concat( ceil(  x_min( $geometry ) / " + str(grid_width) +
+                    "), '_', ceil(  y_min( $geometry ) / " + str(grid_width) + "))")
+        # print(formular)
+        param = {'INPUT': stands, 'FIELD_NAME': 'group', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+                 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        stands = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands, "stands_grouped")
+
         # creat spatial index for selected stands
         processing.run("native:createspatialindex", {'INPUT': stands})
-        param = {'INPUT': den_polys, 'OVERLAY': stands, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
-                 'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
-        algoOutput = processing.run("native:intersection", param)
+        # creat spatial index for local densities
+        processing.run("native:createspatialindex", {'INPUT': den_polys})
+
+        # list unique group names
+        group_index = stands.fields().indexFromName("group")
+        group_unique = list(stands.uniqueValues(group_index))
+        
+        # list of placeholders to later insert groupwise intersections of stands & local densities
+        l = [None] * len(group_unique)
+        
+        # iterate over unique stand groups
+        for i in range(len(l)):
+            # extract from selected stands those belong to the i-th group
+            expression = ' "group"  =  ' + "'" + group_unique[i] + "'"
+            # print(expression)
+            param = {'INPUT': stands, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            stands_g = algoOutput["OUTPUT"]
+            # print("N stands: " + str(len(stands_g)))
+
+            # make rectangle polygon = extent of stands belonging to the i-th group
+            param = {'INPUT': stands_g, 'ROUND_TO': 0, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:polygonfromlayerextent", param)
+            rect_g = algoOutput["OUTPUT"]
+
+            # extract local densities overlapping with rectangle (a single & simple polygon / geometry)
+            param = {'INPUT': den_polys, 'PREDICATE': [0], 'INTERSECT': rect_g, 'OUTPUT': 'TEMPORARY_OUTPUT'} # 'PREDICATE': [0] --> intersect
+            algoOutput = processing.run("native:extractbylocation", param)
+            den_polys_g = algoOutput["OUTPUT"]
+            # print("N local densities: " + str(len(den_polys_g)))
+
+            # if there aren't any overlapping local densities continue with next group
+            if len(den_polys_g) == 0:
+                continue
+
+            # intersection stands belong to the i-th group & local densities potentially overlapping
+            param = {'INPUT': den_polys_g, 'OVERLAY': stands_g, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
+                     'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
+            algoOutput = processing.run("native:intersection", param)
+            den_polys_g = algoOutput["OUTPUT"]
+
+            # if intersection has returned no geometries continue with next group
+            if len(den_polys_g) == 0:
+                continue
+
+            # insert returns of intersection into list
+            l[i] = den_polys_g
+
+        # remove None values in list
+        l = list(filter(lambda item: item is not None, l))
+
+        # merge groupwise intersections of stands & local densities
+        param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
+
+        # drop attribute layer & path (added by native:mergevectorlayers)
+        param = {'INPUT': den_polys, 'COLUMN': ['layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:deletecolumn", param)
+        den_polys = algoOutput["OUTPUT"]
 
         # multi parts --> single parts
         feedback.pushInfo("turn local density multi parts into single parts ...")
