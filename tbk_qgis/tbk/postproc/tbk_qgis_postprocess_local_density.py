@@ -612,6 +612,15 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
+        # drop local densities geometries having areas below min. area --> reduce workload for later intersection with stands
+        feedback.pushInfo("before intersection: filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
+        # print("N of local densities geometries before filtering with min. area: " + str(len(den_polys)))
+        param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:extractbyexpression", param)
+        den_polys = algoOutput["OUTPUT"]
+        # print("N of local densities geometries after filtering with min. area: " + str(len(den_polys)))
+        # f_save_as_gpkg(den_polys, "den_polys_larger_before_intersection")
+
         feedback.pushInfo("intersection of local densities and selected stands ...")
         # check attribute of selected stands
         # for field in stands.fields(): print(field.name(), field.typeName())
