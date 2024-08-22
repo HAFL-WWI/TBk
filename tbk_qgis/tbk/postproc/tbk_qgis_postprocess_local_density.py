@@ -547,7 +547,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.All)
             focal_min = focal_stats.minimumValue
             focal_max = focal_stats.maximumValue
-            # if range of density class does not overlap with with range of values of focal layer continue with next class
+            # if range of density class does not overlap with range of values of focal layer continue with next class
             if float(max) <= focal_min or float(min) >= focal_max:
                 continue
 
