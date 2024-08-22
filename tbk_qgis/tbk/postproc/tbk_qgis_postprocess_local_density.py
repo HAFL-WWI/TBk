@@ -105,6 +105,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
     BUFFER_SMOOTHING = "buffer_smoothing"
     # buffer distance of buffer smoothing (m)
     BUFFER_SMOOTHING_DIST = "buffer_smoothing_dist"
+    # grid cell size for grouping stands (km)
+    GRID_CELL_SIZE = "grid_cell_size"
 
     def initAlgorithm(self, config):
         """
@@ -262,6 +264,19 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
 
+        # grid cell size for grouping stands (km)
+        parameter = QgsProcessingParameterNumber(
+            self.GRID_CELL_SIZE,
+            self.tr(
+                "Grid cell size for grouping stands by their x_min & y_min overlapping (km)."
+                "\n(used for iterative intersection of stands and local densities)"
+            ),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=3
+        )
+        parameter.setMetadata({'widget_wrapper': {'decimals': 3}})
+        self.addAdvancedParameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -380,6 +395,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # buffer distance of buffer smoothing (m)
         buffer_smoothing_dist = self.parameterAsDouble(parameters, self.BUFFER_SMOOTHING_DIST, context)
+
+        # grid cell size for grouping stands (km)
+        grid_cell_size = self.parameterAsDouble(parameters, self.GRID_CELL_SIZE, context)
 
         start_time = time.time()
 
@@ -631,7 +649,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # print(stands_fields)
 
         # group selected stands by x_min & y_min intersecting with grid cells (attribute group is not exported)
-        grid_width = 1000
+        grid_width = grid_cell_size * 1000  # [km] --> [m]
         formular = ("concat( ceil(  x_min( $geometry ) / " + str(grid_width) +
                     "), '_', ceil(  y_min( $geometry ) / " + str(grid_width) + "))")
         # print(formular)
@@ -984,6 +1002,8 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
 <h3>Buffer distance of buffer smoothing</h3>
 <p>float / [m], default 7m</p>
+<h3>Grid cell size for grouping stands by their x_min & y_min overlapping</h3>
+<p>float / [km], default 3km --> 9km&sup2; square cells. This input is used for groupwise / iterative intersection of stands and local densities, thus tackling the run time of intersection exponentially increasing with number of geometries. This parameter is experimental as the optimal cell size is unknown at the time.</p> 
 
 <h2>Outputs</h2>
 <h3>local_densities</h3>
