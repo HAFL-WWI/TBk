@@ -781,6 +781,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
         feedback.pushInfo("calculate local density metrics for overlapping stands ...")
+        # group stands in original stands map by using the tmp. id of stands (fid_stand) ...
+        group_size = 1000 # (max.) number of stands pick from original stands map for an iterative step
+        formular = 'ceil("fid_stand" / ' + str(group_size) + ')'
+        param = {'INPUT': stands_all, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+               'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        stands_all = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands_all, "stands_all_grouped")
+        # ... same procedure with the local densities according
+        param = {'INPUT': den_polys, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        den_polys = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(den_polys, "den_polys_grouped")
+
         # from by now existing attributes of density polygons aggregate a (long) summary table for each combination of
         # density class & stand
         # - fid_stand: tmp. id of each stand allowing later to join to original stand layer
@@ -789,8 +804,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # - area_pct:  ratio of total area (s. above) to area of stand [0, 1]
         # - dg:        mean DG of HS (= DG_OS + DG_UEB) of all subsurface of a class with the same stand [0, 100] (%)
         # - nh:        mean NH  of all subsurface of a class with the same stand [0, 100] (%)
-        param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:dropgeometries", param)
         aggregates = [
             {'aggregate': 'first_value', 'delimiter': ',', 'input': '"fid_stand"', 'length': 0, 'name': 'fid_stand',
              'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
@@ -809,15 +822,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(NH * area) / sum(area))',
                  'length': 0, 'name': 'nh', 'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'}
             )
-        param = {
-            'INPUT': algoOutput["OUTPUT"],
-            'GROUP_BY': 'Array( "fid_stand", "class")',
-            'AGGREGATES': aggregates,
-            'OUTPUT': 'TEMPORARY_OUTPUT'
-        }
-        algoOutput = processing.run("native:aggregate", param)
-        statstable_long = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(statstable_long, "statstable_long")
 
         # all density classes
         all_classes = []
@@ -832,25 +836,74 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for cl in all_classes:
             for v in value_types:
                 new_fields.append("z" + cl + "_" + v)
-        # add new fields / attributes to original stands layer
+        # define new fields / attributes for stands layers generated in below loop
         new_attributes = []
         for i in new_fields:
             if i[-8:] == "area_pct":
                 new_attributes.append(QgsField(i, QVariant.Double))
             else:
                 new_attributes.append(QgsField(i, QVariant.Int))
-        pr = stands_all.dataProvider()
-        pr.addAttributes(new_attributes)
-        stands_all.updateFields()
-        # populate new attributes with values from (long) summary table
-        for f in statstable_long.getFeatures():
-            with edit(stands_all):
-                for stand in stands_all.getFeatures():
-                    if stand["fid_stand"] == f["fid_stand"]:
-                        for v in value_types:
-                            stand["z" + f["class"] + "_" + v] = f[v]
-                    stands_all.updateFeature(stand)
 
+        # get unique values from tmp. group id (fid_stand_group) add to original stand map
+        fid_stand_group_index = stands_all.fields().indexFromName("fid_stand_group")
+        fid_stand_group_index_unique = list(stands_all.uniqueValues(fid_stand_group_index))
+
+        # list of placeholders to later insert groupwise modifications of original stand map
+        l_stands_all = [None] * len(fid_stand_group_index_unique)
+        # print(len(l_stands_all))
+
+        # groupwise calculation of local density metrics
+        for gr in range(len(l_stands_all)):
+            # extract geometries belonging to the i-th group ...
+            expression = ' "fid_stand_group"  =  ' + str(fid_stand_group_index_unique[gr])
+            # print(expression)
+            # ... from original stand map
+            param = {'INPUT': stands_all, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            stands_all_g = algoOutput["OUTPUT"]
+            # print("N stands: " + str(len(stands_all_g)))
+            # ... from local densities
+            param = {'INPUT': den_polys, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            den_polys_g = algoOutput["OUTPUT"]
+            # print("N local densities: " + str(len(den_polys_g)))
+
+            # if there are any local densities overlapping with the i-th group of stands ...
+            if len(den_polys_g) > 0:
+                # 1) table (long format) for each combination of stand and local density class metrics
+                param = {'INPUT': den_polys_g, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+                algoOutput = processing.run("native:dropgeometries", param)
+                param = {
+                    'INPUT': algoOutput["OUTPUT"],
+                    'GROUP_BY': 'Array( "fid_stand", "class")',
+                    'AGGREGATES': aggregates,
+                    'OUTPUT': 'TEMPORARY_OUTPUT'
+                }
+                algoOutput = processing.run("native:aggregate", param)
+                statstable_long_g = algoOutput["OUTPUT"]
+                # f_save_as_gpkg(statstable_long_g, "statstable_long_g_" + gr)
+                # 2) add new attribute to i-th group of stands
+                pr = stands_all_g.dataProvider()
+                pr.addAttributes(new_attributes)
+                stands_all_g.updateFields()
+                # 3) populate new attributes with values from (long) summary table
+                for f in statstable_long_g.getFeatures():
+                    with edit(stands_all_g):
+                        for stand in stands_all_g.getFeatures():
+                            if stand["fid_stand"] == f["fid_stand"]:
+                                for v in value_types:
+                                    stand["z" + f["class"] + "_" + v] = f[v]
+                            stands_all_g.updateFeature(stand)
+
+            l_stands_all[gr] = stands_all_g
+
+        # merge the groups of stands with complemented local density metrics to 1 layer
+        param = {'LAYERS': l_stands_all, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:mergevectorlayers", param)
+        stands_all = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands_all, "stands_all_merged")
+
+        feedback.pushInfo("tidy up attributes of local densities ...")
         # sequence fields of local densities for output. note: tmp. id for stands (= fid_stand) is not part of output!
         field_names = ['class', 'ID_stand', 'area', 'area_stand', 'area_pct']
         for raster in rasters_4_stats:
@@ -906,8 +959,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
         feedback.pushInfo("save output: TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg ...")
-        # tmp. id (= fid_stand) is not part of output!
-        param = {'INPUT': stands_all, 'COLUMN': ['fid_stand'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        # tmp. id (= fid_stand) and its derivative (fid_stand_group) are not part of output, same goes to attributes
+        # added by native:mergevectorlayers (layer, path)!
+        col_to_delete = ['fid_stand', 'fid_stand_group', 'layer', 'path']
+        param = {'INPUT': stands_all, 'COLUMN': col_to_delete, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
         stands_all = algoOutput["OUTPUT"]
         # output original stands + local density stats
