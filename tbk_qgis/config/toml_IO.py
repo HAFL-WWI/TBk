@@ -69,23 +69,22 @@ class TomlIO:
             line_type, content = cls._parse_toml_line(line)
 
             # Process each line according to its content type.
-            match line_type:
-                case "comment":
-                    comments.append(TOMLComment(content))
-                case "table":
-                    table_name = content
-                    if table_name not in document.tables:
-                        document.tables[table_name] = TOMLTable(name=table_name)
-                    current_table = table_name
+            if line_type == "comment":
+                comments.append(TOMLComment(content))
+            elif line_type == "table":
+                table_name = content
+                if table_name not in document.tables:
+                    document.tables[table_name] = TOMLTable(name=table_name)
+                current_table = table_name
 
-                    if comments:
-                        document.tables[table_name].comments.extend(comments)
-                        comments = []
-                case "key_value":
-                    key, value, inline_comment = content  # inline comment not used yet
-                    key_value = TOMLKeyValue(key=key, value=value, comments=comments, table=current_table)
-                    document.key_values[key] = key_value
+                if comments:
+                    document.tables[table_name].comments.extend(comments)
                     comments = []
+            elif line_type == "key_value":
+                key, value, inline_comment = content  # inline comment not used yet
+                key_value = TOMLKeyValue(key=key, value=value, comments=comments, table=current_table)
+                document.key_values[key] = key_value
+                comments = []
 
         return document
 
