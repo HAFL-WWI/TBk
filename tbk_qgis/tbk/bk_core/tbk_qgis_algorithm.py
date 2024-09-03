@@ -522,24 +522,27 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         #     ])
 
         log = logging.getLogger('')
-
-        log.info('Run TBk')
+        log.info("====================================================================")
+        log.info('Run TBk Generate BK')
+        log.info("====================================================================")
 
         # ------- TBk MAIN Processing --------#
 
         # Store the input parameters in a file
         params_with_sources = self.asMap(parameters, context)['inputs']
         try:
-            write_dict_to_toml_file(params_with_sources, tbk_result_dir)
+            write_dict_to_toml_file(params_with_sources, working_root)
+            log.info(f"Wrote input_config.txt with algorithm parameter configuration.\n")
         except Exception as error:
             feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
             feedback.pushWarning(f'Error: {error}')
 
         # Run TBk
         start_time = time.time()
+        start_time_section = time.time()
 
         # --- Stand delineation (Main)
-        log.info('Stand delineation')
+        log.info(' 1 --- Stand delineation')
         run_stand_classification(working_root, tmp_output_folder,
                                  vhm_10m,
                                  coniferous_raster_for_classification,  # is None if not provided, handled in function
@@ -549,49 +552,78 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                  min_corr, max_corr,
                                  min_valid_cells, min_cells_per_stand, min_cells_per_pure_stand,
                                  vhm_min_height, vhm_max_height)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 15%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 15 - (time.time() - start_time)))))
 
         # --- Simplify & Eliminate
-        log.info('Simplify & Eliminate')
+        log.info(' 2 --- Simplify & Eliminate')
+        start_time_section = time.time()
         post_process(working_root, tmp_output_folder, min_area_m2, simplification_tolerance=simplification_tolerance,
                      del_tmp=del_tmp)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 30%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 30 - (time.time() - start_time)))))
 
         # --- Merge similar neighbours
-        log.info('Merge similar neighbours')
+        log.info(' 3 --- Merge similar neighbours')
+        start_time_section = time.time()
         merge_similar_neighbours(working_root, tmp_output_folder, similar_neighbours_min_area,
                                  similar_neighbours_hdom_diff_rel,
                                  del_tmp=del_tmp)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 50%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 50 - (time.time() - start_time)))))
 
         # --- Clip to perimeter and eliminate gaps
-        log.info('Clip to perimeter and eliminate gaps')
+        log.info(' 4 --- Clip to perimeter and eliminate gaps')
+        start_time_section = time.time()
         # run clip function
         clip_to_perimeter(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
         # run gaps function
         eliminate_gaps(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 65%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 65 - (time.time() - start_time)))))
 
         # --- Calculate DG
-        log.info('Calculate DG')
+        log.info(' 5 --- Calculate DG')
+        start_time_section = time.time()
         calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm_150cm, del_tmp=del_tmp)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 80%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 80 - (time.time() - start_time)))))
 
         # --- Add coniferous proportion
         if coniferous_raster:
-            log.info('Add coniferous proportion')
+            log.info(' 6 --- Add coniferous proportion')
+            start_time_section = time.time()
             add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster,
                                       calc_mixture_for_main_layer, del_tmp=del_tmp)
+            log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+            log.info("   --- 85%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+                timedelta(seconds=((time.time() - start_time) * 100 / 85 - (time.time() - start_time)))))
 
         # --- Calc specific attributes
-        log.info('Calc specific attributes')
+        log.info(' 7 --- Calc specific attributes')
+        start_time_section = time.time()
         stands_file_attributed = calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=del_tmp)
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
 
         # --- Cleanup stand file
-        log.info('Run clean up')
+        log.info(' 8 --- Run clean up')
+        start_time_section = time.time()
         stands_file_cleaned = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_clean.gpkg")
         processing.run("TBk:TBk postprocess Cleanup", {
             'tbk_bestandeskarte': stands_file_attributed,
             'Tbk_bestandeskarte_clean': stands_file_cleaned})
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 90%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 90 - (time.time() - start_time)))))
 
         # --- Append attributes from join layers
-        log.info('Append attributes from join layers')
-
+        log.info(' 9 --- Append attributes from join layers')
+        start_time_section = time.time()
         # join VegZone if layer is provided
         if vegZoneLayer:
             stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone1join.gpkg")
@@ -653,8 +685,13 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                 'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
             stands_file_appended = stands_file_forestSite
 
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        log.info("   --- 95%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
+            timedelta(seconds=((time.time() - start_time) * 100 / 95 - (time.time() - start_time)))))
+
         # --- Clean up unneeded fields
-        log.info('Remove obsolete fields in TBk_Bestandeskarte')
+        log.info('10 --- Remove obsolete fields in TBk_Bestandeskarte')
+        start_time_section = time.time()
         # remove fid with processing tool, as deleting doesn't seem to work
         # stands_file_fid_del = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_fiddel.gpkg")
         stands_file_final = os.path.join(tbk_result_dir, "TBk_Bestandeskarte.gpkg")
@@ -663,23 +700,21 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             'INPUT': stands_file_appended,
             'COLUMN': ['fid', 'FID_orig', 'OBJECTID', 'NH_CLASS'],
             'OUTPUT': stands_file_final})
+        log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
 
         # --- Delete tmp directory
         if del_tmp:
-            log.info(f'Delete temporary files: {tmp_output_folder}')
+            log.info(f'11 --- Delete temporary files: {tmp_output_folder}')
+            start_time_section = time.time()
             # TODO: this usually fails with a Permission Error, since QGIS doesn't seem to close the file handles
             # PermissionError: [WinError 32] The process cannot access the file because it is being used by another process:
             # 'C:\\Users\\hbh1\\Projects\\H07_TBk\\Dev\\TBk_QGIS_Plugin\\data\\tbk_hafl\\tbk2012_v02\\20240414-2304\\bk_process\\tmp\\gaps_single_tmp.gpkg'
             # shutil.rmtree(tmp_output_folder, ignore_errors=True)
-
-        # TODO:
-        # Delete stands < 100 m2
-        # Delete stands without geometry
-        # Repair geometry
-        # Add incremental field (sort based on ID)
+            log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
 
         # --- Create default Project
-        log.info('Create default Project')
+        log.info('12 --- Create default Project')
+        start_time_section = time.time()
         # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\post_processing_arcpy\\create_mxd.py" +
         #           " " + working_root + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)
 
@@ -720,12 +755,16 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # log.info("Copy logfile to: " + logfile)
         # copyfile(logfile_tmp_path, logfile)
 
+        log.info("   --- done: %s (h:min:sec)\n" % str(timedelta(seconds=(time.time() - start_time_section))))
         # finished
         feedback.pushInfo("====================================================================")
         feedback.pushInfo("FINISHED")
         feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
-        log.info('FINISHED')
+        log.info("====================================================================")
+        log.info("FINISHED")
+        log.info("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
+        log.info("====================================================================")
 
         #        # Compute the number of steps to display within the progress bar and
         #        # get features from source
