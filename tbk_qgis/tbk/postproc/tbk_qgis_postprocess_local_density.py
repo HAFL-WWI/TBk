@@ -594,13 +594,16 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # merge listed layers with density polygons of different classes
         feedback.pushInfo("merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        # 'TEMPORARY_OUTPUT' does work as output! --> all off a sudden all listed layers are merged (unclear which code
-        # manipulation(s) enable this) --> temp. .gpkg as output / workaround not needed any more!
-        # path_tmp_den_polys = os.path.join(path_output, "tmp_den_polys.gpkg") # hopefully no future need for this ...
-        # param =  {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': path_tmp_den_polys} # ... since deleting tmp. .gpkg is an unsolved issue
         algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(den_polys, "den_polys_polygonized")
+
+        # overwrite fid of merged density polygons with unique values ...
+        param ={'INPUT': den_polys, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+                'FORMULA': 'id', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        den_polys = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(den_polys, "den_polys_polygonized") # ... in order make them exportable without complain and not ...
+                                                             # ... just those features inherited form the 1st element of above merged list
 
         # remove holes smaller than threshold
         if holes_thresh > 0:
