@@ -1,7 +1,8 @@
 ---
 title: "Demonsrate Usage of `f_vhm_agg()`"
 author: "Attilio Benini, attilio.benini@bfh.ch"
-date: "`r Sys.Date()`"
+date: "2024-09-20"
+# date: "`r Sys.Date()`"
 output:
   bookdown::html_document2:
     code_folding: show
@@ -44,7 +45,7 @@ But overall `vhm_agg()` in its current version is actually too complex. The buil
 in 5-step decision tree includes two type of criteria:
 
 1) metrics derived from values of the original / detailed VHM within each 
-10 x 10 aggregation pixel.
+10m x 10m aggregation pixel.
 2) absolute values assigning VHM values to different classes of height / canopy
 layers.
 
@@ -56,7 +57,7 @@ implementing a raster aggregation with a build in decision into pyqgis.
 Anyhow, before going to QGIS / pyqgis research on a reasonable alternative of VHM
 aggregation to 10m x 10m pixels needs to done. Apart form some very few meters
 above ground, we should avoid using absolute values as thresholds. I see potential
-for statistic driven metrics like quantile and the [Gini coefficient](https://en.wikipedia.org/wiki/Gini_coefficient).
+for statistic driven metrics like quantiles and the [Gini coefficient](https://en.wikipedia.org/wiki/Gini_coefficient).
 For the later there's also an _**R**_ function: [`DescTools::Gini()`](https://andrisignorell.github.io/DescTools/reference/Gini.html).
 
 Below I demonstrate how to use `vhm_agg()` with [`terra::aggregate()`](https://search.r-project.org/CRAN/refmans/terra/html/aggregate.html)'.
@@ -73,7 +74,7 @@ In order to get a proper result when using `vhm_agg()` in conjunction with
 1)  `terra::aggregate()`'s argument `fact` (= number of cells in each direction (x / y)
 which are aggregated into the output-pixels) must be specified. Since the aggregated
 VHM must have a resolution of 10m X 10m, the original VHM must have an according
-resolution. This is given when dividing 10m by the resolution of original VHMS
+resolution. This is given when dividing 10m by the resolution of original VHM
 results in remainder of zero. If this precondition is not met, the original VHM
 must resampled to an intermediate with resolution fit for aggregating to the 
 aspired 10m X 10m output.
@@ -91,8 +92,8 @@ the _**TBk**_-project.
 4) The input VHM should be cleaned, meaning not including values < 0 and > max. 
 possible tree height.
 
-The below as input used VHM does matches most the a.m. criteria resp. can be 
-processed with little effort to match them. Some ticks to check and achieve point
+Below, the as input used VHM does matches most the a.m. criteria resp. can be 
+processed with little effort to match them. Some tricks to check and achieve point
 1) and 2) are presented. If you need help or plan using `vhm_agg()` / 
 `terra::aggregate()` with larger input volumes, do contact me.
 
@@ -114,7 +115,7 @@ library(mapview)
 # library(tmap)
 ```
 
-R-external dependencies versions of the libraries linked `sf`-package:
+R-external dependencies versions of the libraries linked to `sf`-package:
 
 ```{r}
 sf_extSoftVersion()
@@ -148,7 +149,9 @@ file.exists(path_vhm)
 source(path_f_vhm_agg)
 ```
 
-Function for mapping bounding box of a spatial object in a iterative map
+## Helfper-`function()`
+
+Function for mapping bounding box of a spatial object in a interactive map
 ([`mapview`](https://r-spatial.github.io/mapview/)):
 
 ```{r}
@@ -249,7 +252,7 @@ vhm <- terra::mask(vhm, forest_mask)
 plot(vhm)
 ```
 
-How does the bounding boxes of original VHM of VHM 10m overlap?
+How does the bounding boxes of the original VHM overlap with that of the VHM 10m?
 
 ```{r out.width="60%", fig.cap="Forest mask and boundigng boxes of orignal VHM and VHM 10m."}
 bb_vhm_10m - bb_vhm  
@@ -307,7 +310,7 @@ terra::res(vhm)
 (fact <- 10 / terra::res(vhm)[1]) 
 ```
 
-Check if aggregation factor is a integer:
+Check if aggregation factor is an integer:
 
 ```{r}
 fact %% 1 == 0
@@ -328,7 +331,7 @@ argument specifications can be passed on to `fun` (`= f_vhm_agg`) like this:
 terra::aggregate(
   vhm,
   fact             = fact,
-  fun              = f_vhm_agg
+  fun              = f_vhm_agg,
   f_h_top_min_1    = function(h_max){max(0.85 * h_max - 3, 1)}, # max(,1) ensures it is > 0
   min_percentage_1 = 40,
   f_h_top_min_2    = function(h_max){max(0.8 * h_max - 3, 1)}, # max(,1) ensures it is > 0
