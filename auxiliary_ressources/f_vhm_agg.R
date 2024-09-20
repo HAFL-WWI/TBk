@@ -49,10 +49,10 @@ f_mean_weighted_max <- function(x) {ceiling((max(x) * 2 + mean(x)) / 3)}
 #' of understory layer (h_low_max_3)
 #' @param min_percentage_3 (default = 67) min. percentage of valid pixels < h_low_max_3
 # case 4
-#' @param h_layer_breaks_4 height-layer-breaks to detect a dominate height layer
+#' @param h_layer_breaks_4 height-layer-breaks to detect a dominate canopy height layer
 #' in case 4, which must include > 50% of valid original pixels
 # case 5
-#' @param h_layer_breaks_5 height-layer-breaks to detect a dominate height layer
+#' @param h_layer_breaks_5 height-layer-breaks to detect a dominate canopy height layer
 #' in case 5, which is the one having the highest number of valid original pixels.
 #' If several layers have the highest number, then of these layers the one having
 #' the upper range is detected as the dominate. h_layer_breaks_5 should have the same
@@ -273,5 +273,5 @@ f_vhm_agg <- function(
   if (output_type == "vhm") { return(result) } else { return(case) }
 }
 ####_________________________####
-#### END OF SCRIP$T ####
+#### END OF SCRIPT ####
 #------------------------------------------------------------------------------#
