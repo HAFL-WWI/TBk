@@ -74,8 +74,7 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 
 from .pre_processing_helper import PreProcessingHelper
 from tbk_qgis.tbk.utility.persistence_utility import (read_dict_from_toml_file,
-                                                      write_dict_to_toml_file,
-                                                      to_params_with_layer_source)
+                                                      write_dict_to_toml_file)
 
 
 class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
@@ -145,7 +144,6 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
                                                          'Configuration file to set the parameters of the algorithm. '
                                                          'The parameters set in the file does not need to be set '
                                                          'bellow'),
-                                                     extension='toml',
                                                      optional=True))
 
         # input
@@ -201,18 +199,31 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
 
         # get configuration file path
         config_path = str(self.parameterAsFile(parameters, self.CONFIG_FILE, context))
-        # Set input parameters from config file
-        try:
-            config = read_dict_from_toml_file(config_path)
-        except FileNotFoundError:
-            raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
+        if config_path:
+            # Set input parameters from config file
+            try:
+                config = read_dict_from_toml_file(config_path)
+                # compare config file parameters and tool parameters
+                config_removed, config_added, config_changed = dict_diff(parameters, config)
+
+                # apply config_file to parameters (overwrite values in parameters if they have an entry in config_file values)
+                parameters.update(config)
+                feedback.pushInfo(f'Read config file: ')
+                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo(f'{list(config_changed.keys())}')
+                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo(f'{list(config_removed.keys())}')
+                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo(f'{list(config_added.keys())}')
+            except FileNotFoundError:
+                raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
         # input
-        vhm_input = str(self.parameterAsRasterLayer(config or parameters, self.VHM_INPUT, context).source())
+        vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
         if not os.path.splitext(vhm_input)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_input must be a TIFF file")
 
-        mask = str(self.parameterAsVectorLayer(config or parameters, self.MASK, context).source())
+        mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
         if "|layername=" in mask.lower():
             mask = mask.split("|")[0]
         # todo: allow gpkg format?
@@ -220,37 +231,37 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
             raise QgsProcessingException("Mask must be a Shape file")
 
         # Folder for algo output
-        output_root = self.parameterAsString(config or parameters, self.OUTPUT_ROOT, context)
+        output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
         # output
-        vhm_detail = str(self.parameterAsString(config or parameters, self.VHM_DETAIL, context))
+        vhm_detail = str(self.parameterAsString(parameters, self.VHM_DETAIL, context))
         if (not vhm_detail) or vhm_detail == "":
             raise QgsProcessingException("no VHM detail file name specified")
         if not os.path.splitext(vhm_detail)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_detail must be a TIFF file name")
 
-        vhm_10m = str(self.parameterAsString(config or parameters, self.VHM_10M, context))
+        vhm_10m = str(self.parameterAsString(parameters, self.VHM_10M, context))
         if (not vhm_10m) or vhm_10m == "":
             raise QgsProcessingException("no VHM 10m file name specified")
         if not os.path.splitext(vhm_10m)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_10m must be a TIFF file name")
 
-        vhm_150cm = str(self.parameterAsString(config or parameters, self.VHM_150CM, context))
+        vhm_150cm = str(self.parameterAsString(parameters, self.VHM_150CM, context))
         if (not vhm_150cm) or vhm_150cm == "":
             raise QgsProcessingException("no VHM 150cm file name specified")
         if not os.path.splitext(vhm_150cm)[1].lower() in (".tif",".tiff"):
             raise QgsProcessingException("vhm_150cm must be a TIFF file name")
 
         # vhm range
-        vMin = self.parameterAsDouble(config or parameters, self.VMIN, context)
-        vMax = self.parameterAsDouble(config or parameters, self.VMAX, context)
+        vMin = self.parameterAsDouble(parameters, self.VMIN, context)
+        vMax = self.parameterAsDouble(parameters, self.VMAX, context)
 
         # advanced params
-        vNA = self.parameterAsInt(config or parameters, self.VNA, context)
-        del_tmp = self.parameterAsBool(config or parameters, self.DEL_TMP, context)
-        convert_to_byte = self.parameterAsBool(config or parameters, self.CONVERT_TO_BYTE, context)
-        crop_vhm = self.parameterAsBool(config or parameters, self.CROP_VHM, context)
-        rasterize_mask = self.parameterAsBool(config or parameters, self.RASTERIZE_MASK, context)
+        vNA = self.parameterAsInt(parameters, self.VNA, context)
+        del_tmp = self.parameterAsBool(parameters, self.DEL_TMP, context)
+        convert_to_byte = self.parameterAsBool(parameters, self.CONVERT_TO_BYTE, context)
+        crop_vhm = self.parameterAsBool(parameters, self.CROP_VHM, context)
+        rasterize_mask = self.parameterAsBool(parameters, self.RASTERIZE_MASK, context)
 
         ensure_dir(output_root)
         working_root = output_root
@@ -274,11 +285,12 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(tmp_mask)
 
         # Store the input parameters in a file
-        params_with_sources = to_params_with_layer_source(self, parameters, context)
+        params_with_sources = self.asMap(parameters, context)['inputs']
         try:
-            write_dict_to_toml_file(config_path, output_root, config or params_with_sources)
-        except Exception:
-            feedback.pushWarning(f'The TOML file was not writen in the output folder because an error occurred')
+            write_dict_to_toml_file(params_with_sources, output_root)
+        except Exception as error:
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
+            feedback.pushWarning(f'Error: {error}')
 
         start_time = time.time()
 
@@ -433,7 +445,7 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         should be localised.
         """
         # return self.tr(self.groupId())
-        return '0 TBk preprocessing tools'
+        return 'Y Testing and Legacy'
 
     def groupId(self):
         """
@@ -443,7 +455,7 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'preproc'
+        return 'testing'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

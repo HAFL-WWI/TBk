@@ -412,7 +412,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         should be localised.
         """
         # return self.tr(self.groupId())
-        return '1 Bk generation (core)'
+        return 'Y Testing and Legacy'
 
     def groupId(self):
         """
@@ -422,7 +422,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         contain lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'tbkcore'
+        return 'testing'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

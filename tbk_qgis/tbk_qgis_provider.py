@@ -45,6 +45,7 @@ from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
+from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_mg_algorithm import TBkPrepareVhmMgAlgorithm
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
@@ -74,12 +75,9 @@ class TBkProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         # [grpID: preproc]      grpName: 0 Preprocessing
-        self.addAlgorithm(TBkPrepareVhmAlgorithm())
-        self.addAlgorithm(TBkPrepareMgAlgorithm())
-        self.addAlgorithm(TBkPrepareAlgorithm())
+        self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkAlgorithm())
-        self.addAlgorithm(BkAGAlgorithm())
         # [grpID: postproc]     grpName: 2 Postprocessing
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
@@ -90,8 +88,11 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
-
-
+        # [grpID: legacy]     grpName: Y LEGACY
+        # self.addAlgorithm(BkAGAlgorithm())
+        self.addAlgorithm(TBkPrepareVhmAlgorithm())
+        self.addAlgorithm(TBkPrepareMgAlgorithm())
+        self.addAlgorithm(TBkPrepareAlgorithm())
 
     def id(self):
         """
