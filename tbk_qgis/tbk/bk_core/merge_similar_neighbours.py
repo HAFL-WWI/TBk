@@ -26,20 +26,119 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
     print("--------------------------------------------")
     print("START MERGE similar neighbours...")
 
-    scratchWorkspace = tmp_output_folder
-
     # files
     shape_in_path = os.path.join(working_root,"stands_simplified.gpkg")
     shape_out_path = os.path.join(working_root,"stands_merged.gpkg")
 
     ######################################################################
     # TBk post-process. Prepare polygons to dissolve by specific criterias.
-    # Used to combine small polygons with similar neighbors.
+    # Used to combine small polygons with similar neighbours.
     ######################################################################
     print("min_area_m2: ", min_area_m2, " min_hdom_diff_rel: ", min_hdom_diff_rel)
 
     # load TBk shapefile
     simplified_layer = QgsVectorLayer(shape_in_path, "stand_boundaries_simplified", "ogr")
+    # QgsProject.instance().addMapLayer(simplified_layer)
+
+    neighbours_out = "neighbour"
+
+    ########################################
+    # Approximate the arcpy Neighbours tool
+    # Code basing on https://www.qgistutorials.com/en/docs/find_neighbour_polygons.html
+
+    print("write neighbours CSV...")
+
+    neighbours_path = os.path.join(working_root, neighbours_out)
+    # Create memory layer
+    neighbourLayer = QgsVectorLayer('None', 'Neighbours', 'memory')
+
+    # Create a dictionary of all features
+    feature_dict = {f.id(): f for f in simplified_layer.getFeatures()}
+
+    # Build a spatial index
+    index = QgsSpatialIndex()
+    for f in feature_dict.values():
+        index.addFeature(f)
+
+    neighbours_tmp = []
+
+    # Loop through all features and find features that touch each feature
+    for f in feature_dict.values():
+        geom = f.geometry()
+
+        oid = -1
+        src_FID = f["OBJECTID"]
+        src_ID = f["OBJECTID"]
+        src_hdom = f["hdom"]
+        src_type = f["type"]
+        src_area_m2 = f["area_m2"]
+        node_count = -1
+
+        # Find all features that intersect the bounding box of the current feature.
+        # We use spatial index to find the features intersecting the bounding box
+        # of the current feature. This will narrow down the features that we need
+        # to check neighbouring features.
+        intersecting_ids = index.intersects(geom.boundingBox())
+
+        for intersecting_id in intersecting_ids:
+            # Look up the feature from the dictionary
+            intersecting_f = feature_dict[intersecting_id]
+
+            # For our purpose we consider a feature as 'neighbour' if it touches or
+            # intersects a feature. We use the 'disjoint' predicate to satisfy
+            # these conditions. So if a feature is not disjoint, it is a neighbour.
+            if (f != intersecting_f and
+                    not intersecting_f.geometry().disjoint(geom)):
+                nbr_FID = intersecting_f["OBJECTID"]
+                nbr_ID = intersecting_f["OBJECTID"]
+                nbr_hdom = intersecting_f["hdom"]
+                nbr_type = intersecting_f["type"]
+                nbr_area_m2 = intersecting_f["area_m2"]
+                lngth = -1
+                if (intersecting_f.geometry().touches(geom) or intersecting_f.geometry().intersects(geom)):
+                    isct = intersecting_f.geometry().intersection(geom)
+                    lngth = isct.length()
+                # Add a feature with attributes (and without geometry) to populate the 3 fields
+
+                # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+                neighbours_tmp.append(
+                    [oid, src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
+                     nbr_area_m2, lngth, node_count])
+
+    # Begin editing memory layer and create 3 fields
+    neighbourLayer.startEditing()
+    provider = neighbourLayer.dataProvider()
+    provider.addAttributes([QgsField("OID", QVariant.Int),
+                            QgsField("src_FID", QVariant.Int),
+                            QgsField("nbr_FID", QVariant.Int),
+                            QgsField("src_ID", QVariant.Int),
+                            QgsField("nbr_ID", QVariant.Int),
+                            QgsField("src_hdom", QVariant.Int),
+                            QgsField("nbr_hdom", QVariant.Int),
+                            QgsField("src_type", QVariant.String),
+                            QgsField("nbr_type", QVariant.String),
+                            QgsField("src_area_m2", QVariant.Int),
+                            QgsField("nbr_area_m2", QVariant.Int),
+                            QgsField("LENGTH", QVariant.Double),
+                            QgsField("NODE_COUNT", QVariant.Int)])
+    neighbourLayer.updateFields()
+
+    for n in neighbours_tmp:
+        attr = neighbourLayer.dataProvider()
+        feat = QgsFeature()
+        # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+        feat.setAttributes(n)
+        attr.addFeatures([feat])
+        # print(feat)
+
+        neighbourLayer.commitChanges()
+
+    ctc = QgsProject.instance().transformContext()
+    QgsVectorFileWriter.writeAsVectorFormatV3(neighbourLayer, neighbours_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
+    # QgsProject.instance().removeMapLayer(neighbourLayer.id())
+    # QgsProject.instance().removeMapLayer(simplified_layer.id())
+
+    print('Processing neighbours complete.')
 
     dissolve_layer_path = os.path.join(tmp_output_folder, "stands_final_dissolve_field.gpkg")
     simplified_layer.selectAll()
@@ -51,12 +150,12 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
      
     dissolve_layer = QgsVectorLayer(dissolve_layer_path, "stand_boundaries_simplified", "ogr")
 
-    # load neighbors file depending on system settings
-    neighbors_path = os.path.join(working_root,"neighbors.csv")
+    # load neighbours file depending on system settings
+    neighbours_path = os.path.join(working_root,"neighbour.csv")
 
-    df = pd.read_csv(neighbors_path)
+    df = pd.read_csv(neighbours_path)
 
-    # select small polygons with possible neighbor to dissolve
+    # select small polygons with possible neighbour to dissolve
     df["hdom_diff_rel"] = (df.src_hdom - df.nbr_hdom).abs()/df.src_hdom
     i_dissolve = ((df.src_area_m2 < min_area_m2) &
                   (df.hdom_diff_rel < min_hdom_diff_rel) &
