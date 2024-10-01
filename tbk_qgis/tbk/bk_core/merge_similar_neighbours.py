@@ -40,15 +40,12 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
     simplified_layer = QgsVectorLayer(shape_in_path, "stand_boundaries_simplified", "ogr")
     # QgsProject.instance().addMapLayer(simplified_layer)
 
-    neighbours_out = "neighbour"
-
     ########################################
     # Approximate the arcpy Neighbours tool
     # Code basing on https://www.qgistutorials.com/en/docs/find_neighbour_polygons.html
 
-    print("write neighbours CSV...")
+    print("make internally used neighbours table...")
 
-    neighbours_path = os.path.join(working_root, neighbours_out)
     # Create memory layer
     neighbourLayer = QgsVectorLayer('None', 'Neighbours', 'memory')
 
@@ -133,10 +130,16 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
 
         neighbourLayer.commitChanges()
 
-    ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(neighbourLayer, neighbours_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
-    # QgsProject.instance().removeMapLayer(neighbourLayer.id())
-    # QgsProject.instance().removeMapLayer(simplified_layer.id())
+    # list all column names of table neighbourLayer
+    cols = [f.name() for f in neighbourLayer.fields()]
+    # print(cols)
+    # a generator to yield one row at a time
+    datagen = ([f[col] for col in cols] for f in neighbourLayer.getFeatures())
+    # make pandas data.frame
+    df = pd.DataFrame.from_records(data=datagen, columns=cols)
+    # print(df.head())
+    # save table neighbourLayer as .csv
+    # df.to_csv(os.path.join(working_root, "neighbour.csv"), index=False)
 
     print('Processing neighbours complete.')
 
@@ -149,11 +152,6 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
     del simplified_layer
      
     dissolve_layer = QgsVectorLayer(dissolve_layer_path, "stand_boundaries_simplified", "ogr")
-
-    # load neighbours file depending on system settings
-    neighbours_path = os.path.join(working_root,"neighbour.csv")
-
-    df = pd.read_csv(neighbours_path)
 
     # select small polygons with possible neighbour to dissolve
     df["hdom_diff_rel"] = (df.src_hdom - df.nbr_hdom).abs()/df.src_hdom
