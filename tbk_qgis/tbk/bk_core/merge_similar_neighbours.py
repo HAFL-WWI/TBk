@@ -65,7 +65,6 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
 
         oid = -1
         src_FID = f["OBJECTID"]
-        src_ID = f["OBJECTID"]
         src_hdom = f["hdom"]
         src_type = f["type"]
         src_area_m2 = f["area_m2"]
@@ -87,7 +86,6 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
             if (f != intersecting_f and
                     not intersecting_f.geometry().disjoint(geom)):
                 nbr_FID = intersecting_f["OBJECTID"]
-                nbr_ID = intersecting_f["OBJECTID"]
                 nbr_hdom = intersecting_f["hdom"]
                 nbr_type = intersecting_f["type"]
                 nbr_area_m2 = intersecting_f["area_m2"]
@@ -97,9 +95,9 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
                     lngth = isct.length()
                 # Add a feature with attributes (and without geometry) to populate the 3 fields
 
-                # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+                # print([objectid,src_FID, nbr_FID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
                 neighbours_tmp.append(
-                    [oid, src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
+                    [oid, src_FID, nbr_FID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
                      nbr_area_m2, lngth, node_count])
 
     # Begin editing memory layer and create 3 fields
@@ -108,8 +106,6 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
     provider.addAttributes([QgsField("OID", QVariant.Int),
                             QgsField("src_FID", QVariant.Int),
                             QgsField("nbr_FID", QVariant.Int),
-                            QgsField("src_ID", QVariant.Int),
-                            QgsField("nbr_ID", QVariant.Int),
                             QgsField("src_hdom", QVariant.Int),
                             QgsField("nbr_hdom", QVariant.Int),
                             QgsField("src_type", QVariant.String),
@@ -123,7 +119,7 @@ def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_h
     for n in neighbours_tmp:
         attr = neighbourLayer.dataProvider()
         feat = QgsFeature()
-        # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
+        # print([objectid,src_FID, nbr_FID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
         feat.setAttributes(n)
         attr.addFeatures([feat])
         # print(feat)
