@@ -568,7 +568,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # --- Merge similar neighbours
         log.info(' 3 --- Merge similar neighbours')
         start_time_section = time.time()
-        merge_similar_neighbours(working_root, tmp_output_folder, similar_neighbours_min_area,
+        merge_similar_neighbours(working_root, similar_neighbours_min_area,
                                  similar_neighbours_hdom_diff_rel,
                                  del_tmp=del_tmp)
         log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))

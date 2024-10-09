@@ -24,7 +24,7 @@ import pandas as pd
 from datetime import timedelta
 import time
 
-def merge_similar_neighbours(working_root, tmp_output_folder, min_area_m2, min_hdom_diff_rel, del_tmp=True):
+def merge_similar_neighbours(working_root, min_area_m2, min_hdom_diff_rel, del_tmp=True):
     print("--------------------------------------------")
     print("START MERGE similar neighbours...")
 
