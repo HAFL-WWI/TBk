@@ -599,7 +599,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # overwrite fid of merged density polygons with unique values ...
         param ={'INPUT': den_polys, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
-                'FORMULA': 'id', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+                'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fieldcalculator", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_polygonized") # ... in order make them exportable without complain and not ...
