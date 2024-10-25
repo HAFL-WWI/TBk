@@ -339,7 +339,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             if cl_min[i] >= cl_max[i]:
                 raise QgsProcessingException('The min and max of DG-class "' + cl_names[i] + '" are set to ' + str(cl_min[i]) + ' resp. to ' + str(cl_max[i]) + '. But min < max must be true.')
 
-        # gather and check values for usage of large moving window
+        # gather and check values for radii of moving windows
         cl_radius = []
         for i in range(n_cl):
             radius_i = str(table_density_classes[i * 4 + 3])
