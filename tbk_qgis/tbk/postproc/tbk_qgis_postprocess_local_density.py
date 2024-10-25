@@ -474,35 +474,35 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # for i in den_classes: print(i)
 
         # for each unique neighbouring size gather corresponding radii in a list
-        focal_dg_layers_info = {}
+        focal_dg_layers_feedback = {}
         for i in den_classes:
-            if not str(i["size"]) in focal_dg_layers_info:
-                focal_dg_layers_info[str(i["size"])] = [i["radius"]]
+            if not str(i["size"]) in focal_dg_layers_feedback:
+                focal_dg_layers_feedback[str(i["size"])] = [i["radius"]]
             else:
-                focal_dg_layers_info[str(i["size"])].append(i["radius"])
+                focal_dg_layers_feedback[str(i["size"])].append(i["radius"])
 
-        # make string snippets with specific information for each unique neighbouring size
-        for i in focal_dg_layers_info:
-            all_radii = sorted(list(set(focal_dg_layers_info[i])))
+        # make feedback messages with specific information for each unique neighbouring size
+        for i in focal_dg_layers_feedback:
+            all_radii = sorted(list(set(focal_dg_layers_feedback[i])))
             all_radii = [str(r) + 'm' for r in all_radii]
             if (len(all_radii) == 1):
-                info = "radius " + all_radii[0]
+                text_radii = "radius " + all_radii[0]
             else:
-                info = "radii " + ', '.join(all_radii[:-1]) + " and " + all_radii[-1]
-            focal_dg_layers_info[i] = info
+                text_radii = "radii " + ', '.join(all_radii[:-1]) + " and " + all_radii[-1]
+            focal_dg_layers_feedback[i] = (
+                    "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                    "with circular moving window having neighbour size " +
+                    str(i) +
+                    " which corresponds to " +
+                    text_radii +
+                    " ..."
+            )
 
-        # dict for focal layers (for each unique neighbour size 1 layer)
+        # dict for focal layers (for each unique neighbour size one layer)
         focal_dg_layers = {}
         for i in den_classes:
             if not str(i["size"]) in focal_dg_layers:
-                feedback.pushInfo(
-                    "apply to dg_layer raster layer (degree of cover) focal statistic " +
-                    "with circular moving window having neighbour size " +
-                    str(i["size"]) +
-                    " which corresponds to " +
-                    focal_dg_layers_info[str(i["size"])] +
-                    " ..."
-                )
+                feedback.pushInfo(focal_dg_layers_feedback[str(i["size"])])
                 param = {'input': dg, 'selection': dg, 'method': 0, 'size': i["size"], 'gauss': None, 'quantile': '',
                          '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                          'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '', 'GRASS_RASTER_FORMAT_META': ''}
