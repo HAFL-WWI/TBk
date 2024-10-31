@@ -101,6 +101,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
     BUFFER_SMOOTHING = "buffer_smoothing"
     # buffer distance of buffer smoothing (m)
     BUFFER_SMOOTHING_DIST = "buffer_smoothing_dist"
+    # save unclipped local densities as layer / .gpkg  (boolean)
+    SAVE_UNCLIPPED = "save_unclipped"
     # grid cell size for grouping stands (km)
     GRID_CELL_SIZE = "grid_cell_size"
 
@@ -240,6 +242,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
 
+        # save unclipped local densities as layer / .gpkg  (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.SAVE_UNCLIPPED,
+            self.tr("Save unclipped local densities as layer / .gpkg (having suffix '_unclipped') "),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
         # grid cell size for grouping stands (km)
         parameter = QgsProcessingParameterNumber(
             self.GRID_CELL_SIZE,
@@ -369,6 +379,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # buffer distance of buffer smoothing (m)
         buffer_smoothing_dist = self.parameterAsDouble(parameters, self.BUFFER_SMOOTHING_DIST, context)
+
+        # save unclipped local densities as layer / .gpkg  (boolean)
+        save_unclipped = self.parameterAsBool(parameters, self.SAVE_UNCLIPPED, context)
 
         # grid cell size for grouping stands (km)
         grid_cell_size = self.parameterAsDouble(parameters, self.GRID_CELL_SIZE, context)
@@ -605,6 +618,24 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         param = {'INPUT': stands, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fixgeometries", param)
         stands = algoOutput["OUTPUT"]
+
+        # drop local densities having zero area
+        param = {'INPUT': den_polys, 'EXPRESSION': '$area > 0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:extractbyexpression", param)
+        den_polys = algoOutput["OUTPUT"]
+
+        # drop attributes DN (added by gdal:polygonize), layer & path (added by native:mergevectorlayers)
+        param = {'INPUT': den_polys, 'COLUMN': ['DN', 'layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:deletecolumn", param)
+        den_polys = algoOutput["OUTPUT"]
+
+        if save_unclipped:
+            feedback.pushInfo("save output: TBk_local_densities_unclipped" + output_suffix + ".gpkg ...")
+            # save local densities output
+            path_local_den_unclipped_out = os.path.join(path_output, "TBk_local_densities_unclipped" + output_suffix + ".gpkg")
+            ctc = QgsProject.instance().transformContext()
+            QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_unclipped_out, ctc,
+                                                      getVectorSaveOptions('GPKG', 'utf-8'))
 
         # drop local densities geometries having areas below min. area --> reduce workload for later intersection with stands
         feedback.pushInfo("before intersection: filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
@@ -1029,6 +1060,8 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
 <h3>Buffer distance of buffer smoothing</h3>
 <p>float / [m], default 7m</p>
+<h3>Save unclipped local densities as layer / .gpkg.</h3>
+<p>Check box: if checked unclipped geometries of local density classes are saved as layer / .gpkg having suffix <i>_unclipped</i>.</p>
 <h3>Grid cell size for grouping stands by their x_min & y_min overlapping</h3>
 <p>float / [km], default 3km --> 9km&sup2; square cells. This input is used for groupwise / iterative intersection of stands and local densities, thus tackling the run time of intersection exponentially increasing with number of geometries. This parameter is experimental as the optimal cell size is unknown at the time.</p> 
 
@@ -1037,6 +1070,8 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <p>A folder placed within the <i><b>Folder with TBk results</i></b> (s. <i><b>Inputs</i></b> above) containing two files:
 
 - <i>TBk_local_densities.gpkg</i>* holding a same named layer with polygons of all density classes.
+
+- <i>TBk_local_densities_unclipped.gpkg</i>* holding a same named layer with polygons of all unclipped density classes (optional s. advanced parameter <i><b>Save unclipped ... </i></b>).
 
 - <i>TBk_Bestandeskarte_local_densities.gpkg</i>* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
 
