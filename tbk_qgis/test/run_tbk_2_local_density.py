@@ -60,5 +60,11 @@ processing.run("TBk:TBk postprocess local density", {
         12, 60, 100, 14
     ],
     'calc_all_dg': True,
-    'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400, 'buffer_smoothing': True,
-    'buffer_smoothing_dist': 7})
+    'min_size_clump': 1200,
+    'min_size_stand': 1200,
+    'holes_thresh': 400,
+    'buffer_smoothing': True,
+    'buffer_smoothing_dist': 7,
+    'save_unclipped': False,
+    'grid_cell_size': 3
+})
