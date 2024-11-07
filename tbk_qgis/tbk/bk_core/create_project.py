@@ -52,14 +52,16 @@ def create_project(working_root, tmp_output_folder, tbk_result_dir, tbk_tool_pat
     #                       tbk_result_dir,"NorthArrow_04.svg")
 
     # set correct extent and spatial reference
-    print("QGIS Project: Set extent and spatial reference...")
+    print("QGIS Project: Get Raster metadata for EPSG...")
     # vhm_10m_path = os.path.join(root_dir,vhm_10m)
     vhm_10m_path = vhm_10m
     meta_data = get_raster_metadata(vhm_10m_path)
 
+    print("QGIS Project: Read project...")
     project = QgsProject.instance()
     project.read(project_copy_path)
 
+    print("QGIS Project: Set spatial reference...")
     crs = QgsCoordinateReferenceSystem()
     crs.createFromString("EPSG:{0}".format(meta_data["epsg"]))
 
@@ -68,7 +70,8 @@ def create_project(working_root, tmp_output_folder, tbk_result_dir, tbk_tool_pat
     for lyr in QgsProject.instance().mapLayers().values():
         lyr.setCrs(crs)
 
-    layer = QgsProject.instance().mapLayersByName("Oberschicht")[0]
+    print("QGIS Project: Set extent...")
+    layer = QgsProject.instance().mapLayersByName("Bestandesgrenzen")[0]
 
     canvas = QgsMapCanvas()
     canvas.setExtent(layer.extent())

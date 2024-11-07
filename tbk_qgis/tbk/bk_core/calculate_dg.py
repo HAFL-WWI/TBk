@@ -39,8 +39,6 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     print("--------------------------------------------")
     print("START DG calculation...")
 
-
-
     # TBk folder path
     workspace = working_root
     scratchWorkspace = tmp_output_folder
@@ -49,7 +47,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     # arcpy.env.parallelProcessingFactor = "50%"
 
     # TBk shapefile
-    stands_shapefile = os.path.join(working_root, "stands_clipped.gpkg")
+    stands_file = os.path.join(working_root, "stands_clipped.gpkg")
 
     # Create dg layer output directory
     dg_layers_dir = os.path.join(tbk_result_dir, "dg_layers")
@@ -87,11 +85,10 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     ########################################################################
 
-    stands_layer = QgsVectorLayer(stands_shapefile, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
 
-    #
+    # Add DG limits fields per stand
     with edit(stands_layer):
-        # Add DG limits fields
         provider = stands_layer.dataProvider()
         provider.addAttributes([QgsField("dg_ks_max", QVariant.Double),
                                 QgsField("dg_us_min", QVariant.Double),
@@ -118,7 +115,10 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
             stands_layer.updateFeature(f)
 
-
+    # create a list (for iteration) with dg-classes to be calculated
+    # assign: 1. a column_prefix, 2. a limit (dg_lim_field),
+    # 3. - 5. the necessary raster layers (dg_tmp_file_B and C as well as dg_layer_file)
+    # and 6. the raster calculator formula for each dg-type
     field_file_pairs = [
         ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
         ['dg_os_', 'dg_os_min', tmp_lim_os, tmp_lim_ueb, dg_os_classified, '((A>B) & (A<=C))*1'],
@@ -129,8 +129,9 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     ]
 
     # Produce final "1" / "0" raster for each layer
-    print("classify stand layers...")
+    # iterate over the list above
     # CreateCopy > rasterize over > calc/compress
+    print("classify stand layers...")
     for column_prefix, \
             dg_lim_field, \
             dg_tmp_file_B, \
@@ -141,7 +142,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
         start_time = time.time()
         # print(dg_lim_field, "->", dg_tmp_file_B, "->", dg_layer_file)
         if (column_prefix == 'dg_'):
-            # DG Layer can be created by using OS and UEB
+            # DG Layer can be created by using OS and UEB (need to be present)
             processing.run("gdal:rastercalculator", {
                 'INPUT_A': dg_os_classified,
                 'BAND_A': 1,
@@ -155,7 +156,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
             create_empty_copy(vhm, dg_tmp_file_B)
             # burn vector value into raster
             processing.run("gdal:rasterize_over", {
-                'INPUT': stands_shapefile,
+                'INPUT': stands_file,
                 'INPUT_RASTER': dg_tmp_file_B,
                 'FIELD': dg_lim_field,
                 'ADD': False, 'EXTRA': ''})
@@ -181,16 +182,21 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     # Calculate DG per stand and per layer
     print("zonal statistics...")
-
     for column_prefix, x, x, x, dg_layer_file, x in field_file_pairs:
         start_time = time.time()
+
+        # using the "old" zonalstatistics algorithm (not zonalstatisticsfb), that appends fields to input layer
+        # for more info, read https://github.com/qgis/QGIS/issues/40356
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
-                 'INPUT_VECTOR': stands_shapefile,
+                 'INPUT_VECTOR': stands_file,
                  'COLUMN_PREFIX': column_prefix, 'STATS': [2]}
         processing.run("qgis:zonalstatistics", param)
+
         end_time = time.time()
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
+    # re-read the input, as it was modified by zonal statistics
+    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
     with edit(stands_layer):
         # Add DG fields
         provider = stands_layer.dataProvider()
@@ -204,6 +210,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
         # Calculate DG per stand
         for f in stands_layer.getFeatures():
+            # round if is a number, copy NULL values without rounding to avoid errors
             f["DG_ks"] = round(f["dg_ks_mean"] * 100) if f["dg_ks_mean"] != core.NULL else f["dg_ks_mean"]
             f["DG_us"] = round(f["dg_us_mean"] * 100) if f["dg_us_mean"] != core.NULL else f["dg_us_mean"]
             f["DG_ms"] = round(f["dg_ms_mean"] * 100) if f["dg_ms_mean"] != core.NULL else f["dg_ms_mean"]
@@ -213,7 +220,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
             stands_layer.updateFeature(f)
 
-            # Delete temporary fields
+    # Delete temporary fields
     if del_tmp:
         delete_fields(stands_layer,
                       ["dg_ks_max", "dg_us_min", "dg_ms_min", "dg_os_min", "dg_ueb_min", "dg_min", "dissolve",

@@ -1,0 +1,343 @@
+---
+title: "Demonsrate Usage of `f_vhm_agg()`"
+author: "Attilio Benini, attilio.benini@bfh.ch"
+date: "2024-09-20"
+# date: "`r Sys.Date()`"
+output:
+  bookdown::html_document2:
+    code_folding: show
+    toc: true
+    number_sections: no
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+    toc_depth: 3
+linkcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE, fig.align='left')
+Sys.setenv(LANG = "en_US.UTF-8")
+```
+
+## Introduction
+
+_**TBk**_ issue [#45](https://github.com/HAFL-WWI/TBk/issues/45) raises the
+question of an alternative to the current method of (pre-)processing from input
+VHM to VHM with resolution (10m X 10m). The issue mentions an earlier alternative
+designed for the Canton of Glarus and written in _**R**_ 
+([vhm_resample.R](https://github.com/HAFL-WWI/TBk/files/15335154/vhm_resample.R.txt)).
+
+That script contained a function `vhm3()`, which served as specification of
+[`raster::aggregate()`](https://search.r-project.org/CRAN/refmans/raster/html/aggregate.html)'s 
+argument `fun`. Building on `vhm3()` I've written `vhm_agg()`. At the time 
+`vhm_agg()`'s functionality hardly differs from one of its precursor. The main 
+differences are:
+
+* tidied up code improving readability.
+* avoidance of redundancies.
+* all parameters relevant for defining cases 1 to 5 within the implemented 
+decision tree are included as function arguments.
+
+This facilitate experimenting and further development.
+
+But overall `vhm_agg()` in its current version is actually too complex. The built
+in 5-step decision tree includes two type of criteria:
+
+1) metrics derived from values of the original / detailed VHM within each 
+10m x 10m aggregation pixel.
+2) absolute values assigning VHM values to different classes of height / canopy
+layers.
+
+This complexity makes it hard to understand and explain `vhm_agg()`. This goes for
+developers and users. Thus it's also doubtful, if this could ever be translated into
+a user-friendly GUI, which should be _**TBk**_'s aim. Let alone the difficulty of
+implementing a raster aggregation with a build in decision into pyqgis.
+
+Anyhow, before going to QGIS / pyqgis research on a reasonable alternative of VHM
+aggregation to 10m x 10m pixels needs to done. Apart form some very few meters
+above ground, we should avoid using absolute values as thresholds. I see potential
+for statistic driven metrics like quantiles and the [Gini coefficient](https://en.wikipedia.org/wiki/Gini_coefficient).
+For the later there's also an _**R**_ function: [`DescTools::Gini()`](https://andrisignorell.github.io/DescTools/reference/Gini.html).
+
+Below I demonstrate how to use `vhm_agg()` with [`terra::aggregate()`](https://search.r-project.org/CRAN/refmans/terra/html/aggregate.html)'.
+It probably also works with `raster` (not tested yet). However, I don't see any
+reason for still using [outdated _**R**_-packages](https://geocompx.org/post/2023/rgdal-retirement/)
+like `raster`.
+
+If you want to try out `vhm_agg()`, have a look at the description of the function's
+arguments included in the script `vhm_agg.R`.
+
+In order to get a proper result when using `vhm_agg()` in conjunction with 
+`terra::aggregate()` some points have to be considered:
+
+1)  `terra::aggregate()`'s argument `fact` (= number of cells in each direction (x / y)
+which are aggregated into the output-pixels) must be specified. Since the aggregated
+VHM must have a resolution of 10m X 10m, the original VHM must have an according
+resolution. This is given when dividing 10m by the resolution of original VHM
+results in remainder of zero. If this precondition is not met, the original VHM
+must resampled to an intermediate with resolution fit for aggregating to the 
+aspired 10m X 10m output.
+
+2) Aligning the aggregated VHM (10m X 10m) to the origin (X, Y) = (0, 0),
+is [_**TBk**_'s new preprocessing default](https://github.com/HAFL-WWI/TBk/pull/57).
+Aligning to the origin (0, 0) means all pixel edges match coordinates = k * pixel-resolution,
+where k is an integer. If this is not true for the original VHM, it must be shifted
+to fulfill also this precondition. Furthermore the extent of the VHM used as input
+for `terra::aggregate()` must fit to 10m x 10m pixels aligned with origin (0, 0).
+
+3)  Finally the input VHM must be masked with the same forest mask used else in
+the _**TBk**_-project.
+
+4) The input VHM should be cleaned, meaning not including values < 0 and > max. 
+possible tree height.
+
+Below, the as input used VHM does matches most the a.m. criteria resp. can be 
+processed with little effort to match them. Some tricks to check and achieve point
+1) and 2) are presented. If you need help or plan using `vhm_agg()` / 
+`terra::aggregate()` with larger input volumes, do contact me.
+
+## Start time 
+
+```{r}
+t_start <- Sys.time()
+```
+
+## R-packages
+
+R-packages from CRAN needed:
+
+```{r, message=FALSE, warning=FALSE}
+# library(tidyverse)
+library(sf)
+library(terra)
+library(mapview) 
+# library(tmap)
+```
+
+R-external dependencies versions of the libraries linked to `sf`-package:
+
+```{r}
+sf_extSoftVersion()
+```
+
+## Paths
+
+Relative path to script with function `f_vhm_agg()`:
+
+```{r}
+path_f_vhm_agg <- file.path(getwd(), "f_vhm_agg.R")
+file.exists(path_f_vhm_agg)
+```
+
+Note that, here we assume that this script (`f_vhm_agg_demo.Rmd`) and `f_vhm_agg.R`
+are both located in the same (working) directory.
+
+Absolute paths for input data:
+
+```{r}
+path_forest_mask <- file.path("P:", "HAFL", "7 WWI", "78 Temp", "780 Temp_Mittelbau", "Temp_Benini", "test_f_vhm_agg", "waldmaske_hafl.gpkg")
+file.exists(path_forest_mask)
+
+path_vhm <- file.path("P:", "HAFL", "7 WWI", "78 Temp", "780 Temp_Mittelbau", "Temp_Benini", "test_f_vhm_agg", "VHM_clean_hafl.tif")
+file.exists(path_vhm)
+```
+
+## Load `f_vhm_agg()` 
+
+```{r}
+source(path_f_vhm_agg)
+```
+
+## Helfper-`function()`
+
+Function for mapping bounding box of a spatial object in a interactive map
+([`mapview`](https://r-spatial.github.io/mapview/)):
+
+```{r}
+f_map_bb <- function(x, layer.name, col = "red", lwd = 1.5, native.crs = FALSE){
+  st_bbox(x) %>% 
+    st_as_sfc() %>% 
+    st_sf() %>%
+    mapview(
+      lwd           = lwd,
+      color         = col,
+      col.region    = col,
+      alpha.regions = 0,
+      layer.name    = layer.name,
+      native.crs    = native.crs
+      )
+}
+```
+
+## Get data
+
+Forest mask:
+
+```{r}
+forest_mask <- terra::vect(path_forest_mask)
+```
+
+High-resolution VHM input :
+
+```{r}
+vhm <- terra::rast(path_vhm)
+```
+
+View inputs:
+
+```{r out.width="60%", fig.cap="High-resolution input VHM and forest mask."}
+plot(vhm)
+plot(forest_mask, border = "red", lwd = 2, add = TRUE)
+```
+
+$\Longrightarrow$ The input VHM is yet not not masked, which is good in case we
+have to apply shifting and/or resampling to it!
+
+## Extent of VHM 10m 
+
+The extent / bounding box of the aggregated VHM 10m must
+
+* cover the whole forest mask and
+* when divided by 10m all remainders must be zero
+
+```{r}
+# bounding box of forest mask
+bb_forest_mask <- st_bbox(forest_mask)
+
+# bounding box of VHM 10m, must include whole forest mask and ...
+bb_vhm_10m <-
+  st_bbox(
+    c(
+      floor(bb_forest_mask$xmin / 10) * 10,
+      floor(bb_forest_mask$ymin / 10) * 10,
+      ceiling(bb_forest_mask$xmax / 10) * 10,
+      ceiling(bb_forest_mask$ymax / 10) * 10
+    ),
+    crs = st_crs(bb_forest_mask)
+  )
+
+bb_vhm_10m - bb_forest_mask
+
+# when divided by 10m all remainders must be zero
+all(bb_vhm_10m %% 10 == 0)
+# --> desired alignment of VHM 10 output
+```
+
+## Check VHM input
+
+```{r}
+# resolution of of original VHM 
+res(vhm)
+
+# dividing the resolution of VHM 10m by resolution of original VHM ... 
+10 %% unique(res(vhm)) == 0
+# ... must result only in remainder = 0
+
+# bounding box of original VHM
+bb_vhm <- st_bbox(vhm)
+
+# dividing the bounding box of the original VHM by its resolution ...
+bb_vhm %% unique(res(vhm)) == 0
+# ... must result only in remainders = 0
+```
+
+## Prepare VHM as aggregation input
+
+Since the above checks have revealed that the input VHM needs no resampling and/or 
+shifting, we can mask it with the forest mask:
+
+```{r out.width="60%", fig.cap="Masked high-resolution VHM."}
+vhm <- terra::mask(vhm, forest_mask)
+plot(vhm)
+```
+
+How does the bounding boxes of the original VHM overlap with that of the VHM 10m?
+
+```{r out.width="60%", fig.cap="Forest mask and boundigng boxes of orignal VHM and VHM 10m."}
+bb_vhm_10m - bb_vhm  
+
+mapview(forest_mask, col.region = "forestgreen") +
+  # f_map_bb(forest_mask, "forest mask", "forestgreen") +
+  f_map_bb(bb_vhm, "bb original VHM", "blue") + 
+  f_map_bb(bb_vhm_10m, "bb VHM 10m")
+```
+
+If the bounding box of the original VHM goes on any side outside of extent of
+the VHM 10m, we crop the original VHM with the bounding box / extent of VHM 10m.
+
+```{r}
+bb_vhm_diff <- bb_vhm_10m - bb_vhm
+outside_bb_vhm_10m <- any(bb_vhm_diff[c("xmin", "ymin")] > 0, bb_vhm_diff[c("xmax", "ymax")] < 0)
+outside_bb_vhm_10m
+if(outside_bb_vhm_10m){
+  vhm <- crop(vhm, ext(bb_vhm_10m))
+}
+```
+
+If (after cropping) the extent of VHM 10m goes beyond the extent of the original
+VHM: 
+
+```{r}
+any(bb_vhm_10m != st_bbox(vhm))
+
+if(any(bb_vhm_10m != st_bbox(vhm))) { 
+  # 1) get the extending distances on all 4 sides (left, right, bottom, top) ...
+  extent_dist <- unname(abs(bb_vhm_10m - st_bbox(vhm))[c("xmin", "xmax", "ymin", "ymax")])
+  # 2) get number of cells to be added on each side ...
+  extent_n <- extent_dist / res(vhm)[1]
+  # 3) finally extend original / detailed VHM to extent of VHM 10m  
+  vhm <- extend(vhm, extent_n)
+}
+```
+
+Check if extent of high-resolution VHM and VHM 10m are now identical:
+
+```{r}
+bb_vhm_10m == st_bbox(vhm)
+bb_vhm_10m - st_bbox(vhm)
+```
+
+## Aggreate VHM 10m
+
+Get aggregation factor by dividing 10m (the resolution of aggregated VHM) with
+resolution of of high-resolution VHM:
+
+```{r out.width="60%", fig.cap="Masked high-resolution VHM."}
+# resolution of of high-resolution VHM
+terra::res(vhm)
+# get aggregation factor
+(fact <- 10 / terra::res(vhm)[1]) 
+```
+
+Check if aggregation factor is an integer:
+
+```{r}
+fact %% 1 == 0
+```
+
+Finally aggregate with `f_vhm_agg()`:
+
+```{r out.width="60%", fig.cap="Aggregaed VHM 10m."}
+vhm_10m <- terra::aggregate(vhm, fact = fact, fun = f_vhm_agg)
+names(vhm_10m) <- "VHM_agg_10m"
+plot(vhm_10m)
+```
+
+Note that above `f_vhm_agg()` is used with default argument settings. Non-default
+argument specifications can be passed on to `fun` (`= f_vhm_agg`) like this:
+
+```{r eval=FALSE}
+terra::aggregate(
+  vhm,
+  fact             = fact,
+  fun              = f_vhm_agg,
+  f_h_top_min_1    = function(h_max){max(0.85 * h_max - 3, 1)}, # max(,1) ensures it is > 0
+  min_percentage_1 = 40,
+  f_h_top_min_2    = function(h_max){max(0.8 * h_max - 3, 1)}, # max(,1) ensures it is > 0
+  min_percentage_2 = 55
+  )
+```
+
+Reminder: Have a look at the description of the `f_vhm_agg()`'s arguments
+included in the script `vhm_agg.R`.

@@ -91,10 +91,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
     TABLE_DENSITY_CLASSES = "table_density_classes"
     # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
     CALC_ALL_DG = "calc_all_dg"
-    # radius of circular moving window (in m)
-    MW_RAD = "mw_rad"
-    # large radius of circular moving window (in m)
-    MW_RAD_LARGE = "mw_rad_large"
     # minimum size for dense/sparse "clumps" (m^2)
     MIN_SIZE_CLUMP = "min_size_clump"
     # minimum size for stands to apply calculation of local densities (m^2)
@@ -105,6 +101,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
     BUFFER_SMOOTHING = "buffer_smoothing"
     # buffer distance of buffer smoothing (m)
     BUFFER_SMOOTHING_DIST = "buffer_smoothing_dist"
+    # save unclipped local densities as layer / .gpkg  (boolean)
+    SAVE_UNCLIPPED = "save_unclipped"
+    # grid cell size for grouping stands (km)
+    GRID_CELL_SIZE = "grid_cell_size"
 
     def initAlgorithm(self, config):
         """
@@ -168,17 +168,17 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "\nclass: unique class name"
                 "\nmin DG [%]: minimal percentage of degree of cover"
                 "\nmin DG [%]: maximal percentage of degree of cover"
-                "\nuse large moving window? False/True whether to apply the large moving window on the degree of cover raster"
+                "\nradius of circular moving window applied on the degree of cover raster [m]"
             ),
             hasFixedNumberRows=False,
-            headers=['class', 'min DG [%]', 'max DG [%]', 'use large moving window? [False/True]'],
+            headers=['class', 'min DG [%]', 'max DG [%]', 'radius of circular moving window [m]'],
             defaultValue=[
-                1, 85, 100, 'False',
-                2, 60, 85, 'True',
-                3, 40, 60, 'True',
-                4, 25, 40, 'True',
-                5, 0, 25, 'False',
-                12, 60, 100, 'True'
+                1, 85, 100, 7,
+                2, 60, 85, 14,
+                3, 40, 60, 14,
+                4, 25, 40, 14,
+                5, 0, 25, 7,
+                12, 60, 100, 14
             ]
         )
         self.addAdvancedParameter(parameter)
@@ -189,26 +189,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             self.tr("Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)"),
             defaultValue=True
         )
-        self.addAdvancedParameter(parameter)
-
-        # radius of circular moving window (in m)
-        parameter = QgsProcessingParameterNumber(
-            self.MW_RAD,
-            self.tr("Radius of circular moving window (in m)"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=7.0
-        )
-        parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
-        self.addAdvancedParameter(parameter)
-
-        # large radius of circular moving window (in m)
-        parameter = QgsProcessingParameterNumber(
-            self.MW_RAD_LARGE,
-            self.tr("Large radius of circular moving window (in m)"),
-            type=QgsProcessingParameterNumber.Double,
-            defaultValue=14.0
-        )
-        parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
         self.addAdvancedParameter(parameter)
 
         # minimum size for dense/sparse "clumps" (m^2)
@@ -260,6 +240,27 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             defaultValue=7
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
+        self.addAdvancedParameter(parameter)
+
+        # save unclipped local densities as layer / .gpkg  (boolean)
+        parameter = QgsProcessingParameterBoolean(
+            self.SAVE_UNCLIPPED,
+            self.tr("Save unclipped local densities as layer / .gpkg (having suffix '_unclipped') "),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        # grid cell size for grouping stands (km)
+        parameter = QgsProcessingParameterNumber(
+            self.GRID_CELL_SIZE,
+            self.tr(
+                "Grid cell size for grouping stands by their x_min & y_min overlapping (km)."
+                "\n(used for iterative intersection of stands and local densities)"
+            ),
+            type=QgsProcessingParameterNumber.Double,
+            defaultValue=3
+        )
+        parameter.setMetadata({'widget_wrapper': {'decimals': 3}})
         self.addAdvancedParameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -348,23 +349,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             if cl_min[i] >= cl_max[i]:
                 raise QgsProcessingException('The min and max of DG-class "' + cl_names[i] + '" are set to ' + str(cl_min[i]) + ' resp. to ' + str(cl_max[i]) + '. But min < max must be true.')
 
-        # gather and check values for usage of large moving window
-        cl_large_window = []
+        # gather and check values for radii of moving windows
+        cl_radius = []
         for i in range(n_cl):
-            large_window_i = str(table_density_classes[i * 4 + 3])
-            if large_window_i in ['True', 'False']:
-                cl_large_window.append(eval(large_window_i))
+            radius_i = str(table_density_classes[i * 4 + 3])
+            if is_number(radius_i):
+                radius_i = float(radius_i)
+                if radius_i <= 0:
+                    raise QgsProcessingException('The radius of circular moving window for DG-class "' + cl_names[i] + '" is set to ' + str(radius_i) + '. But it must be a positive number [m].')
+                else:
+                    cl_radius.append(float(radius_i))
             else:
-                raise QgsProcessingException('For DG-class "' + cl_names[i] + '" the usage of large moving window of is set to "' + str(large_window_i) + '". Set either to True or to False.')
+                raise QgsProcessingException('The radius of circular moving window for DG-class "' + cl_names[i] + '" is set to "' + str(radius_i) + '". But it must be a positive number [m].')
 
         # determine whether DG is calculated for all layers (KS, US, MS, OS, UEB) (boolean)
         calc_all_dg = self.parameterAsBool(parameters, self.CALC_ALL_DG, context)
-
-        # radius of circular moving window (in m)
-        mw_rad = self.parameterAsDouble(parameters, self.MW_RAD, context)
-
-        # large radius of circular moving window (in m)
-        mw_rad_large = self.parameterAsDouble(parameters, self.MW_RAD_LARGE, context)
 
         # minimum size for dense/sparse "clumps" (m^2)
         min_size_clump = self.parameterAsInt(parameters, self.MIN_SIZE_CLUMP, context)
@@ -381,6 +380,12 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # buffer distance of buffer smoothing (m)
         buffer_smoothing_dist = self.parameterAsDouble(parameters, self.BUFFER_SMOOTHING_DIST, context)
 
+        # save unclipped local densities as layer / .gpkg  (boolean)
+        save_unclipped = self.parameterAsBool(parameters, self.SAVE_UNCLIPPED, context)
+
+        # grid cell size for grouping stands (km)
+        grid_cell_size = self.parameterAsDouble(parameters, self.GRID_CELL_SIZE, context)
+
         start_time = time.time()
 
         # lump together density classes
@@ -388,31 +393,13 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for i in range(n_cl):
             den_classes.append(
                 {
-                    "class": cl_names[i],  # string / as is
+                    "class": cl_names[i],    # string / as is
                     "min": cl_min[i] / 100,  # [0%, 100%] --> [0, 1]
                     "max": cl_max[i] / 100,  # [0%, 100%] --> [0, 1]
-                    "large_window": cl_large_window[i]  # boolean / as is
+                    "radius": cl_radius[i]   # > 0 [m] / as is
                 }
             )
         # for i in den_classes: print(i)
-
-        # any large moving window? --> True / False
-        large_window_all = []
-        for i in den_classes:
-            large_window_all.append(i["large_window"])
-        any_large_window = any(large_window_all)
-        # print(large_window_all)
-        # print("any large window?")
-        # print(any_large_window)
-
-        # any non-large moving window? --> True / False
-        non_large_window_all = []
-        for i in large_window_all:
-            non_large_window_all.append(i == False)
-        any_non_large_window = any(non_large_window_all)
-        # print(non_large_window_all)
-        # print("any non-large window?")
-        # print(any_non_large_window)
 
         path_dg = os.path.join(path_tbk_input, "dg_layers/dg_layer.tif")
 
@@ -448,8 +435,8 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
         # helper function to save intermediate vector data & tables
         def f_save_as_gpkg(input, name, path=path_output):
-            if type(input) == str:
-                input = QgsVectorLayer(input, '', 'ogr')
+            # if type(input) == str:
+            #    input = QgsVectorLayer(input, '', 'ogr')
             path_ = os.path.join(path, name + ".gpkg")
             ctc = QgsProject.instance().transformContext()
             QgsVectorFileWriter.writeAsVectorFormatV3(input, path_, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
@@ -489,45 +476,57 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # print("attributes of selected stands:")
         # for field in stands.fields(): print(field.name(), field.typeName())
 
-        # if required focal statistic with "regular" moving window
-        if any_non_large_window:
-            feedback.pushInfo(
-                "apply to dg_layer raster layer (degree of cover) focal statistic " +
-                "with circular moving window having radius (" +
-                str(round(mw_rad, 2)) +
-                "m) ..."
-            )
-            # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad / res_dg * 2)
+        # add neighbour size for circular mowing window (must be odd)
+        def get_size(radius, res = res_dg):
+            size = math.floor(radius / res * 2)
             if size % 2 == 0:
                 size = size + 1
-            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
-                     '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
-                     'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
-                     'GRASS_RASTER_FORMAT_META': ''}
-            algoOutput = processing.run("grass7:r.neighbors", param)
-            dg_focal = algoOutput["output"]
-            dg_focal = QgsRasterLayer(dg_focal)
+            return(size)
 
-        # if required focal statistic with large moving window
-        if any_large_window:
-            feedback.pushInfo(
-                "apply to dg_layer raster layer (degree of cover) focal statistic " +
-                "with circular moving window having large radius (" +
-                str(round(mw_rad_large, 2)) +
-                "m) ..."
+        for i in den_classes: i["size"] = get_size(i["radius"])
+        # for i in den_classes: print(i)
+
+        # for each unique neighbouring size gather corresponding radii in a list
+        focal_dg_layers_feedback = {}
+        for i in den_classes:
+            if not str(i["size"]) in focal_dg_layers_feedback:
+                focal_dg_layers_feedback[str(i["size"])] = [i["radius"]]
+            else:
+                focal_dg_layers_feedback[str(i["size"])].append(i["radius"])
+
+        # make feedback messages with specific information for each unique neighbouring size
+        for i in focal_dg_layers_feedback:
+            all_radii = sorted(list(set(focal_dg_layers_feedback[i])))
+            all_radii = [str(r) + 'm' for r in all_radii]
+            if (len(all_radii) == 1):
+                text_radii = "radius " + all_radii[0]
+            else:
+                text_radii = "radii " + ', '.join(all_radii[:-1]) + " and " + all_radii[-1]
+            focal_dg_layers_feedback[i] = (
+                    "apply to dg_layer raster layer (degree of cover) focal statistic " +
+                    "with circular moving window having neighbour size " +
+                    str(i) +
+                    " which corresponds to " +
+                    text_radii +
+                    " ..."
             )
-            # size = width of moving window in pixels (odd nummer)
-            size = math.floor(mw_rad_large / res_dg * 2)
-            if size % 2 == 0:
-                size = size + 1
-            param = {'input': dg, 'selection': dg, 'method': 0, 'size': size, 'gauss': None, 'quantile': '', '-c': True,
-                     '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
-                     'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '',
-                     'GRASS_RASTER_FORMAT_META': ''}
-            algoOutput = processing.run("grass7:r.neighbors", param)
-            dg_focal_2 = algoOutput["output"]
-            dg_focal_2 = QgsRasterLayer(dg_focal_2)
+
+        # dict for focal layers (for each unique neighbour size one layer)
+        focal_dg_layers = {}
+        for i in den_classes:
+            if not str(i["size"]) in focal_dg_layers:
+                feedback.pushInfo(focal_dg_layers_feedback[str(i["size"])])
+                param = {'input': dg, 'selection': dg, 'method': 0, 'size': i["size"], 'gauss': None, 'quantile': '',
+                         '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
+                         'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '', 'GRASS_RASTER_FORMAT_META': ''}
+                algoOutput = processing.run("grass7:r.neighbors", param)
+                focal_dg_layers[str(i["size"])] = QgsRasterLayer(algoOutput["output"])
+        # check
+        # for i in focal_dg_layers:
+        #     print(i)
+        #     param = {'INPUT': focal_dg_layers[str(i)], 'BAND': None}
+        #     res_i = processing.run("native:rasterlayerproperties", param)['PIXEL_HEIGHT']
+        #     print(res_i)
 
         # list to gather polygons of oll density classes
         den_polys = []
@@ -538,16 +537,13 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             min = str(cl["min"] - 0.0001)
             max = str(cl["max"] + 0.0001)
             cl_ = str(cl["class"])
-            if cl["large_window"]:
-                focal_in_use = dg_focal_2
-            else:
-                focal_in_use = dg_focal
+            focal_in_use = focal_dg_layers[str(cl["size"])]
 
             # stats of used focal layer
             focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.All)
             focal_min = focal_stats.minimumValue
             focal_max = focal_stats.maximumValue
-            # if range of density class does not overlap with with range of values of focal layer continue with next class
+            # if range of density class does not overlap with range of values of focal layer continue with next class
             if float(max) <= focal_min or float(min) >= focal_max:
                 continue
 
@@ -576,13 +572,16 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # merge listed layers with density polygons of different classes
         feedback.pushInfo("merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        # 'TEMPORARY_OUTPUT' does work as output! --> all off a sudden all listed layers are merged (unclear which code
-        # manipulation(s) enable this) --> temp. .gpkg as output / workaround not needed any more!
-        # path_tmp_den_polys = os.path.join(path_output, "tmp_den_polys.gpkg") # hopefully no future need for this ...
-        # param =  {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': path_tmp_den_polys} # ... since deleting tmp. .gpkg is an unsolved issue
         algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(den_polys, "den_polys_polygonized")
+
+        # overwrite fid of merged density polygons with unique values ...
+        param ={'INPUT': den_polys, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+                'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        den_polys = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(den_polys, "den_polys_polygonized") # ... in order make them exportable without complain and not ...
+                                                             # ... just those features inherited form the 1st element of above merged list
 
         # remove holes smaller than threshold
         if holes_thresh > 0:
@@ -612,6 +611,41 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
+        feedback.pushInfo("fix geometries of local densities and selected stands ...")
+        param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fixgeometries", param)
+        den_polys = algoOutput["OUTPUT"]
+        param = {'INPUT': stands, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fixgeometries", param)
+        stands = algoOutput["OUTPUT"]
+
+        # drop local densities having zero area
+        param = {'INPUT': den_polys, 'EXPRESSION': '$area > 0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:extractbyexpression", param)
+        den_polys = algoOutput["OUTPUT"]
+
+        # drop attributes DN (added by gdal:polygonize), layer & path (added by native:mergevectorlayers)
+        param = {'INPUT': den_polys, 'COLUMN': ['DN', 'layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:deletecolumn", param)
+        den_polys = algoOutput["OUTPUT"]
+
+        if save_unclipped:
+            feedback.pushInfo("save output: TBk_local_densities_unclipped" + output_suffix + ".gpkg ...")
+            # save local densities output
+            path_local_den_unclipped_out = os.path.join(path_output, "TBk_local_densities_unclipped" + output_suffix + ".gpkg")
+            ctc = QgsProject.instance().transformContext()
+            QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_unclipped_out, ctc,
+                                                      getVectorSaveOptions('GPKG', 'utf-8'))
+
+        # drop local densities geometries having areas below min. area --> reduce workload for later intersection with stands
+        feedback.pushInfo("before intersection: filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
+        # print("N of local densities geometries before filtering with min. area: " + str(len(den_polys)))
+        param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:extractbyexpression", param)
+        den_polys = algoOutput["OUTPUT"]
+        # print("N of local densities geometries after filtering with min. area: " + str(len(den_polys)))
+        # f_save_as_gpkg(den_polys, "den_polys_larger_before_intersection")
+
         feedback.pushInfo("intersection of local densities and selected stands ...")
         # check attribute of selected stands
         # for field in stands.fields(): print(field.name(), field.typeName())
@@ -620,15 +654,81 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for field in stands.fields():
             stands_fields.append(field.name())
         # print(stands_fields)
-        # creat spatial index for local densities
-        processing.run("native:createspatialindex", {'INPUT': den_polys})
+
+        # group selected stands by x_min & y_min intersecting with grid cells (attribute group is not exported)
+        grid_width = grid_cell_size * 1000  # [km] --> [m]
+        formular = ("concat( ceil(  x_min( $geometry ) / " + str(grid_width) +
+                    "), '_', ceil(  y_min( $geometry ) / " + str(grid_width) + "))")
+        # print(formular)
+        param = {'INPUT': stands, 'FIELD_NAME': 'group', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+                 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        stands = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands, "stands_grouped")
+
         # creat spatial index for selected stands
         processing.run("native:createspatialindex", {'INPUT': stands})
-        param = {'INPUT': den_polys, 'OVERLAY': stands, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
-                 'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
-        algoOutput = processing.run("native:intersection", param)
+        # creat spatial index for local densities
+        processing.run("native:createspatialindex", {'INPUT': den_polys})
+
+        # list unique group names
+        group_index = stands.fields().indexFromName("group")
+        group_unique = list(stands.uniqueValues(group_index))
+        
+        # list of placeholders to later insert groupwise intersections of stands & local densities
+        l = [None] * len(group_unique)
+        
+        # iterate over unique stand groups
+        for i in range(len(l)):
+            # extract from selected stands those belong to the i-th group
+            expression = ' "group"  =  ' + "'" + group_unique[i] + "'"
+            # print(expression)
+            param = {'INPUT': stands, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            stands_g = algoOutput["OUTPUT"]
+            # print("N stands: " + str(len(stands_g)))
+
+            # make rectangle polygon = extent of stands belonging to the i-th group
+            param = {'INPUT': stands_g, 'ROUND_TO': 0, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:polygonfromlayerextent", param)
+            rect_g = algoOutput["OUTPUT"]
+
+            # extract local densities overlapping with rectangle (a single & simple polygon / geometry)
+            param = {'INPUT': den_polys, 'PREDICATE': [0], 'INTERSECT': rect_g, 'OUTPUT': 'TEMPORARY_OUTPUT'} # 'PREDICATE': [0] --> intersect
+            algoOutput = processing.run("native:extractbylocation", param)
+            den_polys_g = algoOutput["OUTPUT"]
+            # print("N local densities: " + str(len(den_polys_g)))
+
+            # if there aren't any overlapping local densities continue with next group
+            if len(den_polys_g) == 0:
+                continue
+
+            # intersection stands belong to the i-th group & local densities potentially overlapping
+            param = {'INPUT': den_polys_g, 'OVERLAY': stands_g, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
+                     'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
+            algoOutput = processing.run("native:intersection", param)
+            den_polys_g = algoOutput["OUTPUT"]
+
+            # if intersection has returned no geometries continue with next group
+            if len(den_polys_g) == 0:
+                continue
+
+            # insert returns of intersection into list
+            l[i] = den_polys_g
+
+        # remove None values in list
+        l = list(filter(lambda item: item is not None, l))
+
+        # merge groupwise intersections of stands & local densities
+        param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
+
+        # drop attribute layer & path (added by native:mergevectorlayers)
+        param = {'INPUT': den_polys, 'COLUMN': ['layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:deletecolumn", param)
+        den_polys = algoOutput["OUTPUT"]
 
         # multi parts --> single parts
         feedback.pushInfo("turn local density multi parts into single parts ...")
@@ -688,6 +788,21 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
         feedback.pushInfo("calculate local density metrics for overlapping stands ...")
+        # group stands in original stands map by using the tmp. id of stands (fid_stand) ...
+        group_size = 1000 # (max.) number of stands pick from original stands map for an iterative step
+        formular = 'ceil("fid_stand" / ' + str(group_size) + ')'
+        param = {'INPUT': stands_all, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+               'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        stands_all = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands_all, "stands_all_grouped")
+        # ... same procedure with the local densities according
+        param = {'INPUT': den_polys, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fieldcalculator", param)
+        den_polys = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(den_polys, "den_polys_grouped")
+
         # from by now existing attributes of density polygons aggregate a (long) summary table for each combination of
         # density class & stand
         # - fid_stand: tmp. id of each stand allowing later to join to original stand layer
@@ -696,8 +811,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         # - area_pct:  ratio of total area (s. above) to area of stand [0, 1]
         # - dg:        mean DG of HS (= DG_OS + DG_UEB) of all subsurface of a class with the same stand [0, 100] (%)
         # - nh:        mean NH  of all subsurface of a class with the same stand [0, 100] (%)
-        param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:dropgeometries", param)
         aggregates = [
             {'aggregate': 'first_value', 'delimiter': ',', 'input': '"fid_stand"', 'length': 0, 'name': 'fid_stand',
              'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
@@ -716,15 +829,6 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 {'aggregate': 'first_value', 'delimiter': ',', 'input': 'round(sum(NH * area) / sum(area))',
                  'length': 0, 'name': 'nh', 'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'}
             )
-        param = {
-            'INPUT': algoOutput["OUTPUT"],
-            'GROUP_BY': 'Array( "fid_stand", "class")',
-            'AGGREGATES': aggregates,
-            'OUTPUT': 'TEMPORARY_OUTPUT'
-        }
-        algoOutput = processing.run("native:aggregate", param)
-        statstable_long = algoOutput["OUTPUT"]
-        # f_save_as_gpkg(statstable_long, "statstable_long")
 
         # all density classes
         all_classes = []
@@ -739,25 +843,74 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         for cl in all_classes:
             for v in value_types:
                 new_fields.append("z" + cl + "_" + v)
-        # add new fields / attributes to original stands layer
+        # define new fields / attributes for stands layers generated in below loop
         new_attributes = []
         for i in new_fields:
             if i[-8:] == "area_pct":
                 new_attributes.append(QgsField(i, QVariant.Double))
             else:
                 new_attributes.append(QgsField(i, QVariant.Int))
-        pr = stands_all.dataProvider()
-        pr.addAttributes(new_attributes)
-        stands_all.updateFields()
-        # populate new attributes with values from (long) summary table
-        for f in statstable_long.getFeatures():
-            with edit(stands_all):
-                for stand in stands_all.getFeatures():
-                    if stand["fid_stand"] == f["fid_stand"]:
-                        for v in value_types:
-                            stand["z" + f["class"] + "_" + v] = f[v]
-                    stands_all.updateFeature(stand)
 
+        # get unique values from tmp. group id (fid_stand_group) add to original stand map
+        fid_stand_group_index = stands_all.fields().indexFromName("fid_stand_group")
+        fid_stand_group_index_unique = list(stands_all.uniqueValues(fid_stand_group_index))
+
+        # list of placeholders to later insert groupwise modifications of original stand map
+        l_stands_all = [None] * len(fid_stand_group_index_unique)
+        # print(len(l_stands_all))
+
+        # groupwise calculation of local density metrics
+        for gr in range(len(l_stands_all)):
+            # extract geometries belonging to the i-th group ...
+            expression = ' "fid_stand_group"  =  ' + str(fid_stand_group_index_unique[gr])
+            # print(expression)
+            # ... from original stand map
+            param = {'INPUT': stands_all, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            stands_all_g = algoOutput["OUTPUT"]
+            # print("N stands: " + str(len(stands_all_g)))
+            # ... from local densities
+            param = {'INPUT': den_polys, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            algoOutput = processing.run("native:extractbyexpression", param)
+            den_polys_g = algoOutput["OUTPUT"]
+            # print("N local densities: " + str(len(den_polys_g)))
+
+            # if there are any local densities overlapping with the i-th group of stands ...
+            if len(den_polys_g) > 0:
+                # 1) table (long format) for each combination of stand and local density class metrics
+                param = {'INPUT': den_polys_g, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+                algoOutput = processing.run("native:dropgeometries", param)
+                param = {
+                    'INPUT': algoOutput["OUTPUT"],
+                    'GROUP_BY': 'Array( "fid_stand", "class")',
+                    'AGGREGATES': aggregates,
+                    'OUTPUT': 'TEMPORARY_OUTPUT'
+                }
+                algoOutput = processing.run("native:aggregate", param)
+                statstable_long_g = algoOutput["OUTPUT"]
+                # f_save_as_gpkg(statstable_long_g, "statstable_long_g_" + gr)
+                # 2) add new attribute to i-th group of stands
+                pr = stands_all_g.dataProvider()
+                pr.addAttributes(new_attributes)
+                stands_all_g.updateFields()
+                # 3) populate new attributes with values from (long) summary table
+                for f in statstable_long_g.getFeatures():
+                    with edit(stands_all_g):
+                        for stand in stands_all_g.getFeatures():
+                            if stand["fid_stand"] == f["fid_stand"]:
+                                for v in value_types:
+                                    stand["z" + f["class"] + "_" + v] = f[v]
+                            stands_all_g.updateFeature(stand)
+
+            l_stands_all[gr] = stands_all_g
+
+        # merge the groups of stands with complemented local density metrics to 1 layer
+        param = {'LAYERS': l_stands_all, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:mergevectorlayers", param)
+        stands_all = algoOutput["OUTPUT"]
+        # f_save_as_gpkg(stands_all, "stands_all_merged")
+
+        feedback.pushInfo("tidy up attributes of local densities ...")
         # sequence fields of local densities for output. note: tmp. id for stands (= fid_stand) is not part of output!
         field_names = ['class', 'ID_stand', 'area', 'area_stand', 'area_pct']
         for raster in rasters_4_stats:
@@ -813,8 +966,10 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
         feedback.pushInfo("save output: TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg ...")
-        # tmp. id (= fid_stand) is not part of output!
-        param = {'INPUT': stands_all, 'COLUMN': ['fid_stand'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        # tmp. id (= fid_stand) and its derivative (fid_stand_group) are not part of output, same goes to attributes
+        # added by native:mergevectorlayers (layer, path)!
+        col_to_delete = ['fid_stand', 'fid_stand_group', 'layer', 'path']
+        param = {'INPUT': stands_all, 'COLUMN': col_to_delete, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
         stands_all = algoOutput["OUTPUT"]
         # output original stands + local density stats
@@ -872,9 +1027,9 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         return """<html><body><p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
 </style></head><body style=" font-family:'MS Shell Dlg 2'; font-size:8.3pt; font-weight:400; font-style:normal;">
-<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window having either a “normal” or a large radius is applied to the binary degree of cover raster (<i>dg_layer</i> / output of <b><i>Generate BK</i></b>). The radii of the “normal” and the large circular moving window are by default 7m resp. 14m. Picking the “normal” or the large radius, adds to defining each class of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m&sup2;) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m&sup2;) and having themself an area below another threshold (default also 1200m&sup2;) are filtered out.
+<p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Detects within polygons of a TBk stand map zones (polygons), which are defined by specific percentual classes of mean degree of cover. Bevor segregating the zones, a focal statistic algorithm with a circular moving window is applied to the binary degree of cover raster (<i>dg_layer</i> / output of <b><i>Generate BK</i></b>). The radius of moving window can be set individually for each class. Thus, setting percentual ranges and radii defines classes of the local densities. Once polygons representing classes of local densities are derived, holes below a minimal area (default 400m&sup2;) are removed from the polygons. Optionally thin parts of the local density zones are removed by a minus / plus buffering (“buffer smoothing”). Finally local densities polygons within stand having an area below a threshold (default 1200m&sup2;) and having themself an area below another threshold (default also 1200m&sup2;) are filtered out.
 
-Some attributes form overlapping stand are inherited by the local densities. The names of these attributes are suffixed with <i>_stand</i>. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layer belonging either input or output of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees is optional.
+Some attributes form overlapping stands are inherited by the local densities. The names of these attributes are suffixed with <i>_stand</i>. Further attributes derive from mean values achieved from zonal statistic applied to serval raster layers belonging either to the input or the output of <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>. The coniferous raster is the only input and involving it is optional. The zones’ mean of general degree of cover is calculated in any case, while getting the corresponding values from the degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees is optional.
 
 To a copy of the TBk stand map attributes with metrics about each local density class detected within a stand are added.</p></body></html></p>
 
@@ -895,10 +1050,6 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <p>Matrix with 4 columns to set 1 or multiple classes. By default 6 classes defined.</p>
 <h3>Calculate mean with zonal statistics for all DG layers (KS, US, MS, OS, UEB)</h3>
 <p>Check box: if checked (default) zonal statistic is applied to all raster with degree of cover specific to different height ranges (<i>KS</i>, <i>US</i>, <i>MS</i>, <i>OS</i>, <i>UEB</i>) relative to height of the stand’s dominate trees.</p>
-<h3>Radius of circular moving window</h3>
-<p>float / [m], default 7m. Note: In contrast to the large radius mention above as "normal" radius.</p>
-<h3>Large radius of circular moving window</h3>
-<p>float / [m], default 14m</p>
 <h3>Minimum size for 'clumps' of local densities</h3>
 <p>integer / [m&sup2;], default 1200m&sup2;</p>
 <h3>Minimum size for stands to apply calculation of local densities</h3>
@@ -909,12 +1060,18 @@ To a copy of the TBk stand map attributes with metrics about each local density 
 <p>Check box: if checked (default) "buffer smoothing" applied to polygons of local densities.</p>
 <h3>Buffer distance of buffer smoothing</h3>
 <p>float / [m], default 7m</p>
+<h3>Save unclipped local densities as layer / .gpkg.</h3>
+<p>Check box: if checked unclipped geometries of local density classes are saved as layer / .gpkg having suffix <i>_unclipped</i>.</p>
+<h3>Grid cell size for grouping stands by their x_min & y_min overlapping</h3>
+<p>float / [km], default 3km --> 9km&sup2; square cells. This input is used for groupwise / iterative intersection of stands and local densities, thus tackling the run time of intersection exponentially increasing with number of geometries. This parameter is experimental as the optimal cell size is unknown at the time.</p> 
 
 <h2>Outputs</h2>
 <h3>local_densities</h3>
 <p>A folder placed within the <i><b>Folder with TBk results</i></b> (s. <i><b>Inputs</i></b> above) containing two files:
 
 - <i>TBk_local_densities.gpkg</i>* holding a same named layer with polygons of all density classes.
+
+- <i>TBk_local_densities_unclipped.gpkg</i>* holding a same named layer with polygons of all unclipped density classes (optional s. advanced parameter <i><b>Save unclipped ... </i></b>).
 
 - <i>TBk_Bestandeskarte_local_densities.gpkg</i>* holding a same named layer being a copy of the input TBk stand map having additional attributes with metrics about each local density class detected within the stands.
 
