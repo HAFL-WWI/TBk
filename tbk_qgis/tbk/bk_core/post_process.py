@@ -44,7 +44,6 @@ def post_process(working_root, tmp_output_folder, min_area, simplification_toler
     tmp_simplified = "tmp_simplified.gpkg"
     tmp_simplified_error = "tmp_simplified_error.gpkg"
     tempLayer = "tmp"
-    neighbors_out = "neighbors"
 
     highest_raster_in = "hmax.tif"
     highest_point_out = "stands_highest_tree_tmp.gpkg"
@@ -208,7 +207,7 @@ def post_process(working_root, tmp_output_folder, min_area, simplification_toler
     #                 tmp_simplified_layer.updateFeature(f)
 
     ########################################
-    # Prepare for further analysis of neighbors
+    # Prepare for further analysis of neighbours
     param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'FID_orig', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 0, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:addfieldtoattributestable", param)
@@ -227,126 +226,6 @@ def post_process(working_root, tmp_output_folder, min_area, simplification_toler
     QgsVectorFileWriter.writeAsVectorFormatV3(mLayer, shape_out_path, ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
-    # print("write neighbors TXT...")
-    # # arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")
-
-    # param = {'INPUT':shape_out_path,'JOIN':shape_out_path,'PREDICATE':[0],'JOIN_FIELDS':['ID','hmax','hdom','type','area_m2','FID_orig'],'METHOD':0,'DISCARD_NONMATCHING':False,'PREFIX':'nbr_','OUTPUT':'memory:'}
-    # algoOutput = processing.run("qgis:joinattributesbylocation", param)
-    # mLayer = algoOutput['OUTPUT']
-    # mLayer.selectByExpression("FID_orig = nbr_FID_orig")
-    # ids = mLayer.selectedFeatureIds()
-    # mLayer.dataProvider().deleteFeatures(ids)
-
-    # fields = ['ID','hmax','hdom','type','area_m2','FID_orig']
-    # for name in fields:
-    #     findex = mLayer.dataProvider().fieldNameIndex(name)
-    #     if findex != -1:
-    #         mLayer.dataProvider().renameAttributes({findex: "src_"+name})
-    #         mLayer.updateFields()
-
-    # neighbors_path = os.path.join(working_root,neighbors_out)
-    # QgsVectorFileWriter.writeAsVectorFormatV3(mLayer,neighbors_path,ctc,getVectorSaveOptions('CSV','utf-8'))
-
-    ########################################
-    # Approximate the arcpy Neighbors tool
-    # Code basing on https://www.qgistutorials.com/en/docs/find_neighbor_polygons.html
-
-    print("write neighbors TXT...")
-    #    arcpy.PolygonNeighbors_analysis(shape_out, "neighbors.txt", in_fields="FID;ID;hdom;type;area_m2", area_overlap="NO_AREA_OVERLAP", both_sides="BOTH_SIDES", cluster_tolerance="-1 Unknown", out_linear_units="METERS", out_area_units="SQUARE_METERS")
-
-    neighbors_path = os.path.join(working_root, neighbors_out)
-    # Create memory layer
-    neighborLayer = QgsVectorLayer('None', 'Neighbors', 'memory')
-
-    simplified_layer = QgsVectorLayer(shape_out_path, "stand_boundaries_simplified", "ogr")
-    # QgsProject.instance().addMapLayer(simplified_layer)
-
-    # Create a dictionary of all features
-    feature_dict = {f.id(): f for f in simplified_layer.getFeatures()}
-
-    # Build a spatial index
-    index = QgsSpatialIndex()
-    for f in feature_dict.values():
-        index.addFeature(f)
-
-    neighbors_tmp = []
-
-    # Loop through all features and find features that touch each feature
-    for f in feature_dict.values():
-        geom = f.geometry()
-
-        oid = -1
-        src_FID = f["OBJECTID"]
-        src_ID = f["OBJECTID"]
-        src_hdom = f["hdom"]
-        src_type = f["type"]
-        src_area_m2 = f["area_m2"]
-        node_count = -1
-
-        # Find all features that intersect the bounding box of the current feature.
-        # We use spatial index to find the features intersecting the bounding box
-        # of the current feature. This will narrow down the features that we need
-        # to check neighboring features.
-        intersecting_ids = index.intersects(geom.boundingBox())
-
-        for intersecting_id in intersecting_ids:
-            # Look up the feature from the dictionary
-            intersecting_f = feature_dict[intersecting_id]
-
-            # For our purpose we consider a feature as 'neighbor' if it touches or
-            # intersects a feature. We use the 'disjoint' predicate to satisfy
-            # these conditions. So if a feature is not disjoint, it is a neighbor.
-            if (f != intersecting_f and
-                    not intersecting_f.geometry().disjoint(geom)):
-                nbr_FID = intersecting_f["OBJECTID"]
-                nbr_ID = intersecting_f["OBJECTID"]
-                nbr_hdom = intersecting_f["hdom"]
-                nbr_type = intersecting_f["type"]
-                nbr_area_m2 = intersecting_f["area_m2"]
-                lngth = -1
-                if (intersecting_f.geometry().touches(geom) or intersecting_f.geometry().intersects(geom)):
-                    isct = intersecting_f.geometry().intersection(geom)
-                    lngth = isct.length()
-                # Add a feature with attributes (and without geometry) to populate the 3 fields
-
-                # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
-                neighbors_tmp.append(
-                    [oid, src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
-                     nbr_area_m2, lngth, node_count])
-
-    # Begin editing memory layer and create 3 fields
-    neighborLayer.startEditing()
-    provider = neighborLayer.dataProvider()
-    provider.addAttributes([QgsField("OID", QVariant.Int),
-                            QgsField("src_FID", QVariant.Int),
-                            QgsField("nbr_FID", QVariant.Int),
-                            QgsField("src_ID", QVariant.Int),
-                            QgsField("nbr_ID", QVariant.Int),
-                            QgsField("src_hdom", QVariant.Int),
-                            QgsField("nbr_hdom", QVariant.Int),
-                            QgsField("src_type", QVariant.String),
-                            QgsField("nbr_type", QVariant.String),
-                            QgsField("src_area_m2", QVariant.Int),
-                            QgsField("nbr_area_m2", QVariant.Int),
-                            QgsField("LENGTH", QVariant.Double),
-                            QgsField("NODE_COUNT", QVariant.Int)])
-    neighborLayer.updateFields()
-
-    for n in neighbors_tmp:
-        attr = neighborLayer.dataProvider()
-        feat = QgsFeature()
-        # print([objectid,src_FID, nbr_FID, src_ID, nbr_ID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, lngth, node_count])
-        feat.setAttributes(n)
-        attr.addFeatures([feat])
-        # print(feat)
-
-        neighborLayer.commitChanges()
-
-    QgsVectorFileWriter.writeAsVectorFormatV3(neighborLayer, neighbors_path, ctc, getVectorSaveOptions('CSV', 'utf-8'))
-    # QgsProject.instance().removeMapLayer(neighborLayer.id())
-    # QgsProject.instance().removeMapLayer(simplified_layer.id())
-
-    print('Processing neighbors complete.')
 
     # Delete files
     if del_tmp:
