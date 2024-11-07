@@ -607,7 +607,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         # --- Calc specific attributes
         log.info(' 7 --- Calc specific attributes')
         start_time_section = time.time()
-        stands_file_attributed = calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=del_tmp)
+        stands_file_attributed = calc_attributes(working_root, tmp_output_folder, del_tmp=del_tmp)
         log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
 
         # --- Cleanup stand file
