@@ -39,28 +39,28 @@ import os
 from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
-from tbk_qgis.tbk.bk_core.tbk_qgis_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
-from tbk_qgis.tbk.bk_core.tbk_qgis_algorithm import TBkAlgorithm
-from tbk_qgis.tbk.bk_ag.bkag_algorithm import BkAGAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
-from tbk_qgis.tbk.bk_core.tbk_qgis_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
-from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
-from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
-from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
-from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_mg_algorithm import TBkPrepareVhmMgAlgorithm
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_OSChange import TBkPostprocessOSChange
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
-from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_extract_perimeter import TBkPostprocessExtractPerimeter
-from tbk_qgis.tbk.utility.optimized_spatial_join import OptimizedSpatialJoin
+from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_algorithm import TBkAlgorithm
+from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_algorithm_modularized import TBkAlgorithmModularized
+from tbk_qgis.tbk.tools.B_preproc.tbk_qgis_prepare_vhm_mg_algorithm import TBkPrepareVhmMgAlgorithm
+from tbk_qgis.tbk.tools.C_stand_delineation.tbk_qgis_stand_delineation_algorithm import TBkStandDelineationAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
+from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_postprocess_OSChange import TBkPostprocessOSChange
+from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_postprocess_extract_perimeter import TBkPostprocessExtractPerimeter
+from tbk_qgis.tbk.tools.G_utility.optimized_spatial_join import OptimizedSpatialJoin
+from tbk_qgis.tbk.tools.Y_legacy.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
+from tbk_qgis.tbk.tools.Y_legacy.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
+from tbk_qgis.tbk.tools.Y_legacy.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
+
 
 class TBkProvider(QgsProcessingProvider):
 
@@ -81,7 +81,7 @@ class TBkProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        # [grpID: preproc]      grpName: 0 Preprocessing
+        # [grpID: Y_legacy]      grpName: 0 Preprocessing
         self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkStandDelineationAlgorithm())
@@ -137,7 +137,7 @@ class TBkProvider(QgsProcessingProvider):
             'resources',
             'icon_tbk.png')
         return QIcon(path)
-        #return QgsProcessingProvider.icon(self)
+        # return QgsProcessingProvider.icon(self)
 
     def longName(self):
         """
