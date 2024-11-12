@@ -30,7 +30,7 @@ from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterNumber)
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.C_stand_delineation.Classification import ClassificationHelper as helper
+from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_ClassificationHelper import ClassificationHelper as helper
 from tbk_qgis.tbk.tools.C_stand_delineation.tbk_qgis_processing_algorithm_toolsC import TBkProcessingAlgorithmToolC
 
 

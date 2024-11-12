@@ -19,13 +19,13 @@ __revision__ = '$Format:%H$'
 import logging
 from qgis.core import QgsProcessingParameterString, QgsProcessingParameterNumber, \
     QgsProcessingParameterBoolean, QgsProcessingParameterFile
-from tbk_qgis.tbk.tools.D_postproc_geom.post_process import post_process
+from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_post_process import post_process
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
+from tbk_qgis.tbk.tools.C_stand_delineation.tbk_qgis_processing_algorithm_toolsC import TBkProcessingAlgorithmToolC
 
 
-class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolD):
+class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     """
     todo
     """
@@ -43,8 +43,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolD):
     LOGFILE_NAME = "logfile_name"
     # Simplification tolerance
     SIMPLIFICATION_TOLERANCE = "simplification_tolerance"
-
-    # Additional parameters
     # Min. area to eliminate small stands
     MIN_AREA_M2 = "min_area_m2"
     # Delete temporary files and fields

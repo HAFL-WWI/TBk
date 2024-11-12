@@ -46,8 +46,8 @@ from datetime import datetime
 
 from qgis.PyQt.QtCore import QCoreApplication
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
-from tbk_qgis.tbk.tools.C_stand_delineation.tbk_create_stands import *
-from tbk_qgis.tbk.tools.D_postproc_geom.post_process import *
+from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_create_stands import *
+from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_post_process import *
 from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import *
 from tbk_qgis.tbk.tools.D_postproc_geom.clip_to_perimeter import *
 from tbk_qgis.tbk.tools.E_postproc_attributes.calculate_dg import *

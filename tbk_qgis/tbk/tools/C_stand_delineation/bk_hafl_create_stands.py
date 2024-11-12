@@ -9,7 +9,7 @@
 from osgeo import gdal, osr
 from osgeo.gdalconst import *
 import numpy as np
-from tbk_qgis.tbk.tools.C_stand_delineation.Classification import ClassificationHelper as CH
+from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_ClassificationHelper import ClassificationHelper as CH
 import time
 import logging
 import os
