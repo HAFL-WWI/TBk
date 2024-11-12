@@ -2,15 +2,13 @@
 import logging
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.attributes_default import calc_attributes
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.E_postproc_attributes.calculate_dg import calculate_dg
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 
 
-# todo: rename as Crown Coverage and not dg?
-class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithm):
+class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
     """
     todo
     """
@@ -26,8 +24,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithm):
     RESULT_DIR = "result_dir"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
-    # VHM 150cm to calculate DG
-    VHM_150CM = "vhm_150cm"
+
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
@@ -48,10 +45,6 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithm):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
-
-        # VHM 150cm to calculate DG
-        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_150CM,
-                                                            "VHM 150cm to calculate DG (.tif)"))
 
         # These parameters are only displayed a config parameter is given
         if not config:
@@ -80,31 +73,26 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithm):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-        dg_dir = self._get_dg_output_dir(
-            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
+
         tmp_output_folder = self._get_tmp_output_path(params.result_dir)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
-        log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
+        log = logging.getLogger(self.name())
 
-        # check tif files extension
-        self._check_tif_extension(params.vhm_150cm, self.VHM_150CM)
-
-        # --- Calculate DG
+        # --- Calc specific attributes
         log.info('Starting')
-        calculate_dg(bk_dir, tmp_output_folder, params.result_dir, params.vhm_150cm, del_tmp=params.del_tmp)
+        stands_file_attributed = calc_attributes(bk_dir, tmp_output_folder, del_tmp=params.del_tmp)
 
-        return {self.RESULT_DIR: params.result_dir}
+        return {self.OUTPUT: stands_file_attributed}
 
     def createInstance(self):
         """
         Returns a new algorithm instance
         """
-        return TBkCalculateCrownCoverageAlgorithm()
+        return TBkUpdateStandAttributesAlgorithm()
 
     def name(self):
         """
@@ -114,7 +102,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '5 Calculate crown coverage'
+        return '7 Update stand attributes'
 
     #todo
     def shortHelpString(self):

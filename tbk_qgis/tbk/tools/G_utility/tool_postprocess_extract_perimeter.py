@@ -44,9 +44,9 @@ from qgis.PyQt.QtCore import QCoreApplication
 import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TBkProcessingAlgorithmToolG
 
-
-class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
+class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
 
     def addAdvancedParameter(self, parameter):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
@@ -803,31 +803,6 @@ class TBkPostprocessExtractPerimeter(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'TBk postprocess extract perimeter'
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self.name())
-
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        # return self.tr(self.groupId())
-        return '2 TBk Postprocessing'
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'postproc'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

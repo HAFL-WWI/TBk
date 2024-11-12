@@ -28,13 +28,13 @@ from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
                        QgsProcessingParameterNumber)
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
 from tbk_qgis.tbk.tools.C_stand_delineation.Classification import ClassificationHelper as helper
+from tbk_qgis.tbk.tools.C_stand_delineation.tbk_qgis_processing_algorithm_toolsC import TBkProcessingAlgorithmToolC
 
 
-class TBkStandDelineationAlgorithm(TBkProcessingAlgorithm):
+class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     """
     todo
     """

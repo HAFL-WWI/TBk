@@ -1,18 +1,15 @@
 #todo
 import logging
-
 from qgis.core import (QgsProcessingParameterBoolean,
-                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
-                       QgsProcessing,
+                       QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.D_postproc_geom.clip_to_perimeter import clip_to_perimeter, eliminate_gaps
+from tbk_qgis.tbk.tools.E_postproc_attributes.calculate_dg import calculate_dg
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 
-
-#todo: split in 2 algorithms?
-class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithm):
+# todo: rename as Crown Coverage and not dg?
+class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     """
     todo
     """
@@ -25,11 +22,11 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithm):
     # Directory containing the output files
     OUTPUT = "OUTPUT"
     # Folder for storing all input files and saving output files
-    WORKING_ROOT = "working_root"
+    RESULT_DIR = "result_dir"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
-    # Perimeter shapefile to clip final result
-    PERIMETER = "perimeter"
+    # VHM 150cm to calculate DG
+    VHM_150CM = "vhm_150cm"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
@@ -51,16 +48,16 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithm):
                                                      extension='toml',
                                                      optional=True))
 
+        # VHM 150cm to calculate DG
+        self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_150CM,
+                                                            "VHM 150cm to calculate DG (.tif)"))
+
         # These parameters are only displayed a config parameter is given
         if not config:
-            self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
-                                                         "Working root folder. This folder must contain the outputs "
-                                                         "from previous steps.",
+            self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
+                                                         "Directory containing all TBk output folders and files. This "
+                                                         "folder must contain the previous generated data",
                                                          behavior=QgsProcessingParameterFile.Folder))
-        # Perimeter shapefile to clip final result
-        self.addParameter(
-            QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
-                                                [QgsProcessing.TypeVectorPolygon]))
 
         # --- Advanced Parameters
 
@@ -82,29 +79,31 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithm):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        working_root = params.working_root
-        ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(params.working_root)
+        # todo: do the same for the other algorithms:
+        bk_dir = self._get_bk_output_dir(params.result_dir)
+        dg_dir = self._get_dg_output_dir(
+            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
+        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.working_root, params.logfile_name)
-        log = logging.getLogger('Clip to perimeter and eliminate gaps')  # todo: use self.name()?
+        self._configure_logging(params.result_dir, params.logfile_name)
+        log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
 
-        # --- Merge similar neighbours
+        # check tif files extension
+        self._check_tif_extension(params.vhm_150cm, self.VHM_150CM)
+
+        # --- Calculate DG
         log.info('Starting')
-        # run clip function
-        clip_to_perimeter(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
-        # run gaps function
-        eliminate_gaps(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        calculate_dg(bk_dir, tmp_output_folder, params.result_dir, params.vhm_150cm, del_tmp=params.del_tmp)
 
-        return {self.WORKING_ROOT: params.working_root}
+        return {self.RESULT_DIR: params.result_dir}
 
     def createInstance(self):
         """
         Returns a new algorithm instance
         """
-        return TBkClipToPerimeterAndEliminateGapsAlgorithm()
+        return TBkCalculateCrownCoverageAlgorithm()
 
     def name(self):
         """
@@ -114,7 +113,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '4 Clip to perimeter and eliminate gaps'
+        return '5 Calculate crown coverage'
 
     #todo
     def shortHelpString(self):

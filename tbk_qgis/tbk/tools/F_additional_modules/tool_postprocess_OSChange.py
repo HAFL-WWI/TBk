@@ -9,13 +9,13 @@ With QGIS : 33405
 from PyQt5.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
-from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsProcessingParameterFeatureSink
 import processing
+from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_processing_algorithm_toolsF import TBkProcessingAlgorithmToolF
 
 """
 /***************************************************************************
@@ -23,7 +23,7 @@ import processing
  ***************************************************************************/
 """
 
-class TBkPostprocessOSChange(QgsProcessingAlgorithm):
+class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
 
     # --- Init Algorithm: Add Parameters
     def initAlgorithm(self, config=None):
@@ -179,31 +179,6 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'TBk postprocess OS Change'
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self.name())
-
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        # return self.tr(self.groupId())
-        return '2 TBk Postprocessing'
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'postproc'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

@@ -48,9 +48,9 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 from tbk_qgis.tbk.tools.Y_legacy.pre_processing_helper import PreProcessingHelper
+from tbk_qgis.tbk.tools.B_preproc.tbk_qgis_processing_algorithm_toolsB import TBkProcessingAlgorithmToolB
 
-
-class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
+class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
 
     def addAdvancedParameter(self, parameter):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
@@ -689,31 +689,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'TBk prepare VHM (and MG)'
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self.name())
-
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        # return self.tr(self.groupId())
-        return '0 TBk preprocessing tools'
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'Y_legacy'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

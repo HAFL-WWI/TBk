@@ -20,12 +20,12 @@ import logging
 from qgis.core import QgsProcessingParameterString, QgsProcessingParameterNumber, \
     QgsProcessingParameterBoolean, QgsProcessingParameterFile
 from tbk_qgis.tbk.tools.D_postproc_geom.post_process import post_process
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
 
 
-class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithm):
+class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolD):
     """
     todo
     """

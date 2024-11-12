@@ -2,13 +2,13 @@
 import logging
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
+                       QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.tools.E_postproc_attributes.attributes_default import calc_attributes
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
+from tbk_qgis.tbk.tools.E_postproc_attributes.add_coniferous_proportion import add_coniferous_proportion
+from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 
-
-class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
+class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
     """
     todo
     """
@@ -24,11 +24,15 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
     RESULT_DIR = "result_dir"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
+    # Coniferous raster to calculate stand mean
+    CONIFEROUS_RASTER = "coniferous_raster"
 
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
     # Additional parameters
+    # Also calc coniferous prop. for main layer
+    CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
@@ -46,6 +50,11 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
                                                      extension='toml',
                                                      optional=True))
 
+        # Coniferous raster to calculate stand mean
+        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER,
+                                                            "Coniferous raster to calculate stand mean (.tif)",
+                                                            optional=True))
+
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
@@ -58,6 +67,11 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
         # Additional parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
+        self._add_advanced_parameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER,
+                                                  "Also calc coniferous prop. for main layer",
+                                                  defaultValue=True)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields",
@@ -73,26 +87,30 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
+        # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-
+        dg_dir = self._get_dg_output_dir(
+            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
         tmp_output_folder = self._get_tmp_output_path(params.result_dir)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
-        log = logging.getLogger(self.name())
+        log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
 
-        # --- Calc specific attributes
-        log.info('Starting')
-        stands_file_attributed = calc_attributes(bk_dir, tmp_output_folder, del_tmp=params.del_tmp)
+        # --- Add coniferous proportion
+        if params.calc_mixture_for_main_layer:
+            log.info('Add coniferous proportion')
+            add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.coniferous_raster,
+                                      params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
 
-        return {self.OUTPUT: stands_file_attributed}
+        return {self.RESULT_DIR: params.result_dir}
 
     def createInstance(self):
         """
         Returns a new algorithm instance
         """
-        return TBkUpdateStandAttributesAlgorithm()
+        return TBkAddConiferousProportionAlgorithm()
 
     def name(self):
         """
@@ -102,7 +120,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '7 Update stand attributes'
+        return '6 Add coniferous proportion'
 
     #todo
     def shortHelpString(self):

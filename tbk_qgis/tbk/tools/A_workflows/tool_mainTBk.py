@@ -45,7 +45,7 @@ import logging.handlers
 from datetime import datetime
 
 from qgis.PyQt.QtCore import QCoreApplication
-
+from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tbk_create_stands import *
 from tbk_qgis.tbk.tools.D_postproc_geom.post_process import *
 from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import *
@@ -59,7 +59,7 @@ from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file,
                                          write_dict_to_toml_file)
 
 
-class TBkAlgorithm(QgsProcessingAlgorithm):
+class TBkAlgorithm(TBkProcessingAlgorithmToolA):
     """
     This is an example algorithm that takes a vector layer and
     creates a new identical one.
@@ -781,31 +781,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'Generate BK'
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self.name())
-
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        # return self.tr(self.groupId())
-        return '1 Bk generation (core)'
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'tbkcore'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

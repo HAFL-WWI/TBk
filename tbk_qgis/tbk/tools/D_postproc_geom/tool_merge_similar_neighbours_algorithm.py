@@ -1,15 +1,16 @@
 #todo
 import logging
+
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterRasterLayer,
+                       QgsProcessingParameterNumber,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.E_postproc_attributes.add_coniferous_proportion import add_coniferous_proportion
+from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import merge_similar_neighbours
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
 
 
-class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithm):
+class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     """
     todo
     """
@@ -22,18 +23,17 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithm):
     # Directory containing the output files
     OUTPUT = "OUTPUT"
     # Folder for storing all input files and saving output files
-    RESULT_DIR = "result_dir"
+    WORKING_ROOT = "working_root"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
-    # Coniferous raster to calculate stand mean
-    CONIFEROUS_RASTER = "coniferous_raster"
-
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
     # Additional parameters
-    # Also calc coniferous prop. for main layer
-    CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
+    # Min. area to merge similar stands
+    SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
+    # hdom relative diff to merge similar stands
+    SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
@@ -51,28 +51,27 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithm):
                                                      extension='toml',
                                                      optional=True))
 
-        # Coniferous raster to calculate stand mean
-        self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER,
-                                                            "Coniferous raster to calculate stand mean (.tif)",
-                                                            optional=True))
-
         # These parameters are only displayed a config parameter is given
         if not config:
-            self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
-                                                         "Directory containing all TBk output folders and files. This "
-                                                         "folder must contain the previous generated data",
+            self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
+                                                         "Working root folder. This folder must contain the outputs "
+                                                         "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
 
         # --- Advanced Parameters
+        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
+                                                 "Min. area to merge similar stands",
+                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
+        self._add_advanced_parameter(parameter)
+
+        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
+                                                 "hdom relative diff to merge similar stands",
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
+        self._add_advanced_parameter(parameter)
 
         # Additional parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
-        self._add_advanced_parameter(parameter)
-
-        parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER,
-                                                  "Also calc coniferous prop. for main layer",
-                                                  defaultValue=True)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields",
@@ -83,35 +82,38 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        # --- Get input parameters
+        # prepare the algorithm
+        self.prepare(parameters, context, feedback)
+
+        # --- get and check input parameters
 
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        # todo: do the same for the other algorithms:
-        bk_dir = self._get_bk_output_dir(params.result_dir)
-        dg_dir = self._get_dg_output_dir(
-            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
-        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
+        working_root = params.working_root
+        ensure_dir(working_root)
+        tmp_output_folder = self._get_tmp_output_path(params.working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.result_dir, params.logfile_name)
-        log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
+        self._configure_logging(params.working_root, params.logfile_name)
+        log = logging.getLogger('Merge similar neighbours')
 
-        # --- Add coniferous proportion
-        if params.calc_mixture_for_main_layer:
-            log.info('Add coniferous proportion')
-            add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.coniferous_raster,
-                                      params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
+        # --- Merge similar neighbours
+        log.info('Starting')
+        merge_similar_neighbours(working_root,
+                                 tmp_output_folder,
+                                 params.similar_neighbours_min_area,
+                                 params.similar_neighbours_hdom_diff_rel,
+                                 params.del_tmp)
 
-        return {self.RESULT_DIR: params.result_dir}
+        return {self.WORKING_ROOT: params.working_root}
 
     def createInstance(self):
         """
         Returns a new algorithm instance
         """
-        return TBkAddConiferousProportionAlgorithm()
+        return TBkMergeSimilarNeighboursAlgorithm()
 
     def name(self):
         """
@@ -121,7 +123,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '6 Add coniferous proportion'
+        return '3 Merge similar neighbours'
 
     #todo
     def shortHelpString(self):

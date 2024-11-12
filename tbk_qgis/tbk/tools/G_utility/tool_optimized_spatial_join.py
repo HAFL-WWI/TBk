@@ -15,9 +15,10 @@ from qgis.core import QgsProcessingParameterString
 from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterFeatureSink
 import processing
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TBkProcessingAlgorithmToolG
 
 
-class OptimizedSpatialJoin(QgsProcessingAlgorithm):
+class OptimizedSpatialJoin(TBkProcessingAlgorithmToolG):
 
     def initAlgorithm(self, config=None):
 
@@ -125,31 +126,6 @@ class OptimizedSpatialJoin(QgsProcessingAlgorithm):
         formatting characters.
         """
         return 'Optimized Spatial Join'
-
-    def displayName(self):
-        """
-        Returns the translated algorithm name, which should be used for any
-        user-visible display of the algorithm name.
-        """
-        return self.tr(self.name())
-
-    def group(self):
-        """
-        Returns the name of the group this algorithm belongs to. This string
-        should be localised.
-        """
-        # return self.tr(self.groupId())
-        return 'X Utility'
-
-    def groupId(self):
-        """
-        Returns the unique ID of the group this algorithm belongs to. This
-        string should be fixed for the algorithm, and must not be localised.
-        The group id should be unique within each provider. Group id should
-        contain lowercase alphanumeric characters only and no spaces or other
-        formatting characters.
-        """
-        return 'utility'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)

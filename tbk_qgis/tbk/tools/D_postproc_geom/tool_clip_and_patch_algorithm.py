@@ -2,15 +2,17 @@
 import logging
 
 from qgis.core import (QgsProcessingParameterBoolean,
+                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
-                       QgsProcessingParameterNumber,
+                       QgsProcessing,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.general.tbk_qgis_processing_algorithm import TBkProcessingAlgorithm
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import merge_similar_neighbours
+from tbk_qgis.tbk.tools.D_postproc_geom.clip_to_perimeter import clip_to_perimeter, eliminate_gaps
+from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
 
 
-class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
+#todo: split in 2 algorithms?
+class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     """
     todo
     """
@@ -26,14 +28,12 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
     WORKING_ROOT = "working_root"
     # File storing configuration parameters
     CONFIG_FILE = "config_file"
+    # Perimeter shapefile to clip final result
+    PERIMETER = "perimeter"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
     # Additional parameters
-    # Min. area to merge similar stands
-    SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
-    # hdom relative diff to merge similar stands
-    SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
@@ -57,17 +57,12 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
+        # Perimeter shapefile to clip final result
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
+                                                [QgsProcessing.TypeVectorPolygon]))
 
         # --- Advanced Parameters
-        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
-                                                 "Min. area to merge similar stands",
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
-        self._add_advanced_parameter(parameter)
-
-        parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
-                                                 "hdom relative diff to merge similar stands",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
-        self._add_advanced_parameter(parameter)
 
         # Additional parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
@@ -82,10 +77,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        # prepare the algorithm
-        self.prepare(parameters, context, feedback)
-
-        # --- get and check input parameters
+        # --- Get input parameters
 
         params = self._extract_context_params(parameters, context)
 
@@ -97,15 +89,14 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
 
         # Set the logger
         self._configure_logging(params.working_root, params.logfile_name)
-        log = logging.getLogger('Merge similar neighbours')
+        log = logging.getLogger('Clip to perimeter and eliminate gaps')  # todo: use self.name()?
 
         # --- Merge similar neighbours
         log.info('Starting')
-        merge_similar_neighbours(working_root,
-                                 tmp_output_folder,
-                                 params.similar_neighbours_min_area,
-                                 params.similar_neighbours_hdom_diff_rel,
-                                 params.del_tmp)
+        # run clip function
+        clip_to_perimeter(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        # run gaps function
+        eliminate_gaps(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         return {self.WORKING_ROOT: params.working_root}
 
@@ -113,7 +104,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
         """
         Returns a new algorithm instance
         """
-        return TBkMergeSimilarNeighboursAlgorithm()
+        return TBkClipToPerimeterAndEliminateGapsAlgorithm()
 
     def name(self):
         """
@@ -123,7 +114,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '3 Merge similar neighbours'
+        return '4 Clip to perimeter and eliminate gaps'
 
     #todo
     def shortHelpString(self):
