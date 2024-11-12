@@ -41,6 +41,7 @@ from PyQt5.QtGui import *
 
 from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk import TBkAlgorithm
 from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk_modularized import TBkAlgorithmModularized
+from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk_regionwise import TBkAlgorithmRegionwise
 from tbk_qgis.tbk.tools.B_preproc.tool_prepare_vhm_mg import TBkPrepareVhmMgAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
@@ -93,6 +94,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
+        self.addAlgorithm(TBkAlgorithmRegionwise())
         # [grpID: postproc]     grpName: 2 Postprocessing
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
