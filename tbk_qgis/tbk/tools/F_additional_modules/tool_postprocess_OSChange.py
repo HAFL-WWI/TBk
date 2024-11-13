@@ -31,7 +31,7 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -65,14 +65,14 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
                                                     createByDefault=True, defaultValue=None))
 
         parameter = QgsProcessingParameterNumber('thresh_hdom', 'hdom: Stands >= hdom are considered for TBk change',
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=25.0)
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=25.0)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(parameter)
 
         parameter = QgsProcessingParameterNumber('thresh_hdiff',
                                                  'Negative height difference (in m) after which an area is considered cleared.',
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=7.0)
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=7.0)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(parameter)
 
     # --- Process Algorithm

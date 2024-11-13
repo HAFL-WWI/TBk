@@ -71,11 +71,11 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     def addHiddenParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagHidden)
         return self.addParameter(parameter)
 
     # ------- Define Constants -------#
@@ -196,7 +196,7 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
         # Perimeter shapefile to clip final result                                 
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.PERIMETER, self.tr("Perimeter shapefile to clip final result"),
-                                                [QgsProcessing.TypeVectorPolygon]))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         # Folder for algorithm output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT, self.tr('Output folder'
@@ -209,13 +209,13 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
             "Vegetation Zone default (Code). Will be applied if no vegetation zone can be assigned from VegZone layer."
             "\n1 - hyperinsubric, 2/3 - colline /with beech, 4 - submontane, "
             "\n5 - lower montane, 6 - upper montane, 8 - high montane, 9 - sub alpine"
-        ), type=QgsProcessingParameterNumber.Integer, defaultValue=2))
+        ), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=2))
         self.addAdvancedParameter(
             QgsProcessingParameterFeatureSource(self.VEGZONE_LAYER, self.tr("Vegetation Zone layer"),
-                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon], optional=True))
         self.addAdvancedParameter(
             QgsProcessingParameterField(self.VEGZONE_LAYER_FIELD, 'Vegetation Zone Code field (in layer)',
-                                        type=QgsProcessingParameterField.Numeric,
+                                        type=QgsProcessingParameterField.DataType.Numeric,
                                         parentLayerParameterName=self.VEGZONE_LAYER, allowMultiple=False,
                                         defaultValue='Code', optional=True))
 
@@ -225,10 +225,10 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
                                          optional=True))
         self.addAdvancedParameter(
             QgsProcessingParameterFeatureSource(self.FORESTSITE_LAYER, self.tr("Forest Site Category layer"),
-                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon], optional=True))
         self.addAdvancedParameter(
             QgsProcessingParameterField(self.FORESTSITE_LAYER_FIELD, 'Forest Site Category field (in layer)',
-                                        type=QgsProcessingParameterField.Any,
+                                        type=QgsProcessingParameterField.DataType.Any,
                                         parentLayerParameterName=self.FORESTSITE_LAYER, allowMultiple=False,
                                         optional=True))
 
@@ -246,59 +246,59 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_TOL, self.tr("Relative min tolerance"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.1)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_TOL, self.tr("Relative max tolerance"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.1)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CORR, self.tr("Extension of the range down [m]"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=4)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_CORR, self.tr("Extension of the range up [m]"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=4)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS,
                                                  self.tr("Minimum relative amount of valid cells"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.5)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, self.tr("Minimum cells per stand"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=10)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=10)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND,
                                                  self.tr("Minimum cells for pure mixture stands"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=30)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=30)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, self.tr("VHM minimum height"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, self.tr("VHM maximum height"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=60)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=60)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.SIMPLIFICATION_TOLERANCE, self.tr("Simplification tolerance [m]"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=8)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=8)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, self.tr("Min. area to eliminate small stands"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=1000)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
                                                  self.tr("Min. area to merge similar stands"),
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=2000)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
                                                  self.tr("hdom relative diff to merge similar stands"),
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.15)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterBoolean(self.CALC_MIXTURE_FOR_MAIN_LAYER,

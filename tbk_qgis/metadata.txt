@@ -47,5 +47,8 @@ Category of the plugin: Raster, Vector, Database or Web
 # If the plugin can run on QGIS Server.
 server=False
 
+# Qt6 compatiblity
+supportsQt6=yes
+
 # * * * * * * * * * * * * End of additional metadata   * * * * * * * * * * * * #
 

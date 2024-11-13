@@ -60,14 +60,14 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
-                                                         behavior=QgsProcessingParameterFile.Folder))
+                                                         behavior=QgsProcessingParameterFile.Behavior.Folder))
 
         # --- Main parameters
 
         # Input stand map to be merged
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.INPUT_TO_MERGE, "Input layer to be merged",
-                                                [QgsProcessing.TypeVectorPolygon],
+                                                [QgsProcessing.SourceType.TypeVectorPolygon],
                                                 optional=True))
 
         # Output
@@ -84,12 +84,12 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         # --- Advanced Parameters
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
                                                  "Min. area to merge similar stands",
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=2000)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_HDOM_DIFF_REL,
                                                  "hdom relative diff to merge similar stands",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.15)
         self._add_advanced_parameter(parameter)
 
         # Additional parameters

@@ -145,14 +145,14 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         """
         Add an advanced parameter
         """
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     def _add_hidden_parameter(self, parameter):
         """
         Add a hidden parameter
         """
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagHidden)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagHidden)
         return self.addParameter(parameter)
 
     def _extract_context_params(self, parameters, context):

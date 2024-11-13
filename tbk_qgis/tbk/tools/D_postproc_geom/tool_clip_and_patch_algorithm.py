@@ -64,14 +64,14 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
-                                                         behavior=QgsProcessingParameterFile.Folder))
+                                                         behavior=QgsProcessingParameterFile.Behavior.Folder))
 
         # --- Main parameters
 
         # Input stand map to be merged
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.INPUT_TO_CLIP, "Input layer to be clipped",
-                                                [QgsProcessing.TypeVectorPolygon],
+                                                [QgsProcessing.SourceType.TypeVectorPolygon],
                                                 optional=True))
 
         # Output
@@ -83,7 +83,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # Perimeter shapefile to clip final result
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
-                                                [QgsProcessing.TypeVectorPolygon]))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         # --- Advanced Parameters
 

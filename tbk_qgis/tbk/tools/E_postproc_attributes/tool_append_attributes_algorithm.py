@@ -3,7 +3,7 @@ import logging
 import os
 
 import processing
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterFeatureSource, QgsProcessingParameterField, \
     QgsProcessing, QgsProcessingException, QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterBoolean,
@@ -74,12 +74,12 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
                                                          "Directory containing all TBk output folders and files. This "
                                                          "folder must contain the previous generated data",
-                                                         behavior=QgsProcessingParameterFile.Folder))
+                                                         behavior=QgsProcessingParameterFile.Behavior.Folder))
 
         # Input stand map to be merged
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.INPUT_TO_ATTRIBUTE, "Input layer to join to",
-                                                [QgsProcessing.TypeVectorPolygon],
+                                                [QgsProcessing.SourceType.TypeVectorPolygon],
                                                 optional=True))
         # Output
         self.addParameter(
@@ -94,13 +94,13 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
             "Vegetation Zone default (Code). Will be applied if no vegetation zone can be assigned from VegZone layer."
             "\n1 - hyperinsubric, 2/3 - colline /with beech, 4 - submontane, "
             "\n5 - lower montane, 6 - upper montane, 8 - high montane, 9 - sub alpine"
-        ), type=QgsProcessingParameterNumber.Integer, defaultValue=2))
+        ), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=2))
         self._add_advanced_parameter(
             QgsProcessingParameterFeatureSource(self.VEGZONE_LAYER, self.tr("Vegetation Zone layer"),
-                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon], optional=True))
         self._add_advanced_parameter(
             QgsProcessingParameterField(self.VEGZONE_LAYER_FIELD, 'Vegetation Zone Code field (in layer)',
-                                        type=QgsProcessingParameterField.Numeric,
+                                        type=QgsProcessingParameterField.DataType.Numeric,
                                         parentLayerParameterName=self.VEGZONE_LAYER, allowMultiple=False,
                                         defaultValue='Code', optional=True))
 
@@ -110,10 +110,10 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                          optional=True))
         self._add_advanced_parameter(
             QgsProcessingParameterFeatureSource(self.FORESTSITE_LAYER, self.tr("Forest Site Category layer"),
-                                                [QgsProcessing.TypeVectorPolygon], optional=True))
+                                                [QgsProcessing.SourceType.TypeVectorPolygon], optional=True))
         self._add_advanced_parameter(
             QgsProcessingParameterField(self.FORESTSITE_LAYER_FIELD, 'Forest Site Category field (in layer)',
-                                        type=QgsProcessingParameterField.Any,
+                                        type=QgsProcessingParameterField.DataType.Any,
                                         parentLayerParameterName=self.FORESTSITE_LAYER, allowMultiple=False,
                                         optional=True))
 

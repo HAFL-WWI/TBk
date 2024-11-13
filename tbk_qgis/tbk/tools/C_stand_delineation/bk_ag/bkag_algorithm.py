@@ -46,7 +46,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # Constants used to refer to parameters and outputs. They will be
@@ -82,7 +82,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterRasterLayer(
                 self.VHM,
                 self.tr('VHM 1m (.tif)'),
-                [QgsProcessing.TypeRaster]
+                [QgsProcessing.SourceType.TypeRaster]
             )
         )
 
@@ -91,7 +91,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 self.PERIMETER,
                 self.tr("Perimeter shapefile to clip final result (.shp)"),
-                [QgsProcessing.TypeVectorPolygon]
+                [QgsProcessing.SourceType.TypeVectorPolygon]
             )
         )
 
@@ -110,7 +110,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterFeatureSource(
                 self.ROADS,
                 self.tr("Forest roads shapefile (lines) to clip stands (.shp)"),
-                [QgsProcessing.TypeVectorLine],
+                [QgsProcessing.SourceType.TypeVectorLine],
                 optional=True
             )
         )
@@ -127,7 +127,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.WINDOW_SIZE_ALL,
             self.tr("Window size for focal statistics over all cells"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=25
         )
         self.addAdvancedParameter(parameter)
@@ -135,7 +135,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.WINDOW_SIZE_SH1,
             self.tr("Window size for focal statistics over SH1 cells"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=5
         )
         self.addAdvancedParameter(parameter)
@@ -143,7 +143,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.WEIGHTING_SH1,
             self.tr("Percentage of cells so that classification = SH1"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=40,
             minValue=0,
             maxValue=100
@@ -153,7 +153,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.SIMPLIFY_THRESHOLD,
             self.tr("Threshold for polygon simplification"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=2,
         )
         self.addAdvancedParameter(parameter)
@@ -161,7 +161,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MIN_AREA_BK,
             self.tr("Minimum area for a stand in m2"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=2000,
         )
         self.addAdvancedParameter(parameter)
@@ -169,7 +169,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MIN_AREA_PERIMETER,
             self.tr("Minimum area for perimeter polygons"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=100,
         )
         self.addAdvancedParameter(parameter)
@@ -177,7 +177,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.LIMIT_JU,
             self.tr("Upper limit in m for young growth"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=7,
         )
         self.addAdvancedParameter(parameter)
@@ -185,7 +185,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.LIMIT_SH1,
             self.tr("Upper limit in m for pole wood 1"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=14,
         )
         self.addAdvancedParameter(parameter)
@@ -193,7 +193,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.LIMIT_SH2,
             self.tr("Upper limit in m for pole wood 2"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=20,
         )
         self.addAdvancedParameter(parameter)
@@ -201,7 +201,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.LIMIT_BH1,
             self.tr("Upper limit in m for timber 1"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=25,
         )
         self.addAdvancedParameter(parameter)
@@ -209,7 +209,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.LIMIT_BH2,
             self.tr("Upper limit in m for timber 2"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=30,
         )
         self.addAdvancedParameter(parameter)

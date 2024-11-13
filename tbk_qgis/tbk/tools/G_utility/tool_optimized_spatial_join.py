@@ -32,7 +32,7 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -51,14 +51,14 @@ class OptimizedSpatialJoin(TBkProcessingAlgorithmToolG):
         self.addParameter(QgsProcessingParameterVectorLayer('layer_to_join_attribute_on', 'Layer to join attribute on',
                                                             defaultValue=None))
         self.addParameter(
-            QgsProcessingParameterVectorLayer('attribute_layer', 'attribute Layer', types=[QgsProcessing.TypeVectorPolygon],
+            QgsProcessingParameterVectorLayer('attribute_layer', 'attribute Layer', types=[QgsProcessing.SourceType.TypeVectorPolygon],
                                               defaultValue=None))
         self.addParameter(
             QgsProcessingParameterFeatureSink('output_with_attribute', 'Output with attribute', optional=True,
-                                              type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True,
+                                              type=QgsProcessing.SourceType.TypeVectorAnyGeometry, createByDefault=True,
                                               defaultValue='TEMPORARY_OUTPUT'))
         self.addParameter(
-            QgsProcessingParameterField('fields_to_join', 'Fields to Join', type=QgsProcessingParameterField.Any,
+            QgsProcessingParameterField('fields_to_join', 'Fields to Join', type=QgsProcessingParameterField.DataType.Any,
                                         parentLayerParameterName='attribute_layer', allowMultiple=True,
                                         defaultValue='Code'))
         self.addParameter(
