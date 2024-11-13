@@ -241,15 +241,15 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         log.info(f"All Regions processed: \n{region_stand_maps}")
 
         print(f"Now merging into one single Stand Map")
-        # merged_map = os.path.join(output_root, 'regions', 'stands_regions_merged2.gpkg')
-        # merge_layers_with_composite_id(region_ID_prefix, region_stand_maps, merged_map)
+        merged_map = os.path.join(output_root, 'regions', 'stands_regions_merged2.gpkg')
+        merge_layers_with_composite_id(region_ID_prefix, region_stand_maps, merged_map)
         # processing.run("TBk:TBk postprocess merge stand maps", {'tbk_map_layers': [
         #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/A/bk_process/stands_merged.gpkg|layername=stands_merged',
         #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/B/bk_process/stands_merged.gpkg|layername=stands_merged',
         #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/C/bk_process/stands_merged.gpkg|layername=stands_merged'],
         #     'id_prefix': 0,
         #     'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/stands_regions_merged.gpkg'})
-        # return {'output': merged_map}
+        return {'output': merged_map}
 
     def createInstance(self):
         """
@@ -273,3 +273,93 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         Returns a localised short help string for the algorithm.
         """
         return ('')
+
+
+from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsVectorFileWriter, QgsWkbTypes
+from qgis.PyQt.QtCore import QVariant
+
+import os
+from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
+from PyQt5.QtCore import QVariant
+
+import os
+from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
+from PyQt5.QtCore import QVariant
+
+
+def merge_layers_with_composite_id(vector_paths, region_ids, output_path):
+    """
+    Merges multiple vector layers into a single layer, adding a composite ID.
+
+    Parameters:
+        vector_paths (list): List of paths to the vector layers to be merged.
+        region_ids (list): List of region IDs corresponding to each vector layer.
+        output_path (str): Path to save the merged output layer.
+    """
+
+    # Verify inputs
+    if len(vector_paths) != len(region_ids):
+        raise ValueError("The number of region IDs must match the number of vector paths.")
+
+    # Remove existing output file if it exists
+    if os.path.exists(output_path):
+        os.remove(output_path)
+
+    # Create an empty memory layer for merging
+    crs = QgsProject.instance().crs()  # Assume all layers share project CRS
+    merged_layer = QgsVectorLayer(f"Polygon?crs={crs.authid()}", "merged_layer", "memory")
+    merged_data_provider = merged_layer.dataProvider()
+
+    # Fields to include in the merged layer
+    merged_data_provider.addAttributes([
+        QgsField("ID", QVariant.String),
+        QgsField("ID_inRegion", QVariant.String)
+    ])
+    merged_layer.updateFields()
+
+    # Iterate through each vector layer and region ID
+    for path, region_id in zip(vector_paths, region_ids):
+        # Attempt to load the layer
+        layer = QgsVectorLayer(path, "temp_layer", "ogr")
+
+        if not layer.isValid():
+            print(f"Error: Could not load the layer from path: {path}")
+            continue  # Skip this layer if it couldn't be loaded
+
+        # Ensure the original layer has an "ID" field
+        if "ID" not in [field.name() for field in layer.fields()]:
+            print(f"Warning: Layer at {path} does not contain an 'ID' field. Skipping this layer.")
+            continue
+
+        # Process features and add them to the merged layer
+        for feature in layer.getFeatures():
+            new_feature = QgsFeature()
+            new_feature.setGeometry(feature.geometry())
+
+            # Set the composite ID and original ID fields
+            original_id = feature["ID"]
+            new_feature.setAttributes([
+                f"{region_id}_{original_id}",  # Composite ID (ID field)
+                original_id  # Original ID (ID_inRegion field)
+            ])
+
+            merged_data_provider.addFeature(new_feature)
+
+    # Define output options and write the merged layer to a file
+    output_options = QgsVectorFileWriter.SaveVectorOptions()
+    output_options.driverName = "GPKG"
+    output_options.fileEncoding = "UTF-8"
+    output_options.layerName = "stands_regions_merged"  # Explicit layer name
+
+    error = QgsVectorFileWriter.writeAsVectorFormatV3(
+        merged_layer,
+        output_path,
+        QgsProject.instance().transformContext(),
+        output_options
+    )
+
+    # Check for errors during the write operation
+    if error == QgsVectorFileWriter.NoError:
+        print(f"Successfully saved merged layer to {output_path}")
+    else:
+        print(f"Error: Could not save merged layer to {output_path}. Error code: {error}")
