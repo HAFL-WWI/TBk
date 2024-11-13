@@ -7,7 +7,7 @@ Name : TBk Cleanup
 Group : TBk
 With QGIS : 33404
 """
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -35,7 +35,7 @@ class TBkPostprocessCleanup(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterVectorLayer('tbk_bestandeskarte', 'TBk Bestandeskarte', defaultValue=None))
         self.addParameter(QgsProcessingParameterFeatureSink('Tbk_bestandeskarte_clean', 'TBk_Bestandeskarte_clean',
-                                                            type=QgsProcessing.TypeVectorAnyGeometry,
+                                                            type=QgsProcessing.SourceType.TypeVectorAnyGeometry,
                                                             createByDefault=True, supportsAppend=True,
                                                             defaultValue=None))
 

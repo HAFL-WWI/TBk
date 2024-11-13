@@ -8,8 +8,8 @@
 # Import system modules
 
 from qgis import core
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtCore import QVariant
 from qgis.utils import iface
 from qgis.core import QgsProject
 import processing

@@ -63,7 +63,7 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # Constants used to refer to parameters and outputs. They will be
@@ -119,7 +119,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             QgsProcessingParameterFile(
                 self.PATH_TBk_INPUT,
                 self.tr("Folder with TBk results"),
-                behavior=QgsProcessingParameterFile.Folder,
+                behavior=QgsProcessingParameterFile.Behavior.Folder,
                 fileFilter='All Folders (*.*)',
                 defaultValue=None
             )
@@ -197,7 +197,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MW_RAD,
             self.tr("Radius of circular moving window (in m)"),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=7.0
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
@@ -207,7 +207,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MW_RAD_LARGE,
             self.tr("Large radius of circular moving window (in m)"),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=14.0
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
@@ -217,7 +217,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MIN_SIZE_CLUMP,
             self.tr("Minimum size for 'clumps' of local densities (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=1200
         )
         self.addAdvancedParameter(parameter)
@@ -226,7 +226,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.MIN_SIZE_STAND,
             self.tr("Minimum size for stands to apply calculation of local densities (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=1200
         )
         self.addAdvancedParameter(parameter)
@@ -235,7 +235,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterNumber(
             self.HOLES_THRESH,
             self.tr("Threshold for minimal holes within local density polygons (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=400
         )
         self.addAdvancedParameter(parameter)
@@ -258,7 +258,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "Buffer distance of buffer smoothing (m)."
                 "\nIf set to 0, no buffer smoothing is applied."
             ),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=7
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
@@ -271,7 +271,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 "Grid cell size for grouping stands by their x_min & y_min overlapping (km)."
                 "\n(used for iterative intersection of stands and local densities)"
             ),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=3
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 3}})
@@ -562,7 +562,7 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
                 focal_in_use = dg_focal
 
             # stats of used focal layer
-            focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.All)
+            focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.Stats.All)
             focal_min = focal_stats.minimumValue
             focal_max = focal_stats.maximumValue
             # if range of density class does not overlap with range of values of focal layer continue with next class
