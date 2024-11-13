@@ -1,6 +1,8 @@
-#todo
+# todo
 import logging
 
+from qgis._core import QgsProcessingParameterFeatureSource, QgsProcessing, QgsProcessingOutputVectorLayer, \
+    QgsProcessingParameterFeatureSink, QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterNumber,
@@ -29,7 +31,10 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
-    # Additional parameters
+    # Default log file name
+    INPUT_TO_MERGE = "input_to_merge"
+    # Default log file name
+    OUTPUT_MERGED = "output_merged"
     # Min. area to merge similar stands
     SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
     # hdom relative diff to merge similar stands
@@ -50,13 +55,31 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
-
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
+
+        # --- Main parameters
+
+        # Input stand map to be merged
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(self.INPUT_TO_MERGE, "Input layer to be merged",
+                                                [QgsProcessing.TypeVectorPolygon],
+                                                optional=True))
+
+        # Output
+        self.addParameter(
+            QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Output GeoPackage",
+                                                  "GPKG files (*.gpkg)",
+                                                  optional=True))
+
+        # # Output
+        # self.addParameter(
+        #     QgsProcessingParameterFeatureSink(self.OUTPUT_MERGED, "Merged output",
+        #                                                     QgsProcessing.TypeVectorPolygon))
 
         # --- Advanced Parameters
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
@@ -101,13 +124,15 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
 
         # --- Merge similar neighbours
         log.info('Starting')
-        merge_similar_neighbours(working_root,
-                                 tmp_output_folder,
-                                 params.similar_neighbours_min_area,
-                                 params.similar_neighbours_hdom_diff_rel,
-                                 params.del_tmp)
+        results = merge_similar_neighbours(working_root,
+                                           params.input_to_merge,
+                                           params.output_merged,
+                                           params.similar_neighbours_min_area,
+                                           params.similar_neighbours_hdom_diff_rel,
+                                           params.del_tmp)
 
-        return {self.WORKING_ROOT: params.working_root}
+        # todo: return as featuresink for QGIS to automatically load results
+        return {'output': results}
 
     def createInstance(self):
         """
@@ -123,9 +148,9 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '3 Merge similar neighbours'
+        return '3 Merge similar neighbours (FM)'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.

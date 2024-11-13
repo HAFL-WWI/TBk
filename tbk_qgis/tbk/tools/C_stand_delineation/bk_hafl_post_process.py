@@ -12,14 +12,13 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def post_process(working_root, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
+def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
     # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")
 
     # TBk folder path
     workspace = working_root
-    scratchWorkspace = tmp_output_folder
 
     # Expression to eliminate small polygons
     expression = "area_m2 < " + str(min_area)
@@ -28,9 +27,7 @@ def post_process(working_root, tmp_output_folder, min_area, simplification_toler
     eArea = "{0}".format("to_int(area($geometry))")
 
     # File names
-    shape_in = "stand_boundaries.gpkg"
     tmp_stands_buf = "tmp_stand_boundaries_buf0.gpkg"
-    shape_out = "stands_simplified.gpkg"
     tmp_reduced = "tmp_reduced.gpkg"
     tmp_simplified = "tmp_simplified.gpkg"
     tmp_simplified_error = "tmp_simplified_error.gpkg"
@@ -207,3 +204,6 @@ def post_process(working_root, tmp_output_folder, min_area, simplification_toler
         delete_shapefile(tmp_stands_buf_path)
 
     print("DONE!")
+
+    # Return final result
+    return shape_out_path

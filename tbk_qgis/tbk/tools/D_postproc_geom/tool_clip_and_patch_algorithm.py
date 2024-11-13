@@ -1,6 +1,8 @@
-#todo
+# todo
 import logging
+import os
 
+from qgis._core import QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
@@ -11,7 +13,7 @@ from tbk_qgis.tbk.tools.D_postproc_geom.clip_to_perimeter import clip_to_perimet
 from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
 
 
-#todo: split in 2 algorithms?
+# todo: split in 2 algorithms?
 class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     """
     todo
@@ -32,6 +34,11 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     PERIMETER = "perimeter"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
+
+    # Default log file name
+    INPUT_TO_CLIP = "input_to_clip"
+    # Default log file name
+    OUTPUT_CLIPPED = "output_clipped"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -57,6 +64,21 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
+
+        # --- Main parameters
+
+        # Input stand map to be merged
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(self.INPUT_TO_CLIP, "Input layer to be clipped",
+                                                [QgsProcessing.TypeVectorPolygon],
+                                                optional=True))
+
+        # Output
+        self.addParameter(
+            QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED, "Output GeoPackage",
+                                                  "GPKG files (*.gpkg)",
+                                                  optional=True))
+
         # Perimeter shapefile to clip final result
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
@@ -94,11 +116,14 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # --- Merge similar neighbours
         log.info('Starting')
         # run clip function
-        clip_to_perimeter(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        algOutput = clip_to_perimeter(working_root, params.input_to_clip,
+                                      os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg"),
+                                      tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
         # run gaps function
-        eliminate_gaps(working_root, tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        algOutput = eliminate_gaps(working_root, algOutput, params.output_clipped, tmp_output_folder, params.perimeter,
+                                   del_tmp=params.del_tmp)
 
-        return {self.WORKING_ROOT: params.working_root}
+        return {'output': algOutput}
 
     def createInstance(self):
         """
@@ -116,7 +141,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         """
         return '4 Clip to perimeter and eliminate gaps'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.

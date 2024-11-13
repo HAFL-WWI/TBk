@@ -23,6 +23,7 @@ import time
 import numpy as np
 from osgeo import gdal, osr
 from osgeo.gdalconst import GA_ReadOnly
+from qgis._core import QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
@@ -50,10 +51,15 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     CONFIG_FILE = "config_file"
     # Default log file name
     LOGFILE_NAME = "logfile_name"
+
     # VHM 10m as main TBk input
     VHM_10M = "vhm_10m"
     # Coniferous raster to be used during stand delineation
     CONIFEROUS_RASTER_FOR_CLASSIFICATION = "coniferous_raster_for_classification"
+
+    # Main output layer
+    OUTPUT_STAND_BOUNDARIES = "output_stand_boundaries"
+
     # Short description
     DESCRIPTION = "description"
     # Relative min tolerance
@@ -102,6 +108,12 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
+
+        # Main output (stand boundaries) for algorithm output
+        self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
+                                                                "Output Stand Boundaries",
+                                                                "GPKG files (*.gpkg)",
+                                                                optional=True))
 
         # --- Advanced Parameters
 
@@ -211,6 +223,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         log.debug(f"used parameters: {params_args}")
 
+        # todo: take OUTPUT_STAND_BOUNDARIES as an input param
         results = self.run_stand_delineation(**params_args)
 
         log.debug(f"Results: {results}")
@@ -273,7 +286,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         :param vhm_max_height: Max VHM height in meters for cells to be processed -> set to zero
         """
 
-        #-------- INIT --------#
+        # -------- INIT --------#
 
         log = logging.getLogger(self.name())
         gdal.UseExceptions()
@@ -345,7 +358,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, input data loaded---")
 
-        #------- STAND CLASSIFICATION -------#
+        # ------- STAND CLASSIFICATION -------#
 
         # Init stand number with one
         stand_nbr = 1
@@ -377,7 +390,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         helper.store_raster(hdom, output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raw_classified, hmax and hdom saved  ---")
 
-        #------- SMOOTHING -------#
+        # ------- SMOOTHING -------#
 
         # focal majority for all pixels where no stand was found (last stand number)
         stand = helper.focal_majority(stand, 3, stand_nbr, 0)
@@ -389,7 +402,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raster smoothed and saved  ---")
 
-        #------- POLYGONIZE, ADD ATTRIBUTES -------#
+        # ------- POLYGONIZE, ADD ATTRIBUTES -------#
 
         # polygonize the raster -> to vector file
         helper.polygonize(output_files["smooth_2"], output_files["stand_boundaries"])

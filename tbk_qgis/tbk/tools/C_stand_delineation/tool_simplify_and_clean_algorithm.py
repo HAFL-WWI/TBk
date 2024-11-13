@@ -17,6 +17,8 @@ __email__ = "christian.rosset@bfh.ch"
 __revision__ = '$Format:%H$'
 
 import logging
+
+from qgis._core import QgsProcessingParameterFeatureSource, QgsProcessingParameterFileDestination, QgsProcessing
 from qgis.core import QgsProcessingParameterString, QgsProcessingParameterNumber, \
     QgsProcessingParameterBoolean, QgsProcessingParameterFile
 from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_post_process import post_process
@@ -48,6 +50,10 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
+    # Default log file name
+    INPUT_TO_SIMPLIFY = "input_to_simplify"
+    # Default log file name
+    OUTPUT_SIMPLIFIED = "output_simplified"
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and output of the algorithm, along with some other properties.
@@ -67,6 +73,19 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
+
+        # Input stand map to be processed
+        self.addParameter(
+            QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
+                                                [QgsProcessing.TypeVectorPolygon],
+                                                     optional=True))
+
+        # Output
+        self.addParameter(
+            QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED, "Output GeoPackage",
+                                                  "GPKG files (*.gpkg)",
+                                                     optional=True))
+
 
         # --- Advanced Parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
@@ -123,12 +142,13 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         log.debug(f"used parameters: {working_root}, {tmp_output_folder}, "
                   f"{params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
 
-        results = post_process(working_root, tmp_output_folder, params.min_area_m2,
+        results = post_process(working_root, params.input_to_simplify, params.output_simplified,
+                               tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
         # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
         #  results
-        return {}
+        return {'output': params.output_simplified}
 
     def createInstance(self):
         """
