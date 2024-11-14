@@ -1,5 +1,7 @@
 #todo
 import logging
+import os
+
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterString)
@@ -69,13 +71,14 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         Here is where the processing itself takes place.
         """
         # --- Get input parameters
-
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
+        # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-
-        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
+        # todo: use this instead of tbk_result_dir in calculate_dg()
+        dg_dir = self._get_dg_output_dir(params.result_dir)
+        tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
         ensure_dir(tmp_output_folder)
 
         # Set the logger
@@ -83,7 +86,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         log = logging.getLogger(self.name())
 
         # --- Calc specific attributes
-        log.info('Starting')
+        log.info("Calculating attribute 'struktur'")
         stands_file_attributed = calc_attributes(bk_dir, tmp_output_folder, del_tmp=params.del_tmp)
 
         return {self.OUTPUT: stands_file_attributed}
@@ -102,7 +105,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return '7 Update stand attributes'
+        return 'Calculate attribute "struktur"'
 
     #todo
     def shortHelpString(self):

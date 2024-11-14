@@ -1,5 +1,7 @@
 #todo
 import logging
+import os
+
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterRasterLayer,
@@ -81,9 +83,9 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         # Handle the working root and temp output folders
         # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-        dg_dir = self._get_dg_output_dir(
-            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
-        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
+        # todo: use this instead of tbk_result_dir in calculate_dg()
+        dg_dir = self._get_dg_output_dir(params.result_dir)
+        tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
         ensure_dir(tmp_output_folder)
 
         # Set the logger

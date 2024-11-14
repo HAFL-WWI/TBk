@@ -97,6 +97,7 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
 
     ########################################
     # Union with stand layer
+    # todo remove Union and replace with a different workflow
     print("union gaps with stands...")
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 1)
     param = {'INPUT': in_shape_path, 'OVERLAY': gaps_single_tmp_path, 'OVERLAY_FIELDS_PREFIX': '',

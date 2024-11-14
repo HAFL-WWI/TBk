@@ -49,6 +49,7 @@ from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm 
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes_algorithm import TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.F_additional_modules.tool_postprocess_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.tools.F_additional_modules.tool_postprocess_OSChange import TBkPostprocessOSChange
@@ -92,6 +93,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
         self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
         self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
+        self.addAlgorithm(TBkAppendStandAttributesAlgorithm())
         self.addAlgorithm(TBkAlgorithm())
         self.addAlgorithm(TBkAlgorithmModularized())
         self.addAlgorithm(TBkAlgorithmRegionwise())

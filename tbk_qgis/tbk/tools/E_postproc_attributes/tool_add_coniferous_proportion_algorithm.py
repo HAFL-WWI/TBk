@@ -1,5 +1,7 @@
 #todo
 import logging
+import os
+
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterRasterLayer,
@@ -83,26 +85,24 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         Here is where the processing itself takes place.
         """
         # --- Get input parameters
-
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
         # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-        dg_dir = self._get_dg_output_dir(
-            params.result_dir)  # todo: use this instead of tbk_result_dir in calculate_dg()
-        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
+        # todo: use this instead of tbk_result_dir in calculate_dg()
+        dg_dir = self._get_dg_output_dir(params.result_dir)
+        tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
         ensure_dir(tmp_output_folder)
 
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
-        log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
+        log = logging.getLogger(self.name())
 
         # --- Add coniferous proportion
-        if params.calc_mixture_for_main_layer:
-            log.info('Add coniferous proportion')
-            add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.coniferous_raster,
-                                      params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
+        log.info('Add coniferous proportion')
+        add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.coniferous_raster,
+                                  params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
 
         return {self.RESULT_DIR: params.result_dir}
 
