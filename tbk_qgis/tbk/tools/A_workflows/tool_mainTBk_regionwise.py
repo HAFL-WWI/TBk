@@ -6,7 +6,7 @@ import logging
 from collections import ChainMap
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
-    QgsFeature, QgsProject, QgsWkbTypes
+    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing
 
 from tbk_qgis.tbk.general.tbk_utilities import getVectorSaveOptions
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
@@ -180,10 +180,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 else:
                     print(f"Successfully saved {region_name} perimeter to {output_vector}")
 
+            # --- Configure parameters for region
 
-            # --- Run Stand Delineation
-
-            # copy parent parameters and adjust only those for the region
+            # copy parent parameters and adjust only those relevant for the region
             parameters_region = parameters.copy()
             parameters_region["config_file"] = ""
             parameters_region["perimeter"] = output_vector
@@ -193,19 +192,20 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             parameters_region["working_root"] = os.path.join(region_root_dir, 'bk_process')
             parameters_region["result_dir"] = region_root_dir
             # todo: some of these paths are still hardcoded, need to be dynamic
-            parameters_region["output_stand_delineation"] = os.path.join(region_root_dir, 'bk_process', 'stand_boundaries.gpkg')
-
-            # execute TBkStandDelineationAlgorithm
+            parameters_region["output_stand_delineation"] = os.path.join(region_root_dir, 'bk_process',
+                                                                         'stand_boundaries.gpkg')
+            # --- Run Stand Delineation
             if overwrite or not os.path.exists(parameters_region["output_stand_delineation"]):
                 print(f"STAND DELINEATION: \n{parameters_region['perimeter']}")
                 results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
                                                            context=context, feedback=feedback)
-            else: print(f"Skipped STAND DELINEATION, file already exists (overwrite = False)")
+            else:
+                print(f"Skipped STAND DELINEATION, file already exists (overwrite = False)")
 
             parameters_region["input_to_simplify"] = parameters_region["output_stand_delineation"]
             parameters_region["output_simplified"] = os.path.join(region_root_dir, 'bk_process',
-                                                                      'stands_simplified.gpkg')
-
+                                                                  'stands_simplified.gpkg')
+            # --- Simplify and eliminate
             if overwrite or not os.path.exists(parameters_region["output_simplified"]):
                 print(f"SIMPLIFY & CLEAN: \n{parameters_region['input_to_simplify']}")
                 results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
@@ -216,6 +216,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             parameters_region["input_to_clip"] = parameters_region["output_simplified"]
             parameters_region["output_clipped"] = os.path.join(region_root_dir, 'bk_process', 'stands_clipped.gpkg')
 
+            # --- Clip
             if overwrite or not os.path.exists(parameters_region["output_clipped"]):
                 print(f"CLIP: \n{parameters_region['input_to_clip']}")
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
@@ -223,33 +224,103 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             else:
                 print(f"Skipped CLIP, file already exists (overwrite = False)")
 
+            # --- Merge
             parameters_region["input_to_merge"] = parameters_region["output_clipped"]
             parameters_region["output_merged"] = os.path.join(region_root_dir, 'bk_process', 'stands_merged.gpkg')
 
             if overwrite or not os.path.exists(parameters_region["output_merged"]):
                 print(f"MERGE: \n{parameters_region['input_to_merge']}")
-                processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
-                                                    context=context, feedback=feedback)
+                algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
+                               context=context, feedback=feedback)
             else:
                 print(f"Skipped MERGE, file already exists (overwrite = False)")
 
-            region_stand_maps.append(parameters_region["output_merged"] )
-            region_ID_prefix += feature["region"]
+            # --- Eliminate second pass
+            parameters_region["input_to_simplify_2"] = parameters_region["output_merged"]
+            parameters_region["output_simplified_2"] = os.path.join(region_root_dir, 'bk_process', 'stands_simplified_2.gpkg')
+            # remove small and elongated polygons
+            # expression = f"with_variable('shape_index', $area / ($perimeter^2) * 100, " \
+            #              f"($area < {parameters_region['min_area_m2']})" \
+            #              f"OR (shape_index < 1.5 AND $area < ({parameters_region['min_area_m2']} + 500) AND \"hdom\" < 10)" \
+            #              f"OR (shape_index < 2.05 AND $area < ({parameters_region['min_area_m2']} + 500) AND \"type\" = 'remainder')" \
+            #              f"OR (shape_index < 2.2 AND \"type\" = 'remainder')"
+            expression = f"with_variable('shape_index', $area / ($perimeter^2) * 100, " \
+                         f"($area < {parameters_region['min_area_m2']}) " \
+                         f"OR (@shape_index < 1.5 AND $area < ({parameters_region['min_area_m2']} + 500) AND hdom < 10) " \
+                         f"OR (@shape_index < 2.05 AND $area < ({parameters_region['min_area_m2']} + 500) AND type = 'remainder') " \
+                         f"OR (@shape_index < 2.2 AND type = 'remainder'))"
+
+            if overwrite or not os.path.exists(parameters_region["output_simplified_2"]):
+                print(f"Second ELIMINATE pass: \n{parameters_region['output_simplified_2']}")
+                # Select by area_attribute
+                alg_params = {
+                    'EXPRESSION': expression,
+                    'INPUT': algOutput['OUTPUT'],
+                    'METHOD': 0,  # creating new selection
+                }
+                algOutput = processing.run('qgis:selectbyexpression', alg_params, context=context,
+                                           feedback=feedback, is_child_algorithm=True)
+
+                # processing.run("native:saveselectedfeatures", {
+                #     'INPUT': algOutput['OUTPUT'],
+                #     'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/test_select.gpkg'})
+
+                # Eliminate selected polygons
+                alg_params = {
+                    'INPUT': algOutput['OUTPUT'],
+                    'MODE': 2,  # Largest Common Boundary
+                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
+                }
+                algOutput = processing.run('qgis:eliminateselectedpolygons', alg_params,
+                                           context=context, feedback=feedback,
+                                           is_child_algorithm=True)
+                # Field calculator
+                alg_params = {
+                    'FIELD_LENGTH': 0,
+                    'FIELD_NAME': "area_m2",
+                    'FIELD_PRECISION': 0,
+                    'FIELD_TYPE': 0,  # Decimal (double)
+                    'FORMULA': '$area',
+                    'INPUT': algOutput['OUTPUT'],
+                    'OUTPUT': parameters_region["output_simplified_2"]
+                }
+                algOutput = processing.run('native:fieldcalculator', alg_params, context=context,
+                                           feedback=feedback, is_child_algorithm=True)
+            else:
+                print(f"Skipped second eliminate, file already exists (overwrite = False)")
+
+            # --- Cleanup
+            parameters_region["input_to_clean"] = parameters_region["output_simplified_2"]
+            parameters_region["output_clean"] = os.path.join(region_root_dir, 'bk_process', 'stands_clean.gpkg')
+
+            if overwrite or not os.path.exists(parameters_region["output_simplified_2"]):
+                algOutput = processing.run("TBk:TBk postprocess Cleanup",
+                               {'input_stand_map': algOutput['OUTPUT'],
+                                'output_stand_map_clean': parameters_region["output_clean"]})
+                # algOutput = processing.run("TBk:TBk postprocess Cleanup",
+                #                {'input_stand_map': 'abc',
+                #                 'output_stand_map_clean': parameters_region["output_clean"]})
+            else:
+                print(f"Skipped cleanup, file already exists (overwrite = False)")
+
+            # --- Collect regions and ID/name
+            region_stand_maps.append(parameters_region["output_clean"])
+            region_ID_prefix.append(feature["region"])
 
         print(f"All Regions processed: \n{region_ID_prefix}")
         log.info(f"All Regions processed: \n{region_ID_prefix}")
         log.info(f"All Regions processed: \n{region_stand_maps}")
 
         print(f"Now merging into one single Stand Map")
-        merged_map = os.path.join(output_root, 'regions', 'stands_regions_merged2.gpkg')
-        merge_layers_with_composite_id(region_ID_prefix, region_stand_maps, merged_map)
+        # merged_map = os.path.join(output_root, 'regions', 'stands_regions_merged2.gpkg')
+        # merge_layers_with_composite_id(region_ID_prefix, region_stand_maps, merged_map)
         # processing.run("TBk:TBk postprocess merge stand maps", {'tbk_map_layers': [
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/A/bk_process/stands_merged.gpkg|layername=stands_merged',
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/B/bk_process/stands_merged.gpkg|layername=stands_merged',
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/C/bk_process/stands_merged.gpkg|layername=stands_merged'],
+        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/A/bk_process/stands_clean.gpkg|layername=stands_clean',
+        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/B/bk_process/stands_clean.gpkg|layername=stands_clean',
+        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/C/bk_process/stands_clean.gpkg|layername=stands_clean'],
         #     'id_prefix': 0,
         #     'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/stands_regions_merged.gpkg'})
-        return {'output': merged_map}
+        return {}
 
     def createInstance(self):
         """

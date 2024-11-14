@@ -112,7 +112,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         self.prepare(parameters, context, feedback)
 
         # --- get and check input parameters
-
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
@@ -137,7 +136,9 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
             feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
 
         # ------- TBk Processing --------#
+
         # --- Simplify & Clean
+
         log.info('Starting')
         log.debug(f"used parameters: {working_root}, {tmp_output_folder}, "
                   f"{params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")

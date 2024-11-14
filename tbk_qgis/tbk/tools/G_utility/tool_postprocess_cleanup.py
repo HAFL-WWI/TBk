@@ -1,6 +1,6 @@
 """
 Removes small areas (< 100 m2) and areas without geometry.
-Also fixes geometries and duplicates in the stand ID field.
+Also fixes geometries and removes duplicates in the stand ID field.
 
 Model exported as python.
 Name : TBk Cleanup
@@ -27,15 +27,16 @@ __date__ = '2024-02-20'
 __copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
 
 # This will get replaced with a git SHA1 when you do a git archive
-
 __revision__ = '$Format:%H$'
+
 
 class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
 
     def initAlgorithm(self, config=None):
         self.addParameter(
-            QgsProcessingParameterVectorLayer('tbk_bestandeskarte', 'TBk Bestandeskarte', defaultValue=None))
-        self.addParameter(QgsProcessingParameterFeatureSink('Tbk_bestandeskarte_clean', 'TBk_Bestandeskarte_clean',
+            QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
+
+        self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
                                                             type=QgsProcessing.TypeVectorAnyGeometry,
                                                             createByDefault=True, supportsAppend=True,
                                                             defaultValue=None))
@@ -50,7 +51,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
         # Extract area_m2 > 100
         alg_params = {
             'EXPRESSION': '"area_m2" >= 100',
-            'INPUT': parameters['tbk_bestandeskarte'],
+            'INPUT': parameters['input_stand_map'],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['ExtractArea_m2100'] = processing.run('native:extractbyexpression', alg_params, context=context,
@@ -123,11 +124,12 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
             'FIELD': 'ID_1',
             'INPUT': outputs['DropFieldId']['OUTPUT'],
             'NEW_NAME': 'ID',
-            'OUTPUT': parameters['Tbk_bestandeskarte_clean']
+            'OUTPUT': parameters['output_stand_map_clean']
         }
-        outputs['RenameFieldId_1Id'] = processing.run('native:renametablefield', alg_params, context=context,
+        results['OUTPUT'] = processing.run('native:renametablefield', alg_params, context=context,
                                                       feedback=feedback, is_child_algorithm=True)
-        results['Tbk_bestandeskarte_clean'] = outputs['RenameFieldId_1Id']['OUTPUT']
+
+        # outputs['RenameFieldId_1Id'] = results['OUTPUT']
         return results
 
     def name(self):
@@ -142,8 +144,6 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
+
     def createInstance(self):
         return TBkPostprocessCleanup()
-
-
-

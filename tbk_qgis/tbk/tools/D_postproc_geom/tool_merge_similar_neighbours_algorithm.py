@@ -132,7 +132,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                            params.del_tmp)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return {'output': results}
+        return {'OUTPUT': results}
 
     def createInstance(self):
         """
