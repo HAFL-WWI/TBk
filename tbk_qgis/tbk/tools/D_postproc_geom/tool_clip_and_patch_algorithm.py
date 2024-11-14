@@ -2,6 +2,7 @@
 import logging
 import os
 
+import processing
 from qgis._core import QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
@@ -113,17 +114,18 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         self._configure_logging(params.working_root, params.logfile_name)
         log = logging.getLogger('Clip to perimeter and eliminate gaps')  # todo: use self.name()?
 
-        # --- Merge similar neighbours
+        # ---  Clip
         log.info('Starting')
         # run clip function
         algOutput = clip_to_perimeter(working_root, params.input_to_clip,
                                       os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg"),
                                       tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+
         # run gaps function
         algOutput = eliminate_gaps(working_root, algOutput, params.output_clipped, tmp_output_folder, params.perimeter,
                                    del_tmp=params.del_tmp)
 
-        return {'output': algOutput}
+        return {'OUTPUT': algOutput}
 
     def createInstance(self):
         """

@@ -88,6 +88,15 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
     param = {'input': tmp_reduced_path, 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
              'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
              'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
+             '-t': False, '-l': True, 'output': 'TEMPORARY_OUTPUT', 'error': tmp_simplified_error_path,
+             'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
+             'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
+    algoOutput = processing.run("grass7:v.generalize", param)
+
+    # a second simplify pass, since the first pass leaves some stands unchanged
+    param = {'input': algoOutput['output'], 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
+             'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
+             'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
              '-t': False, '-l': True, 'output': tmp_simplified_path, 'error': tmp_simplified_error_path,
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}

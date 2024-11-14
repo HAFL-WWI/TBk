@@ -19,14 +19,18 @@ def clip_to_perimeter(working_root, stands_to_clip_path, stands_clipped_path, tm
     # stands_clip_path = os.path.join(tmp_output_folder,"stands_clip_tmp.gpkg")
 
     # Clip to forest mask
-    param = {'INPUT': stands_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': stands_clipped_path}
-    processing.run("native:clip", param)
+    param = {'INPUT': stands_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+    algOutput = processing.run("native:clip", param)
+
+    # Convert multipart to singlepart
+    algOutput = processing.run("native:multiparttosingleparts",
+                               {'INPUT': algOutput['OUTPUT'], 'OUTPUT': stands_clipped_path})
 
     # Clip highest trees
     highest_point_path = os.path.join(tmp_output_folder, "stands_highest_tree_tmp.gpkg")
     highest_point_clip_path = os.path.join(working_root, "stands_highest_tree.gpkg")
     param = {'INPUT': highest_point_path, 'OVERLAY': perimeter, 'OUTPUT': highest_point_clip_path}
-    processing.run("native:clip", param)
+    algoOutput = processing.run("native:clip", param)
 
     if del_tmp:
         delete_shapefile(highest_point_path)

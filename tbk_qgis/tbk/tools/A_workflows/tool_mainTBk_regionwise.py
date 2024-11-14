@@ -68,16 +68,17 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         """
         Here is where the processing itself takes place.
         """
+        #--- OVERWRITE FLAG for testing/debugging
+        overwrite = False
 
         # Handle the working root and temp output folder
         output_root = parameters["output_root"]
-        overwrite = False
 
         # set logger
         self._configure_logging(output_root, parameters['logfile_name'])
         log = logging.getLogger(self.name())
 
-        # --- run main algorithm
+        # --- -------------------------------- ---#
         log.info('TBk Starting Regionwise Processing')
 
         # Load the perimeter vector layer from the path stored in parameters
@@ -103,7 +104,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             region_root_dir = os.path.join(regions_dir, region_name)
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
             os.makedirs(region_base_data_dir, exist_ok=True)
-            print(f"Processing {region_name} to {region_base_data_dir}")
+            print(f"\n--------------------------------")
+            print(f"--- Processing Region {region_name} ---")
+            print(f"--------------------------------")
+            print(f"to {region_base_data_dir}")
 
             # --- Create buffered perimeter feature layer
             buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}", "buffered_mask",
@@ -216,7 +220,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             parameters_region["input_to_clip"] = parameters_region["output_simplified"]
             parameters_region["output_clipped"] = os.path.join(region_root_dir, 'bk_process', 'stands_clipped.gpkg')
 
-            # --- Clip
+            # --- Clip & Singlepart
             if overwrite or not os.path.exists(parameters_region["output_clipped"]):
                 print(f"CLIP: \n{parameters_region['input_to_clip']}")
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
@@ -306,19 +310,27 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # --- Collect regions and ID/name
             region_stand_maps.append(parameters_region["output_clean"])
             region_ID_prefix.append(feature["region"])
+            print(f"--------------------------------")
+            print(f"--- completed {region_ID_prefix} ---")
+            print(f"--------------------------------\n\n")
 
-        print(f"All Regions processed: \n{region_ID_prefix}")
-        log.info(f"All Regions processed: \n{region_ID_prefix}")
-        log.info(f"All Regions processed: \n{region_stand_maps}")
+        #--- -------------------------------- ---#
 
-        parameters_region["output_clean"] = os.path.join(region_root_dir, 'tbk_regions_merged.gpkg')
+        # --- Merge
+        print(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
+        log.info(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
+        log.info(f"Layer results per region: \n{region_stand_maps}")
 
+        # write to working dir for compatibility with the following tools
+        os.makedirs( os.path.join(output_root, 'bk_process'), exist_ok=True)
+        merged = os.path.join(output_root, 'bk_process', 'tbk_regions_merged.gpkg')
+        # merged = os.path.join(regions_dir, 'tbk_regions_merged.gpkg')
         print(f"Now merging into one single Stand Map")
         processing.run("TBk:TBk postprocess merge stand maps", {
             'tbk_map_layers': region_stand_maps,
             'id_prefix': 2,  # '2' corresponds to the "custom" option
             'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
-            'OUTPUT': parameters_region["output_clean"]
+            'OUTPUT': merged
         })
 
         return {}
