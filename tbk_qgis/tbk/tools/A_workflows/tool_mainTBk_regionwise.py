@@ -311,10 +311,16 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         log.info(f"All Regions processed: \n{region_ID_prefix}")
         log.info(f"All Regions processed: \n{region_stand_maps}")
 
+        parameters_region["output_clean"] = os.path.join(region_root_dir, 'tbk_regions_merged.gpkg')
+
         print(f"Now merging into one single Stand Map")
-        processing.run("TBk:TBk postprocess merge stand maps", {'tbk_map_layers': region_stand_maps,
-            'id_prefix': 0,
-            'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/stands_regions_merged2.gpkg'})
+        processing.run("TBk:TBk postprocess merge stand maps", {
+            'tbk_map_layers': region_stand_maps,
+            'id_prefix': 2,  # '2' corresponds to the "custom" option
+            'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
+            'OUTPUT': parameters_region["output_clean"]
+        })
+
         return {}
 
     def createInstance(self):
