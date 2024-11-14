@@ -312,14 +312,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         log.info(f"All Regions processed: \n{region_stand_maps}")
 
         print(f"Now merging into one single Stand Map")
-        # merged_map = os.path.join(output_root, 'regions', 'stands_regions_merged2.gpkg')
-        # merge_layers_with_composite_id(region_ID_prefix, region_stand_maps, merged_map)
-        # processing.run("TBk:TBk postprocess merge stand maps", {'tbk_map_layers': [
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/A/bk_process/stands_clean.gpkg|layername=stands_clean',
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/B/bk_process/stands_clean.gpkg|layername=stands_clean',
-        #     'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/C/bk_process/stands_clean.gpkg|layername=stands_clean'],
-        #     'id_prefix': 0,
-        #     'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/stands_regions_merged.gpkg'})
+        processing.run("TBk:TBk postprocess merge stand maps", {'tbk_map_layers': region_stand_maps,
+            'id_prefix': 0,
+            'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/stands_regions_merged2.gpkg'})
         return {}
 
     def createInstance(self):

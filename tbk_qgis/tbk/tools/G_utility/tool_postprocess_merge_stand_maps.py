@@ -48,6 +48,7 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TBkProcessingAlgorithmToolG
 
+
 class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
     def addAdvancedParameter(self, parameter):
@@ -109,7 +110,7 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
          Here is where the processing itself takes place.
          """
 
-        # list of TBK mamp layer to merge
+        # list of TBK map layer to merge
         tbk_map_layers = self.parameterAsLayerList(parameters, self.TBK_MAP_LAYERS, context)
 
         # dropdown for type ID prefix
@@ -130,9 +131,9 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         for i in range(len(tbk_map_layers)):
             n.append(i)
             ext = tbk_map_layers[i].extent()
-            XMIN.append(math.floor(ext.xMinimum() / 1000)) # km-x-coordinate closed westwards
+            XMIN.append(math.floor(ext.xMinimum() / 1000))  # km-x-coordinate closed westwards
             xmin.append(ext.xMinimum())
-            YMAX.append(math.ceil(ext.yMaximum() / 1000)) # km-y-coordinate closed northwards
+            YMAX.append(math.ceil(ext.yMaximum() / 1000))  # km-y-coordinate closed northwards
             ymax.append(ext.yMaximum())
         info_tab = pd.DataFrame({'index': n, 'XMIN': XMIN, 'xmin': xmin, 'YMAX': YMAX, 'ymax': ymax})
         # print(info_tab)
@@ -146,23 +147,23 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         if prefix_type == 'alphabetical':
             def f_prefix_abc():
                 # alphabet = string.ascii_uppercase
-                alphabet = [chr(code) for code in list(range(65, 91))] # 65 = A, 90 = Z
+                alphabet = [chr(code) for code in list(range(65, 91))]  # 65 = A, 90 = Z
                 s = [alphabet[0]]
                 while 1:
                     yield ''.join(s)
-                    l = len(s)
-                    for i in range(l - 1, -1, -1):
-                        if s[i] != alphabet[-1]:
-                            s[i] = alphabet[alphabet.index(s[i]) + 1]
-                            s[i + 1:] = [alphabet[0]] * (l - i - 1)
+                    k = len(s)
+                    for j in range(k - 1, -1, -1):
+                        if s[j] != alphabet[-1]:
+                            s[j] = alphabet[alphabet.index(s[j]) + 1]
+                            s[j + 1:] = [alphabet[0]] * (k - j - 1)
                             break
                     else:
-                        s = [alphabet[0]] * (l + 1)
+                        s = [alphabet[0]] * (k + 1)
 
             prefix_abc = f_prefix_abc()
             info_tab['prefix'] = [next(prefix_abc) for _ in range(len(tbk_map_layers))]
         if prefix_type == 'numerical':
-            info_tab['prefix'] =  list(range(1,len(tbk_map_layers) + 1))
+            info_tab['prefix'] = list(range(1, len(tbk_map_layers) + 1))
         # print(info_tab)
 
         indexes = list(info_tab['index'])
@@ -172,12 +173,15 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         # list of placeholders to later insert manipulated TBk-maps in correct sequence
         tbk_map_layers_new = [None] * len(tbk_map_layers)
 
+        # init fid (feature count)
+        fid = 0
         for i in range(len(tbk_map_layers)):
             index = indexes[i]
             prefix = prefixes[i]
 
             # rename ID --> ID_pre_merge
-            param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_pre_merge', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_pre_merge',
+                     'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:renametablefield", param)
             tbk_map = algoOutput["OUTPUT"]
 
@@ -194,6 +198,8 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
             # populate attribute ID_meta & ID with values
             with edit(tbk_map):
                 for f in tbk_map.getFeatures():
+                    fid = fid + 1
+                    f.setAttribute("fid", fid)
                     f['ID_meta'] = prefix
                     f['ID'] = str(prefix) + '_' + str(f['ID_pre_merge'])
                     tbk_map.updateFeature(f)
