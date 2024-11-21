@@ -8,7 +8,7 @@ Name : TBk: hdom diff
 Group : TBk
 With QGIS : 33404
 """
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -30,7 +30,7 @@ class TBkPostprocessHdomDiff(QgsProcessingAlgorithm):
         self.addParameter(QgsProcessingParameterVectorLayer('tbk_bestandesgrenzen', 'TBk: Bestandesgrenzen', defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('vhm_10m', 'VHM_10m ', defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterDestination('Diff_hdom_vhm', 'diff_hdom_vhm', createByDefault=True, defaultValue=''))
-        self.addParameter(QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.TypeVectorPoint, createByDefault=True, defaultValue=None))
+        self.addParameter(QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.SourceType.TypeVectorPoint, createByDefault=True, defaultValue=None))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the

@@ -58,7 +58,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # ------- Define Constants -------#
@@ -103,13 +103,13 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         # input stand map
         self.addParameter(QgsProcessingParameterFeatureSource(self.STANDS,
                                                               self.tr("Stand map to be exported"),
-                                                              [QgsProcessing.TypeVectorPolygon]))
+                                                              [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         # output folder
         self.addParameter(QgsProcessingParameterFile(self.OUTPUT_ROOT,
                                                      self.tr(
                                                          "Output folder (export will be named: wis2_stands_export_YYYYMMDD-HHMM.xml)"),
-                                                     behavior=QgsProcessingParameterFile.Folder,
+                                                     behavior=QgsProcessingParameterFile.Behavior.Folder,
                                                      fileFilter='All Folders (*.*)', defaultValue=None,
                                                      optional=True))
         # forest site categories (field)
@@ -120,7 +120,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         # forest site categories (layer)
         self.addParameter(QgsProcessingParameterFeatureSource(self.FOREST_SITES,
                                                               self.tr("Layer with Forest sites (Waldstandorte)"),
-                                                              [QgsProcessing.TypeVectorPolygon],
+                                                              [QgsProcessing.SourceType.TypeVectorPolygon],
                                                               optional=True))
 
         # --- Advanced Parameters
@@ -315,13 +315,13 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                 processing.run("native:joinattributesbylocation", {'INPUT': QgsProcessingFeatureSourceDefinition(
                     stands_layer_source,
                     selectedFeaturesOnly=False, featureLimit=-1,
-                    flags=QgsProcessingFeatureSourceDefinition.FlagOverrideDefaultGeometryCheck,
-                    geometryCheck=QgsFeatureRequest.GeometryNoCheck), 'PREDICATE': [0],
+                    flags=QgsProcessingFeatureSourceDefinition.Flag.FlagOverrideDefaultGeometryCheck,
+                    geometryCheck=QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck), 'PREDICATE': [0],
                     'JOIN': QgsProcessingFeatureSourceDefinition(
                         siteCategory_layer_source,
                         selectedFeaturesOnly=False, featureLimit=-1,
-                        flags=QgsProcessingFeatureSourceDefinition.FlagOverrideDefaultGeometryCheck,
-                        geometryCheck=QgsFeatureRequest.GeometryNoCheck),
+                        flags=QgsProcessingFeatureSourceDefinition.Flag.FlagOverrideDefaultGeometryCheck,
+                        geometryCheck=QgsFeatureRequest.InvalidGeometryCheck.GeometryNoCheck),
                     'JOIN_FIELDS': [field_forest_site_category], 'METHOD': 2,
                     'DISCARD_NONMATCHING': False, 'PREFIX': 'siteCategory_',
                     'OUTPUT': tmp_joined_layer})

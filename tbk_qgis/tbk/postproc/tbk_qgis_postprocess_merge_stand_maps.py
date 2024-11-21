@@ -60,7 +60,7 @@ from tbk_qgis.tbk.utility.tbk_utilities import *
 class TBkPostprocessMergeStandMaps(QgsProcessingAlgorithm):
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # Constants used to refer to parameters and outputs. They will be

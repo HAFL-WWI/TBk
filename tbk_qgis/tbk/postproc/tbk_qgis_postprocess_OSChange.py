@@ -6,7 +6,7 @@ Name : TBk development DG (28m) extent intersect
 Group : TBk
 With QGIS : 33405
 """
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -45,14 +45,14 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
                                                     createByDefault=True, defaultValue=None))
 
         parameter = QgsProcessingParameterNumber('hdom', 'hdom: Stands >= hdom are considered for TBk change',
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=28)
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=28)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(parameter)
 
         parameter = QgsProcessingParameterNumber('thresh_hdiff',
                                                  'Negative height difference (in m) after which an area is considered cleared.',
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=5)
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=5)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         self.addParameter(parameter)
 
     # --- Process Algorithm

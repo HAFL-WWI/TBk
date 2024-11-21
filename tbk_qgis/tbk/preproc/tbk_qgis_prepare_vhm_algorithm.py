@@ -92,7 +92,7 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     def deleteRasterIfExists (self, raster_path):
@@ -148,7 +148,7 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
 
         # input
         self.addParameter(QgsProcessingParameterRasterLayer(self.VHM_INPUT, self.tr("Detailed input VHM (.tif)")))                                
-        self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,self.tr("Mask shapefile to clip final result (.shp)"),[QgsProcessing.TypeVectorPolygon]))
+        self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,self.tr("Mask shapefile to clip final result (.shp)"),[QgsProcessing.SourceType.TypeVectorPolygon]))
 
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT,self.tr('Output folder')))
@@ -164,14 +164,14 @@ class TBkPrepareVhmAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(parameter)
 
         ## vhm range
-        parameter = QgsProcessingParameterNumber(self.VMIN, self.tr("VHM min value"), type=QgsProcessingParameterNumber.Double, defaultValue=0)
+        parameter = QgsProcessingParameterNumber(self.VMIN, self.tr("VHM min value"), type=QgsProcessingParameterNumber.Type.Double, defaultValue=0)
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.VMAX, self.tr("VHM max value"), type=QgsProcessingParameterNumber.Double, defaultValue=60)
+        parameter = QgsProcessingParameterNumber(self.VMAX, self.tr("VHM max value"), type=QgsProcessingParameterNumber.Type.Double, defaultValue=60)
         self.addParameter(parameter)
 
         # advanced params
-        parameter = QgsProcessingParameterNumber(self.VNA, self.tr("VHM NA value"), type=QgsProcessingParameterNumber.Integer, defaultValue=255)
+        parameter = QgsProcessingParameterNumber(self.VNA, self.tr("VHM NA value"), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=255)
         self.addAdvancedParameter(parameter)  
 
         parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files"), defaultValue=True)
