@@ -44,14 +44,14 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
                                                     'Output change_DG_hdom: \nRaster indicating whether upper layer or hdom has changed (upper layer cleared) in stands >= hdom',
                                                     createByDefault=True, defaultValue=None))
 
-        parameter = QgsProcessingParameterNumber('hdom', 'hdom: Stands >= hdom are considered for TBk change',
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=28)
+        parameter = QgsProcessingParameterNumber('thresh_hdom', 'hdom: Stands >= hdom are considered for TBk change',
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=25.0)
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(parameter)
 
         parameter = QgsProcessingParameterNumber('thresh_hdiff',
                                                  'Negative height difference (in m) after which an area is considered cleared.',
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=5)
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=7.0)
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(parameter)
 
@@ -63,7 +63,13 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
         results = {}
         outputs = {}
 
-        # Raster calculator
+        feedback.pushInfo("\n#------- Calculate OS change -------#")
+        # Raster calculator expression represents a binary table with for cases
+        # A = old, B = new; A: 0 if not there, 10 if there, B: 0 if not there, 1 if there.
+        # 1 = no upper layer (previously no upper layer and still no upper layer)
+        # 2 = increase (previously no upper layer, new upper layer)
+        # 11 = decrease (previously upper layer, new no upper layer)
+        # 12 = maintain (previously upper layer, still upper layer)
         alg_params = {
             'BAND_A': 1,
             'BAND_B': 1,
@@ -85,14 +91,15 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
             'RTYPE': 0,  # Byte
             'OUTPUT': parameters['change_DG']
         }
-        outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
+        outputs['change_DG'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                                      feedback=feedback, is_child_algorithm=True)
-        results['change_DG'] = outputs['RasterCalculator']['OUTPUT']
+        results['change_DG'] = outputs['change_DG']['OUTPUT']
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
             return {}
 
+        feedback.pushInfo("\n#-------Rasterize hdom_new -------#")
         # Rasterize hdom_new
         alg_params = {
             'BURN': 0,
@@ -117,6 +124,7 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
+        feedback.pushInfo("\n#-------Rasterize hdom_old -------#")
         # Rasterize hdom_old
         alg_params = {
             'BURN': 0,
@@ -141,12 +149,26 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
-        # Raster calculator
-        alg_formula = f'minimum((C + (100 * logical_and(B < {parameters["hdom"] - parameters["thresh_hdiff"]}, A >= {parameters["hdom"]}))) * (A >= {parameters["hdom"]}), 100)'
+        feedback.pushInfo("\n#------- Calculate cleared areas (change_OS_hdom) -------#")
+        # Raster calculator expression represents five cases
+        # cases C see change_DG (1, 2, 11, 12)
+        # case 100: hdom_old >= hdom_thresh AND hdom_diff >= thresh_diff
+        #
+        # Expression breakdown: inner part X = (C + (100 * D)) * E)
+        # C: change_DG cases (1, 2, 11, 12) for all non cleared stands (higher than thresh_hdom)
+        # add 100 (= case 100) multiplied with condition D (hdom_old - hdom_new >= thresh_hdiff)
+        # multiplied with condition E (hdom_old >= thresh_hdom), whole term gets to 0 if hdom_old < thresh_hdom
+        # min(X,100) : floors values to 100 since results of term X can be > 100
+        #
+        # examples: with thresh_hdom = 25 and thresh_diff = 7
+        # hdom_old = 40, hdom_new = 12, DG_dev = xy -> case 100, cleared since strong reduction of hdom in large stand
+        # hdom_old = 25, hdom_new = 19, DG_dev = xy -> case change_DG xy, not sufficient reduction to be considered cleared
+        # hdom_old = 24, hdom_new = x, DG_dev = y -> 0, (old) stand not high enough to be considered
+        alg_formula = f"minimum((C + (100 * ((A - B) >= {parameters['thresh_hdiff']}))) * (A >= {parameters['thresh_hdom']}), 100)"
         alg_params = {
-            'BAND_A': 1,
-            'BAND_B': 1,
-            'BAND_C': 1,
+            'BAND_A': 1, # hdom_old
+            'BAND_B': 1, # hdom_new
+            'BAND_C': 1, # DG_dev
             'BAND_D': None,
             'BAND_E': None,
             'BAND_F': None,
@@ -154,7 +176,7 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
             'FORMULA': alg_formula,
             'INPUT_A': outputs['RasterizeHdom_old']['OUTPUT'],
             'INPUT_B': outputs['RasterizeHdom_new']['OUTPUT'],
-            'INPUT_C': outputs['RasterCalculator']['OUTPUT'],
+            'INPUT_C': outputs['change_DG']['OUTPUT'],
             'INPUT_D': None,
             'INPUT_E': None,
             'INPUT_F': None,
@@ -164,9 +186,11 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
             'RTYPE': 0,  # Byte
             'OUTPUT': parameters['change_DG_hdom']
         }
-        outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
+        outputs['change_DG_hdom'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                                      feedback=feedback, is_child_algorithm=True)
-        results['change_DG_hdom'] = outputs['RasterCalculator']['OUTPUT']
+        results['change_DG_hdom'] = outputs['change_DG_hdom']['OUTPUT']
+
+        feedback.pushInfo("\n#------- DONE -------#\n")
         return results
 
     # --- Set Name/ID/Group
