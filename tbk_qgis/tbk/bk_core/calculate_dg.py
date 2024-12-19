@@ -1,4 +1,4 @@
-######################################################################
+# *************************************************************************** #
 # Calculate DG (Deckungsgrad) per polygon.
 # Needs a detailed VHM, usually 1.5m max.
 #
@@ -11,10 +11,31 @@
 # Ueberhaelter (ueb): > hmax
 # DG Bestand: os + ueb (hdom < 14m: ms + os + ueb)
 #
-# --> Siehe auch z.B. LFI Definition: https://www.lfi.ch/publikationen/publ/LFI4_Anleitung_2017.pdf
+# --> Also see e.g. LFI definition (DE): https://www.lfi.ch/publikationen/publ/LFI4_Anleitung_2017.pdf
 #
-# (C) Dominique Weber, Christoph Schaller,  HAFL, BFH
-######################################################################
+# Authors: Hannes Horneber, Dominique Weber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
+
 
 # Import arcpy module
 import sys

@@ -1,8 +1,31 @@
-#######################################################################
+# -*- coding: utf-8 -*-
+# *************************************************************************** #
 # Helper Classes and Functions for QGIS Processing.
 #
-# (C) Hannes Horneber, Christoph Schaller, HAFL
-#######################################################################
+# (C) Hannes Horneber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
+# This will get replaced with a git SHA1 when you do a git archive
+__revision__ = '$Format:%H$'
 
 import logging
 

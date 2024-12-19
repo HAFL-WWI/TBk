@@ -1,25 +1,26 @@
-# This file contains metadata for your plugin.
+# This file contains metadata for your plugin and should be included when you packaging the plugin.
 
-# This file should be included when you package your plugin.# Mandatory items:
-
+# ***********************      Mandatory Metadata   ************************* #
 [general]
 name=Toolkit Bestandeskarte for QGIS 3.34
 # name=Toolkit Bestandeskarte [TBk]
 qgisMinimumVersion=3.10
 description=Toolkit for the generation of forest stand maps
 version=0.3
-author=Berner Fachhochschule HAFL
+author=Berner Fachhochschule BFH-HAFL
 email=hannes.horneber@bfh.ch
 
 about=Toolkit for the generation of forest stand maps.
 
 tracker=http://bugs
 repository=http://repo
-# End of mandatory metadata
+# *********************** End of mandatory metadata ************************* #
 
-# Recommended items:
 
+# * * * * * * * * * * * *     Additional Metadata     * * * * * * * * * * * * #
+# Some Plugins don't provide any processing algorithms.
 hasProcessingProvider=yes
+
 # Uncomment the following line and add your changelog:
 # changelog=
 
@@ -45,4 +46,6 @@ Category of the plugin: Raster, Vector, Database or Web
 
 # If the plugin can run on QGIS Server.
 server=False
+
+# * * * * * * * * * * * * End of additional metadata   * * * * * * * * * * * * #
 

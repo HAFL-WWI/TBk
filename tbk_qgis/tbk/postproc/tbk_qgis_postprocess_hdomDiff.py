@@ -1,13 +1,38 @@
+# -*- coding: utf-8 -*-
+# *************************************************************************** #
+# Create raster hdom diff (difference VHM - hdom) to indicate how strong areas of a stand deviate from hdom.
+# Also creates a point layer from VHM_10 m (for visualization purposes)
+#
+# Model exported as python.
+# Name : TBk: hdom diff
+# Group : TBk
+# With QGIS : 33404
+#
+# Authors: Hannes Horneber (BFH-HAFL)
+# *************************************************************************** #
 """
-Create raster hdom diff (difference VHM - hdom) to indicate how strong areas of a stand deviate from hdom.
-Also creates a point layer from VHM_10 m (for visualization purposes)
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
 
-Model exported as python.
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
-Name : TBk: hdom diff
-Group : TBk
-With QGIS : 33404
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
 """
+# This will get replaced with a git SHA1 when you do a git archive
+__revision__ = '$Format:%H$'
+
 from PyQt5.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -18,19 +43,19 @@ from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsProcessingParameterFeatureSink
 import processing
 
-"""
-/***************************************************************************
- TBk - Toolkit for the generation of forest stand maps
- ***************************************************************************/
-"""
 
 class TBkPostprocessHdomDiff(QgsProcessingAlgorithm):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(QgsProcessingParameterVectorLayer('tbk_bestandesgrenzen', 'TBk: Bestandesgrenzen', defaultValue=None))
+        self.addParameter(
+            QgsProcessingParameterVectorLayer('tbk_bestandesgrenzen', 'TBk: Bestandesgrenzen', defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('vhm_10m', 'VHM_10m ', defaultValue=None))
-        self.addParameter(QgsProcessingParameterRasterDestination('Diff_hdom_vhm', 'diff_hdom_vhm', createByDefault=True, defaultValue=''))
-        self.addParameter(QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.TypeVectorPoint, createByDefault=True, defaultValue=None))
+        self.addParameter(
+            QgsProcessingParameterRasterDestination('Diff_hdom_vhm', 'diff_hdom_vhm', createByDefault=True,
+                                                    defaultValue=''))
+        self.addParameter(
+            QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.TypeVectorPoint,
+                                              createByDefault=True, defaultValue=None))
 
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
@@ -57,7 +82,8 @@ class TBkPostprocessHdomDiff(QgsProcessingAlgorithm):
             'WIDTH': 10,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
-        outputs['RasterizeHdom_new'] = processing.run('gdal:rasterize', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['RasterizeHdom_new'] = processing.run('gdal:rasterize', alg_params, context=context, feedback=feedback,
+                                                      is_child_algorithm=True)
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
@@ -85,7 +111,8 @@ class TBkPostprocessHdomDiff(QgsProcessingAlgorithm):
             'RTYPE': 1,  # Int16
             'OUTPUT': parameters['Diff_hdom_vhm']
         }
-        outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
+                                                     feedback=feedback, is_child_algorithm=True)
         results['Diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
 
         feedback.setCurrentStep(2)
@@ -99,7 +126,8 @@ class TBkPostprocessHdomDiff(QgsProcessingAlgorithm):
             'RASTER_BAND': 1,
             'OUTPUT': parameters['Vhm_10m_points']
         }
-        outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+        outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
+                                                         feedback=feedback, is_child_algorithm=True)
         results['Vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
         return results
 
