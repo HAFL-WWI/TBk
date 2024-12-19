@@ -1,11 +1,36 @@
+# -*- coding: utf-8 -*-
+# *************************************************************************** #
+# Calculate the change between two TBk versions (development of dg_layer).
+# Model exported as python.
+# Name : TBk development DG (28m) extent intersect
+# Group : TBk
+# With QGIS : 33405
+#
+# Authors: Hannes Horneber (BFH-HAFL)
+# *************************************************************************** #
 """
-Calculate the change between two TBk versions (development of dg_layer).
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
 
-Model exported as python.
-Name : TBk development DG (28m) extent intersect
-Group : TBk
-With QGIS : 33405
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
 """
+# This will get replaced with a git SHA1 when you do a git archive
+__revision__ = '$Format:%H$'
+
 from PyQt5.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
@@ -17,11 +42,6 @@ from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsProcessingParameterFeatureSink
 import processing
 
-"""
-/***************************************************************************
- TBk - Toolkit for the generation of forest stand maps
- ***************************************************************************/
-"""
 
 class TBkPostprocessOSChange(QgsProcessingAlgorithm):
 
@@ -92,7 +112,7 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
             'OUTPUT': parameters['change_DG']
         }
         outputs['change_DG'] = processing.run('gdal:rastercalculator', alg_params, context=context,
-                                                     feedback=feedback, is_child_algorithm=True)
+                                              feedback=feedback, is_child_algorithm=True)
         results['change_DG'] = outputs['change_DG']['OUTPUT']
 
         feedback.setCurrentStep(1)
@@ -166,9 +186,9 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
         # hdom_old = 24, hdom_new = x, DG_dev = y -> 0, (old) stand not high enough to be considered
         alg_formula = f"minimum((C + (100 * ((A - B) >= {parameters['thresh_hdiff']}))) * (A >= {parameters['thresh_hdom']}), 100)"
         alg_params = {
-            'BAND_A': 1, # hdom_old
-            'BAND_B': 1, # hdom_new
-            'BAND_C': 1, # DG_dev
+            'BAND_A': 1,  # hdom_old
+            'BAND_B': 1,  # hdom_new
+            'BAND_C': 1,  # DG_dev
             'BAND_D': None,
             'BAND_E': None,
             'BAND_F': None,
@@ -187,7 +207,7 @@ class TBkPostprocessOSChange(QgsProcessingAlgorithm):
             'OUTPUT': parameters['change_DG_hdom']
         }
         outputs['change_DG_hdom'] = processing.run('gdal:rastercalculator', alg_params, context=context,
-                                                     feedback=feedback, is_child_algorithm=True)
+                                                   feedback=feedback, is_child_algorithm=True)
         results['change_DG_hdom'] = outputs['change_DG_hdom']['OUTPUT']
 
         feedback.pushInfo("\n#------- DONE -------#\n")

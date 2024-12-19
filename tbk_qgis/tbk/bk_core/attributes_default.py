@@ -1,8 +1,29 @@
-######################################################################
-# Stand attributes default
+# *************************************************************************** #
+# Postprocessing: Stand attributes default
+# TODO: will be integrated into other postprocessing steps / rewritten @2025
 #
-# (C) Dominique Weber, Christoph Schaller,  HAFL, BFH
-######################################################################
+# Authors: Hannes Horneber, Dominique Weber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
 
 # Import system modules
 import sys
@@ -17,10 +38,6 @@ import processing
 from qgis.core import *
 
 from tbk_qgis.tbk.utility.tbk_utilities import *
-
-
-#
-########################################################################################
 
 def calc_attributes(working_root, tmp_output_folder, tbk_result_dir, del_tmp=True):
     print("--------------------------------------------")
