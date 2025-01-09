@@ -160,7 +160,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         if del_tmp:
             delete_raster(dg_layer_os_1m)
             delete_raster(dg_layer_os_10m_sum)
-            #delete_raster(dg_layer_os_10m_mask)
-            #shutil.rmtree(output_tmp_folder)
+            delete_raster(dg_layer_os_nh)
+            delete_raster(dg_layer_os_10m_mask)
 
     print("DONE!")
