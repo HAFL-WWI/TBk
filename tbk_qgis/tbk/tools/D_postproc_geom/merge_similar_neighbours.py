@@ -1,14 +1,44 @@
-######################################################################
-# Merge similar neighbouring stands
+# *************************************************************************** #
+# Post processing step for stand maps: Merge similar neighbouring stands
 #
-# (C) Dominique Weber, Christoph Schaller, Hannes Horneber, Attilio Benini (BFH-HAFL)
-######################################################################
+# Authors: Attilio Benini, Hannes Horneber, Dominique Weber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
 
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
+
+import os
+import subprocess
+import sys
+
+from qgis import core
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QVariant
+from qgis.utils import iface
+from qgis.core import QgsProject
 import processing
+from qgis.core import *
 
 from tbk_qgis.tbk.general.tbk_utilities import *
 
+import numpy as np
 import pandas as pd
 from datetime import timedelta
 import time
@@ -257,5 +287,6 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
 
     end_time = time.time()
     print("Actual merger of similar neighbours execution time: " + str(timedelta(seconds=(end_time - start_time))))
+
 
     return shape_out_path

@@ -1,8 +1,28 @@
-######################################################################
+# *************************************************************************** #
 # Helper Class for VHM classification.
 #
-# (C) Dominique Weber,  Christoph Schaller, HAFL, BFH
-######################################################################
+# Authors: Dominique Weber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
 
 from osgeo.gdalconst import *
 from collections import Counter
@@ -392,6 +412,46 @@ class ClassificationHelper:
         ds_out.SetGeoTransform(geotransform)
         ds_out.GetRasterBand(1).WriteArray(data)
         del ds_out
+
+    def store_raster(data, path, projectionfrom, geotransform, datatype):
+        """
+        Save raster data to a compressed GeoTIFF file.
+
+        Parameters:
+        - data: 2D numpy array containing the raster data.
+        - path: Output file path for the GeoTIFF.
+        - projectionfrom: Projection string (e.g., WKT or EPSG) for the raster.
+        - geotransform: GeoTransform tuple for the raster.
+        - datatype: GDAL data type (e.g., gdal.GDT_Float32).
+        """
+        from osgeo import gdal
+
+        # Define compression options
+        compress_options = [
+            "COMPRESS=DEFLATE",
+            "PREDICTOR=2",  # Best for floating-point data
+            "ZLEVEL=9"  # Maximum compression level
+        ]
+
+        # Get rows and columns from the data array
+        rows, cols = data.shape
+
+        # Get the GeoTIFF driver
+        driver = gdal.GetDriverByName('GTiff')
+        # Create the raster dataset with compression options
+        ds_out = driver.Create(
+            path, cols, rows, 1, datatype, options=compress_options
+        )
+
+        # Set projection and geotransform
+        ds_out.SetProjection(projectionfrom)
+        ds_out.SetGeoTransform(geotransform)
+        # Write data to the raster band
+        ds_out.GetRasterBand(1).WriteArray(data)
+        # Flush and clean up
+        del ds_out
+
+
 
     ################################################
     # Compare raster projection and extent

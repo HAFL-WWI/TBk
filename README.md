@@ -1,74 +1,59 @@
 # TBk QGIS Plugin
-**T**oolkit zur Erarbeitung von **B**estandes**k**arten aus Fernerkundungsdaten: a simple python algorithm that builds a tree stand map, based on a vegetation height model ([TBk on planfor.ch](https://www.planfor.ch/tool/9)).
+Toolkit for developing forest stand maps (in German TBk: **T**oolkit **B**estands**k**arte) from remote sensing data: a simple python algorithm that builds a tree stand map, based on a vegetation height model ([TBk on planfor.ch](https://www.planfor.ch/tool/9)).
 
 
-## 1 Einführung
-Mit dem an der HAFL entwickelten Toolkit zur Erarbeitung von Bestandeskarten aus Fernerkundungsdaten (TBk) lassen sich Bestände automatisch aufgrund der räumlichen Verteilung der dominierenden Bäume, gekennzeichnet durch die maximale Höhe pro Are eines Vegetationshöhenmodells (VHM), abgrenzen. Pro Bestand wird die Oberhöhe (hdom), die maximale Höhe (hmax) und der Deckungsgrad (DG) der Hauptschicht ermittelt. Zusätzlich kann die Grundstruktur (gleichförmig oder ungleichförmig) der Bestände grob bestimmt sowie der Nadelholzanteil geschätzt werden. Eine Beschreibung aller Attribute findet sich am Ende dieses Dokuments. In einem Nachbearbeitungsschritt können zudem besonders dichte sowie «lückige» Teilflächen innerhalb der Bestände ausgeschieden werden.
-Der gesamte Programmcode wurde als QGIS-Plugin implementiert, dessen korrekte Anwendung in diesem Dokument erläutert wird, ergänzt durch Video-Tutorials.
+## 1 Introduction
+TBk was developed at BFH-HAFL for creating stand maps from remote sensing data. It can be used to automatically delineate stands based on the spatial distribution of the dominant trees, characterized by the maximum height per unit area of a vegetation height model (VHM). For each stand, the dominant height (hdom), the maximum height (hmax) and the degree of cover (DG, in German: Deckungsgrad) of the main layer are determined. In addition, the basic structure (uniform or non-uniform) of the stands can be roughly determined and the proportion of coniferous wood can be estimated. A description of all attributes can be found at the end of this document. In a post-processing step, particularly dense and “sparse” sub-areas within the stands can also be separated.
 
-| | |
-|-------------|----------------------------------------------------------------|
-|**Resultat** | TBk Bestandeskarte mit Angaben bezüglich Oberhöhe, Deckungsgrad, Mischungsverhältnis (Laub- bzw. Nadelholzanteil) und Grundstruktur, bereitgestellt als ESRI Polygon Shapefile |
-|**Datengrundlagen** | - Waldmaske: Projektperimeter als ESRI Shapefile<br/>- Vegetationshöhenmodell: Aus LiDAR-Daten mit einer Auflösung von ≤ 1 m (oder Vegetationshöhenmodell LFI, Link)<br/>- Waldmischungsgrad: Angabe zu Laub-/Nadelholz |
-| **Genauigkeit** |	- Allgemein: Genauigkeit und Aktualität sind abhängig vom VHM. Primäre Fehlerquellen sind steile Nordhänge und Felsen.<br/>- Bestandesgrenzen: Die Abgrenzung ist auf ca. 10-20 m genau und die minimale Bestandesgrösse beträgt standardmässig 10 Aren.<br/>- Nadelholzanteil: Die Gesamtgenauigkeit beträgt ca. 95%. |
-| **Kontakt** | Hannes Horneber (HAFL), hannes.horneber@bfh.ch |
-
-
-## 2 Installation QGIS Plugin
-Das Plugin erfordert die QGIS Version 3.10 oder höher. Ausserdem muss zwangsläufig die QGIS Version «Desktop with GRASS» verwendet werden (beim Download von QGIS werden automatisch immer 2 Versionen erstellt, «QGIS Desktop» und «QGIS Desktop with Grass»). 
-
-Das Plugin muss zunächst als ZIP-Datei lokal abgespeichert und diese dann in QGIS importiert werden. Das zugehörige Video «TBk_plugin_install» erläutert das Vorgehen.
-
-Das Plugin enthält 4 Funktionen: TBk prepare MG und TBk prepare VHM zur Vorbereitung der Inputdaten, TBk generation für die Generierung der Bestandeskarte, und TBk postprocess local density für die Ausscheidung von besonders dichten oder «lückigen» Teilflächen pro Bestand im Nachgang.
-
-Um Probleme zu vermeiden wird empfohlen, das Plugin lokal laufen zu lassen, d.h. Input- und Output-Daten nicht auf einem Share Laufwerk zu speichern.
+| |                                                                                                                                                                                                                                                                                                                |
+|-------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|**Result** | TBk stand map with information regarding top height, crown cover, mixing ratio (deciduous or coniferous wood proportion) and basic structure, provided as vector geometries with attributes.                                                                                                                   |
+|**Data sources** | - Forest mask: project perimeter (vector geometry)<br/>- Vegetation height model: raster data, e.g. from LiDAR data with a resolution of ≤ 1 m (or LFI vegetation height model, Link)<br/>- Degree of forest mixture: information on deciduous/coniferous wood (raster data, resolution typically 10 m)        |
+| **Accuracy** | - General: Accuracy and timeliness depend on the VHM. The primary sources of error are steep northern slopes and rocks.<br/>- Stand boundaries: The demarcation is accurate to about 10-20 m and the minimum stand size is 10 a (by default)|
+| **Contact:** | Berner Fachhochschule BFH<br/> Hochschule für Agrar-, Forst- und Lebensmittelwissenschaften HAFL<br/> Hannes Horneber (hannes.horneber@bfh.ch) <br/> Christian Rosset (christian.rosset@bfh.ch) 
 
 
-## 3 Vorbereitung Inputdaten
-Die Inputdaten müssen zwingend gewisse Bedingungen erfüllen und ggf. vorher bearbeitet werden. Die notwendigen Schritte werden in diesem Abschnitt erläutert. Sie sollten unbedingt in der hier aufgeführten Reihenfolge durchgeführt werden.
-Als Inputdaten werden benötigt:
-•	Projektperimeter als ESRI Shapefile (« Waldmaske »)
-•	Vegetationshöhenmodell (VHM) als Raster mit Auflösung ≤ 1m
-•	Waldmischungsgrad (WMG) (optional)
-Die Input-Daten müssen nicht zwangsläufig im selben Koordinatensystem gespeichert sein, es wird aber dazu geraten, vor Beginn alle Input-Daten in das gleiche Koordinatensystem zu projizieren. In jedem Fall müssen alle Input-Daten unbedingt korrekt projiziert sein, d.h. es dürfen auf keinen Fall Fehler in der Projizierung vorliegen. Auch Leerwerte müssen korrekt definiert sein.
+## 2 Installing the QGIS plugin
+The plugin requires QGIS version 3.10 or higher. In addition, the QGIS version must have GRASS and GRASS Provider installed and enabled (see Plugin Management). 
 
-### 3.1. Fehlerüberprüfung Projektperimeter
-Der Projektperimeter sollte als ein einziges Shapefile vorliegen, welches das gesamte Waldgebiet abdeckt (ausschliesslich Wald).
-Es ist zwingend notwendig, dass keine Geometrie- oder Topologiefehler vorliegen (z.B. doppelte Knoten, Überlappungen, Lücken, …), ansonsten stoppt der TBk Algorithmus und es kann kein Resultat erzeugt werden. Deshalb sollte die Shape-Datei unbedingt zunächst auf derartige Fehler überprüft und diese ggf. behoben werden. Die Gefahr für Topologiefehler besteht insbesondere bei kleinteiligen Multi-Polygonen (z.B. wenn Forstwege aus dem Projektperimeter ausgenommen sind).
-In QGIS gibt es dafür die Standard-Werkzeuge Gültigkeit prüfen und Geometrien reparieren, sowie für eine detaillierte und differenziertere Überprüfung das Kern-Plugin Geometrien prüfen. Viele einfachere Fehler lassen sich schon mithilfe der beiden genannten Standard-Werkzeuge beheben. Die Verwendung wird im Video «TBk_preprocessing» kurz dargestellt.
+The plugin can be installed as a ZIP file and then imported into QGIS.
 
-### 3.2. Vorbereitung Vegetationshöhenmodell
-Das VHM sollte in einer Auflösung von ≤ 1m vorliegen und den gesamten Projektperimeter abdecken. Der TBk-Algorithmus benötigt jedoch als Input eine auf den Projektperimeter zugeschnittene, auf 10x10m aggregierte Version, sowie eine 150x150cm Version des VHM.
-Das QGIS Plugin enthält eine Funktion TBk prepare VHM, welche diese Schritte automatisiert ausführt und die benötigten Dateien generiert. Die Verwendung wird im Video «TBk_preprocessing» erläutert.
-Falls das Skript mehrmalig ausgeführt wird, werden die bereits vorhandenen Output-Daten eigentlich automatisch gelöscht, da sie nicht überschrieben werden können. Das funktioniert aber nicht einwandfrei, falls die Daten noch irgendwo geöffnet sind. Zur Sicherzeit wird deshalb empfohlen, vor einem erneuten Durchlauf entweder die bereits generierten Output-Daten manuell zu löschen oder einen anderen Speicherort/Dateinamen anzugeben.
+The plugin adds tools to the Processing tool window. These are functions for preprocessing (prepare base data, e.g. VHM and mixture degree), for generating the stand map, and for postprocessing stand maps (e.g. postprocess local density to determine sparse and dense areas). 
 
-### 3.3. Vorbereitung Waldmischungsgrad-Raster
-Die Verwendung eines Waldmischungsgrad-Rasters ist optional, wird aber empfohlen. Falls es verwendet wird, benötigt der TBk-Algorithmus als Input ein Raster mit Werten von 0 und 100, welche den Nadelholzanteil in Prozent pro Pixel beschreiben. Das Raster sollte den gesamten Projektperimeter abdecken.
-Die Funktion TBk prepare MG des QGIS Plugins übernimmt die erforderliche Klassifizierung, falls die Originaldatei andere Werte aufweist, und führt weitere notwendige Schritte, wie z.B. das Zuschneiden auf den Projektperimeter, automatisiert aus. 
-Falls das Input-Raster schon den NH-Anteil in Werten von 0 und 100 angibt, sollte das Prepare Script dennoch ausgeführt werden, um z.B. die korrekte Ausrichtung am VHM (alignment) sicherzustellen. Das Häkchen «Reclassify MG Values» muss dann jedoch deaktiviert werden. 
-Falls das Skript mehrmalig ausgeführt wird, werden die bereits vorhandenen Output-Daten eigentlich automatisch gelöscht, da sie nicht überschrieben werden können. Das funktioniert aber nicht einwandfrei, falls die Daten noch irgendwo geöffnet sind. Zur Sicherzeit wird deshalb empfohlen, vor einem erneuten Durchlauf entweder die bereits generierten Output-Daten manuell zu löschen oder einen anderen Speicherort/Dateinamen anzugeben.
-Die korrekte Verwendung wird im Video «TBk_preprocessing» dargestellt.
+To avoid problems, it is recommended to run the plugin locally, i.e. do not save input and output data on a shared drive / cloud-service (like OneDrive). Sometimes (temporary) output files can't be written or read and cause errors. 
 
 
+## 3 Preparation of input data
+The input data must meet certain conditions and may need to be processed beforehand. The necessary steps are explained in this section. They should definitely be carried out in the order listed here.
+The following input data is required:
+• Project perimeter as vector geometry (“forest mask”)
+• Vegetation height model (VHM) as a grid with a resolution of ≤ 1.5 m
+• forest mixture degree (MG) (optional)
+The input data does not necessarily have to be stored in the same coordinate system, but it is recommended to project all input data into the same coordinate system before starting. In any case, all input data must be correctly projected, i.e. there must be no errors in the projection. NoData must also be defined correctly.
 
-## 4 Ausführung TBk
-Der Hauptalgorithmus ist im Plugin in der Funktion TBk generation implementiert.
+### 3.1. Error checking: project perimeter
+The project perimeter should be available as a single layer that covers the entire forest area to be processed.
+It is imperative that there are no geometry or topology errors (e.g. duplicate nodes, overlaps, gaps, etc.), otherwise the TBk algorithm will stop and no result can be generated. Therefore, the perimeter layer should always be checked for such errors first and, if necessary, corrected. There is a particular risk of topological errors with multi-polygons consisting of many small parts (e.g. if forest paths are excluded from the project perimeter).
+In QGIS, the standard tools for this are Check validity and Repair geometries. Many simple errors can be corrected using these two standard tools.
+
+### 3.2. Preparation of the vegetation height model
+The VHM should be available in a resolution of ≤ 1.5 m (since this resolution is used for calculating the crown cover) and cover the entire project perimeter. However, the TBk stand delineation algorithm requires a version of the VHM that is masked to the project perimeter, aggregated to 10 x 10m, and additionally a 150 x 150cm version of the VHM as input.
+The QGIS plugin contains the preprocessing tool to generate the required files.
+If the script is executed multiple times, the already existing output data is actually automatically deleted because it cannot be overwritten. However, this does not work properly if the data is still open somewhere. Therefore, to be on the safe side, it is recommended to either manually delete the already generated output data or specify a different storage location/file name before running the script again.
+
+### 3.3. Preparation of forest mixture grid
+The use of a forest mixture grid is optional but recommended. If it is used, the TBk algorithm requires raster data with values from 0 and 100 as input, which describe the proportion of coniferous wood as a percentage per pixel. The grid should cover the entire project perimeter and has to be aligned to the 10 x 10 m VHM.
+Again, the QGIS plugin contains the preprocessing tool to generate the required files.
+If the input raster already indicates the NH portion in values of 0 and 100, the prepare script should still be executed to ensure the correct alignment with the VHM. However, the check mark “Reclassify MG Values” must then be deactivated. 
+If the script is executed multiple times, the already existing output data is actually automatically deleted because it cannot be overwritten. However, this does not work properly if the data is still open somewhere. To be on the safe side, it is therefore recommended to either manually delete the already generated output data or to specify a different storage location/file name before running the script again.
+
+
+## 4 TBk execution
+The main algorithm is implemented in the plugin in the TBk generation function.
  
-Als Input werden die von den Preprocessing-Funktionen generierten Dateien genutzt: «vhm_10m.tif», «vhm_150cm.tif», «MG» (optional) und zudem das Shapefile des Projektperimeters.
-Ausserdem sollte der Speicherort für den Output festgelegt werden. Unter «Fortgeschrittene Parameter» befinden sich noch diverse Anpassungsmöglichkeiten, die aber im Normalfall nicht verändert werden müssen und sollten. 
+The files generated by the preprocessing functions are used as input: `vhm_10m.tif`, `vhm_150cm.tif`, `MG_10m.tif` and `MG_10m_binary.tif` (both optional). Apart from these, the project perimeter is needed as vector geometry.
+In addition, the storage location for the output has to be specified (otherwise the result will be written to a temporary folder and is hard to find). Under 'Advanced parameters', there are various customization options, but normally these do not need to and should not be changed. 
 
-Das Häkchen «Delete temporary files and fields» ist standardmässig gesetzt.
+The “Delete temporary files and fields” box is ticked by default.
 
-Achtung, falls kein MG-Raster verwendet wird, sollte das folgende Häkchen "Consider coniferous raster for classification" entfernt werden. Ebenso das Häkchen «Also calc coniferous prop. for main layer» (ganz unten in der Liste der fortgeschrittenen Parameter).
-
-Die korrekte Ausführung wird im Video «TBk_main» dargestellt. Der Haupt-Output ist das eingangs beschriebene Bestandes-Shapefile «TBk_Bestandeskarte.shp». Zudem wird direkt eine QGIS-Projektdatei «TBk_Bestandeskarte.qgz» generiert, welche die Ergebnisse vielfältig visualisiert. Im Rahmen dieser stehen ausserdem 4 vorgefertigte, vollständige Drucklayouts (A1 und A3, jeweils Hoch- und Querformat) für die Generierung von Karten zur Verfügung.
-
-
-## 5 Zusatzfunktion – Lokale Dichten
-Des Weiteren verfügt das Plugin über die Zusatzfunktion TBk postprocess local density, mit dem nach der erfolgten Bestandesabgrenzung besonders dichte sowie «lückige» Teilflächen innerhalb der Bestände ausgeschieden werden können.
-Wird diese Funktion ausgeführt, findet sich im generierten Output-Ordner «clumpy_results» das Bestandes-Shapefile mit den zusätzlichen Attributen «area_dense, dg_dense, area_sparse, dg_sparse, dg_other». Diese bezeichnen Fläche (area) und Deckungsgrad (dg) besonders dichter bzw. lückiger Teilfächen, sowie den Deckungsgrad der übrigen Bestandesfläche (dg_other). Zusätzlich werden die ausgegebenen Flächen jeweils als Shapefile gespeichert und können danach dem QGIS-Projekt der Bestandeskarte manuell hinzugefügt werden.
-Die Ausscheidung basiert auf einem sogenannten moving window Algorithmus mit einem zirkulären mowing window mit 7m Radius. Die Mindestgrösse für ausgeschiedene dichte/lückige Flächen beträgt standardmässig 10 Aren und kann unter ‘Fortgeschrittene Parameter’ verändert werden.
- 
-
-Die korrekte Verwendung wird im Video «TBk_local_density» demonstriert.
-
+Main output is the stand map 'TBk_Bestandeskarte.gpkg' described at the beginning. In addition, a QGIS project file 'TBk_Project.qgz' is generated, which visualizes the results in a variety of ways. Four predefined, complete print layouts (A1 and A3, each in portrait and landscape format) are also available for generating printed maps.

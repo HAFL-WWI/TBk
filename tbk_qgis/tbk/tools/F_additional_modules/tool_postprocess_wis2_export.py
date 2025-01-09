@@ -1,23 +1,30 @@
 # -*- coding: utf-8 -*-
-
-#######################################################################
+# *************************************************************************** #
 # Export a generated stand map for WIS.2
 #
-# Author: Hannes Horneber, BFH-HAFL
-#######################################################################
-
+# Authors: Hannes Horneber (BFH-HAFL)
+# *************************************************************************** #
 """
 /***************************************************************************
- TBk - Toolkit for the generation of forest stand maps
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
-
-__author__ = 'Berner Fachhochschule BFH-HAFL'
-__date__ = '2024-02-20'
-__copyright__ = '(C) 2023 by Berner Fachhochschule HAFL'
-
 # This will get replaced with a git SHA1 when you do a git archive
-
 __revision__ = '$Format:%H$'
 
 import qgis.core
@@ -121,13 +128,15 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                                                self.tr("Fir (Tanne, p120) proportion Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P140,
-                                                               self.tr("Pine (Foehre/Kiefer, p140) proportion Field Name"),
+                                                               self.tr(
+                                                                   "Pine (Foehre/Kiefer, p140) proportion Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P160,
                                                                self.tr("Larch (Laerche, p160) proportion Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P390,
-                                                               self.tr("Other Coniferous Trees (p390) proportion Field Name"),
+                                                               self.tr(
+                                                                   "Other Coniferous Trees (p390) proportion Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P410,
                                                                self.tr("Beech (Buche, p410) proportion Field Name\n" +
@@ -143,7 +152,8 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                                                self.tr("Maple (Ahorn, p440) proportion Field Name"),
                                                                optional=True))
         self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_P800,
-                                                               self.tr("Other broadleaves (p800) proportion Field Name"),
+                                                               self.tr(
+                                                                   "Other broadleaves (p800) proportion Field Name"),
                                                                optional=True))
 
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.CREATE_WIS2_SUBFOLDER,
@@ -475,14 +485,17 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                         tree_species_null_flag = True
 
                     if tree_species_null_flag:
-                        feedback.pushWarning(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
+                        feedback.pushWarning(
+                            f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
                         print(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
 
                     # check whether tree species proportions add up to 100, otherwise scale up:
                     sum_tree_species = sum(pX_tree_species_values.values())
                     if not (sum_tree_species == 100):
-                        feedback.pushWarning(f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
-                        print(f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
+                        feedback.pushWarning(
+                            f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
+                        print(
+                            f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
 
                         if sum_tree_species == 0:
                             feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
@@ -507,7 +520,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                         print(
                                             f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
                                         pX_tree_species_values[pkey] = pX_tree_species_values[pkey] - (
-                                                    sum_tree_species - 100)
+                                                sum_tree_species - 100)
                                         break
 
                     # write tree species fields to XML
@@ -523,11 +536,14 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                             xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                         elif f[(field_forest_site_category)] == qgis.core.NULL or \
                                 f[(field_forest_site_category)] == 0:
-                            feedback.pushWarning(f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
-                            print(f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
+                            feedback.pushWarning(
+                                f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
+                            print(
+                                f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
                             xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                         else:
-                            xml_file.write('\t<siteCategory>' + str(f[(field_forest_site_category)]) + '</siteCategory>\n')
+                            xml_file.write(
+                                '\t<siteCategory>' + str(f[(field_forest_site_category)]) + '</siteCategory>\n')
 
                     xml_file.write('</Stand>\n\n')
             # --- close data tag

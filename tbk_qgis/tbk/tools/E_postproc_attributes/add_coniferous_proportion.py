@@ -1,11 +1,39 @@
-######################################################################
+# *************************************************************************** #
 # Add new field NH for coniferous proportion.
 #
 # WARNING: identical coordinate system needed!
 #
-# (C) Dominique Weber, Christoph Schaller, HAFL, BFH
-######################################################################
+# Authors: Hannes Horneber, Dominique Weber, Christoph Schaller (BFH-HAFL)
+# *************************************************************************** #
+"""
+/***************************************************************************
+    TBk: Toolkit Bestandeskarte (QGIS Plugin)
+    Toolkit for the generating and processing forest stand maps
+    Copyright (C) 2025 BFH-HAFL (hannes.horneber@bfh.ch, christian.rosset@bfh.ch)
 
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU Affero General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Affero General Public License for more details.
+
+    You should have received a copy of the GNU Affero General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ ***************************************************************************/
+"""
+import sys
+import os
+import shutil
+
+from qgis import core
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QVariant
+from qgis.utils import iface
+from qgis.core import QgsProject
 import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
@@ -131,7 +159,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         if del_tmp:
             delete_raster(dg_layer_os_1m)
             delete_raster(dg_layer_os_10m_sum)
-            #delete_raster(dg_layer_os_10m_mask)
-            #shutil.rmtree(output_tmp_folder)
+            delete_raster(dg_layer_os_nh)
+            delete_raster(dg_layer_os_10m_mask)
 
     print("DONE!")
