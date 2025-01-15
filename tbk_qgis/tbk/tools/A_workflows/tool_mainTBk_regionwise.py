@@ -74,12 +74,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         """
         # --- OVERWRITE FLAG for testing/debugging
 
-        # overwrite = False
-        overwrite = True
+        overwrite = False
+        # overwrite = True
+        merge_bk_process = True
 
-        # ---
+        # --- Setup parameters/config, dir and logging
 
-        # get configuration file path
+        # read configuration file path
         config_path = parameters['config_file']
         if config_path:
             # Set input parameters from config file
@@ -160,7 +161,19 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # Loop over each feature in the perimeter layer
         log.info(f"Processing single regions")
         # list for storing all results
-        region_stand_maps = []
+        regions_stand_map = []
+
+        if merge_bk_process:
+            regions_classified_raw = []
+            regions_classified_smooth_1 = []
+            regions_classified_smooth_2 = []
+            regions_stands_highest_tree = []
+            regions_stand_boundaries = []
+            regions_stands_clipped = []
+            regions_stands_merged = []
+            regions_stands_simplified = []
+            regions_stands_simplified2 = []
+
         region_ID_prefix = []
         for feature in perimeter_layer.getFeatures():
             # --- Create folders for current feature
@@ -370,7 +383,24 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 print(f"Skipped cleanup, file already exists (overwrite = False)")
 
             # --- Collect regions and ID/name
-            region_stand_maps.append(parameters_region["output_clean"])
+            regions_stand_map.append(parameters_region["output_clean"])
+            # collect bk_process results as well
+            if merge_bk_process:
+                # add alg outputs
+                regions_stand_boundaries.append(parameters_region["output_stand_delineation"])
+                regions_stands_merged.append(parameters_region["output_merged"])
+                regions_stands_clipped.append(parameters_region["output_clipped"])
+                regions_stands_simplified.append(parameters_region["output_simplified"])
+                regions_stands_simplified2.append(parameters_region["output_simplified_2"])
+                # todo these are not explicit outputs (yet?). As of now, file paths need to be constructed
+                regions_classified_raw.append(os.path.join(region_root_dir, 'bk_process', 'classified_raw.tif'))
+                regions_classified_smooth_1.append(
+                    os.path.join(region_root_dir, 'bk_process', 'classified_smooth_1.tif'))
+                regions_classified_smooth_2.append(
+                    os.path.join(region_root_dir, 'bk_process', 'classified_smooth_2.tif'))
+                regions_stands_highest_tree.append(
+                    os.path.join(region_root_dir, 'bk_process', 'stands_highest_tree.gpkg'))
+
             region_ID_prefix.append(feature["region"])
             print(f"--------------------------------")
             print(f"--- completed {region_ID_prefix} ---")
@@ -381,7 +411,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- Merge stand map
         print(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
         log.info(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
-        log.info(f"Layer results per region: \n{region_stand_maps}")
+        log.info(f"Layer results per region: \n{regions_stand_map}")
 
         # write to working dir for compatibility with the following tools
         os.makedirs(os.path.join(output_root, 'bk_process'), exist_ok=True)
@@ -392,7 +422,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if overwrite or not os.path.exists(merged):
             print(f"Now merging into one single Stand Map")
             processing.run("TBk:TBk postprocess merge stand maps", {
-                'tbk_map_layers': region_stand_maps,
+                'tbk_map_layers': regions_stand_map,
                 'id_prefix': 2,  # '2' corresponds to the "custom" option
                 'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
                 'OUTPUT': merged
@@ -400,6 +430,63 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         else:
             print(f"Skipped Region merge, file already exists (overwrite = False)")
+
+        # --- Merge bk process
+
+        if merge_bk_process:
+            os.makedirs(os.path.join(output_root, 'bk_process'), exist_ok=True)
+
+            # Mapping each list to a name (for vector data)
+            gpkg_to_merge = {
+                'stand_boundaries': regions_stand_boundaries,
+                'stands_merged': regions_stands_merged,
+                'stands_clipped': regions_stands_clipped,
+                'stands_simplified': regions_stands_simplified,
+                'stands_simplified2': regions_stands_simplified2,
+                'stands_highest_tree': regions_stands_highest_tree,
+            }
+
+            # Mapping for raster data
+            raster_to_merge = {
+                'classified_raw': regions_classified_raw,
+                'classified_smooth_1': regions_classified_smooth_1,
+                'classified_smooth_2': regions_classified_smooth_2,
+            }
+
+            # Handle vector data
+            for list_name, region_list_item in gpkg_to_merge.items():
+                # Set up the output file path for vector data
+                merged = os.path.join(output_root, 'bk_process', f'{list_name}.gpkg')
+
+                # Check if we need to overwrite or if the file doesn't exist
+                if overwrite or not os.path.exists(merged):
+                    print(f"Now merging {list_name} regions into one single vector file")
+                    processing.run("TBk:TBk postprocess merge stand maps", {
+                        'tbk_map_layers': region_list_item,  # List of vector layers to merge
+                        'id_prefix': 2,  # Custom prefix
+                        'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
+                        'OUTPUT': merged  # Output path for the merged vector file
+                    })
+
+            # Handle raster data
+            for list_name, region_list_item in raster_to_merge.items():
+                # Set up the output file path for raster data
+                merged_raster = os.path.join(output_root, 'bk_process', f'{list_name}.tif')
+
+                # Check if we need to overwrite or if the file doesn't exist
+                if overwrite or not os.path.exists(merged_raster):
+                    print(f"Now merging {list_name} regions into one single raster file")
+
+                    # Run raster merging using GDAL (or appropriate processing tool for rasters)
+                    processing.run("gdal:merge", {
+                        'INPUT': region_list_item,  # List of raster layers to merge
+                        'OUTPUT': merged_raster,  # Output path for the merged raster file
+                        'NODATA_INPUT': 0,  # Define NoData value in input rasters
+                        'NODATA_OUTPUT': 0,  # Define NoData value in output raster
+                        'DATA_TYPE': 0,  # Use the same data type as inputs
+                        'SEPARATE': False,  # False ensures layers are merged, not stacked
+                        'PREFERRED': 'FIRST'  # Keeps the first valid data (prevents overwriting)
+                    })
 
         # *************************************** #
         # ---   ***  TBk Attributierung    *** ---#
