@@ -121,6 +121,11 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         id_prefix = self.parameterAsInt(parameters, self.ID_PREFIX, context)
         prefix_type = ['alphabetical', 'numerical', 'custom'][id_prefix]
 
+        # Merged TBk map layer
+        output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
+
+        # --- preprocess custom prefixes
+
         # Custom prefix list if applicable
         custom_prefix_list = self.parameterAsString(parameters, self.CUSTOM_PREFIX_LIST, context)
 
@@ -138,12 +143,13 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
             # Check if the number of prefixes matches the number of TBK map layers
             if len(custom_prefix_list) != len(tbk_map_layers):
                 raise ValueError(f"The custom prefix list must have exactly one entry for each TBK map layer. "
-                                 f"Your custom prefix list: {custom_prefix_list}")
+                                 f"Your custom prefix list: {custom_prefix_list}"
+                                 f"Your map layers: {tbk_map_layers}")
 
             print(f"using custom prefix list: {custom_prefix_list}")
 
-        # Merged TBk map layer
-        output = self.parameterAsOutputLayer(parameters, self.OUTPUT, context)
+        # --- generate automatic prefixes (by coordinates)
+        # only if no custom prefixes are provided
 
         start_time = time.time()
 
@@ -200,6 +206,8 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
             info_tab['prefix'] = custom_prefix_list
 
+
+        # --- iterate over each layer and process IDs
         indexes = list(info_tab['index'])
         prefixes = list(info_tab['prefix'])
         tbk_map_layers_new = [None] * len(tbk_map_layers)
@@ -208,6 +216,25 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         for i in range(len(tbk_map_layers)):
             index = indexes[i]
             prefix = prefixes[i]
+
+            # --- check for ID field, if not present, create it
+
+            # Check if the layer is valid
+            if not tbk_map_layers[index].isValid():
+                print("Layer failed to load!")
+
+            # Check if the field 'ID' exists
+            if 'ID' not in tbk_map_layers[index].fields().names():
+                # If 'ID' does not exist, create it from 'fid'
+                with edit(tbk_map_layers[index]):
+                    # Create a new 'ID' field (integer type, adjust the type if needed)
+                    tbk_map_layers[index].addAttribute(QgsField('ID', QVariant.Int))
+
+                    # Assign 'fid' to 'ID' for all features
+                    for feature in tbk_map_layers[index].getFeatures():
+                        tbk_map_layers[index].changeAttributeValue(feature.id(), tbk_map_layers[index].fields().indexFromName('ID'), feature.id())
+
+            # --- add prefixed IDs (also preserve original IDs)
 
             # rename ID --> ID_pre_merge
             param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_pre_merge',
@@ -237,6 +264,7 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
             # insert manipulated TBk-map into list
             tbk_map_layers_new[i] = tbk_map
 
+        # --- final merge
         param = {'LAYERS': tbk_map_layers_new, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:mergevectorlayers", param)
         tbk_map_merged = algoOutput["OUTPUT"]
@@ -262,7 +290,6 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
         formatting characters.
         """
         return 'TBk postprocess merge stand maps'
-
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
