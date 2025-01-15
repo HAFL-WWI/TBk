@@ -53,6 +53,8 @@ class TOMLKeyValue:
     def _check_value_to_edit(value):
         """
         Ensure that the value to be edited has the correct type.
+        TOML requires lower case booleans, so these have to be ensured explicitely.
+        Natively they would print with capital first letter.
         """
         # Convert a Python boolean to a TOML boolean (without uppercase)
         if isinstance(value, bool):
@@ -65,18 +67,24 @@ class TOMLKeyValue:
         Ensure that the value to be added has the correct type.
         """
 
+        # Check if value is string for parsing, otherwise pass unchanged value.
         if isinstance(value, str):
-            if value.startswith('"') and value.endswith('"'):
+            # If the string is surrounded by double quotes or single quotes, remove them.
+            if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
+            # Handle boolean values ('true' or 'false', case insensitive).
+            elif value.lower() == "true":
+                value = True
+            elif value.lower() == "false":
+                value = False
             # Check if the value is of integer type.
-            if value.isdigit():
+            elif value.isdigit():
                 value = int(value)
             # Check if the value is of float type.
             elif '.' in value and all(part.isdigit() for part in value.split('.')):
                 value = float(value)
 
         return value
-
 
 @dataclass
 class TOMLTable:
