@@ -4,11 +4,13 @@ import os
 import processing
 import logging
 from collections import ChainMap
+from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
     QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing
 
-from tbk_qgis.tbk.general.tbk_utilities import getVectorSaveOptions
+from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
+from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
@@ -19,13 +21,10 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algo
     TBkCalculateCrownCoverageAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import \
     TBkAddConiferousProportionAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes_algorithm import TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import \
     TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
-
-from osgeo import ogr
-
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes_algorithm import TBkAppendStandAttributesAlgorithm
 
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 
@@ -74,7 +73,65 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         Here is where the processing itself takes place.
         """
         # --- OVERWRITE FLAG for testing/debugging
-        overwrite = False
+
+        # overwrite = False
+        overwrite = True
+
+        # ---
+
+        # get configuration file path
+        config_path = parameters['config_file']
+        if config_path:
+            # Set input parameters from config file
+            try:
+                config = read_dict_from_toml_file(config_path)
+                # compare config file parameters and tool parameters
+                only_different = True
+                print(f'\n------ Compare tool parameters / config -------')
+                if only_different: print(f'------ show only different entries -------')
+                for key, value in parameters.items():
+                    try:
+                        config_value = config[key]
+
+                        # Only print if values are different (or print everything if only_different is False)
+                        if only_different and value == config_value:
+                            continue  # Skip if values are the same and only_different is True
+
+                        # Convert both values to strings for length comparison
+                        value_str = str(value)
+                        config_value_str = str(config_value)
+
+                        # If both string representations are shorter than 10, print side-by-side
+                        if len(value_str) < 10 and len(config_value_str) < 10:
+                            print(f"{key}: {value_str} || {config_value_str}")
+                        else:
+                            print(f"{key}:\n\t{value_str}\n\t{config_value_str}")
+                    except KeyError:
+                        # Skip keys not present in config
+                        continue
+
+                parameters_backup = parameters.copy()
+                config_removed, config_added, config_changed = dict_diff(parameters, config)
+
+                # apply config_file to parameters (overwrite values in parameters if they have an entry in config_file values)
+                parameters.update(config)
+                feedback.pushInfo(f'Read config file: ')
+                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo(f'{list(config_changed.keys())}')
+                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo(f'{list(config_removed.keys())}')
+                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo(f'{list(config_added.keys())}')
+
+                print(f'Read config file: ')
+                print(f'Parameters overwritten through provided config file:')
+                print(f'{list(config_changed.keys())}')
+                print(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                print(f'{list(config_removed.keys())}')
+                print(f'Unused config file parameters:')
+                print(f'{list(config_added.keys())}')
+            except FileNotFoundError:
+                raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
         # Handle the working root and temp output folder
         output_root = parameters["output_root"]
@@ -106,7 +163,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         region_stand_maps = []
         region_ID_prefix = []
         for feature in perimeter_layer.getFeatures():
-            # --- Setup
+            # --- Create folders for current feature
             region_name = feature["region"]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, region_name)
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
@@ -321,7 +378,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # --- -------------------------------- ---#
 
-        # --- Merge
+        # --- Merge stand map
         print(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
         log.info(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
         log.info(f"Layer results per region: \n{region_stand_maps}")
@@ -460,6 +517,7 @@ def finalize_TBk(input_layer, output_layer):
         'FIELD_NAME': 'PH_STRUCTURE', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
         'FORMULA': 'if("VegZone_Code" IN (-1, 0, 1, 2, 4, 5), \r\n    if("NH">50,\r\n        if("hdom">=26, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n                5\r\n            ), \r\n            if("hdom">18,\r\n                -1, \r\n                if("hdom">10,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        ),\r\n        if("hdom">=23, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                    4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n            5), \r\n            if("hdom">16,\r\n                -1, \r\n                if("hdom">9,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        )\r\n    ),\r\n    if ("VegZone_Code" IN (6, 7),\r\n        if("NH">50,\r\n            if("hdom">=23, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                    4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                    5\r\n                ), \r\n                if("hdom">16,\r\n                    -1, \r\n                    if("hdom">9,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            ),\r\n            if("hdom">=19, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                        4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                5), \r\n                if("hdom">13,\r\n                    -1, \r\n                    if("hdom">7,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            )\r\n        ),\r\n        if("VegZone_Code" IN (8),\r\n            if("NH">50,\r\n                if("hdom">=19, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">13,\r\n                        -1, \r\n                        if("hdom">7,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            ),\r\n            if("NH">50,\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=13, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">9,\r\n                        -1, \r\n                        if("hdom">5,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            )\r\n        )\r\n    )\r\n)\r\n\r\n',
         'OUTPUT': output_layer})
+
 
 def merge_layers_with_composite_id(vector_paths, region_ids, output_path):
     """
