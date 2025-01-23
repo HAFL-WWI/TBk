@@ -40,7 +40,9 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterString,
                        QgsVectorLayer,
-                       QgsField)
+                       QgsField,
+                       QgsProject,
+                       QgsVectorFileWriter)
 from qgis.PyQt.QtCore import QVariant
 from qgis.core.additions.edit import edit
 import os.path
@@ -48,6 +50,10 @@ import processing
 import logging, logging.handlers
 import numpy as np
 from datetime import datetime
+
+import sys
+#tbk_path = 'C:/Auswertungen/TBk_AG/TBk'
+#sys.path.append(tbk_path)
 
 from tbk_qgis.tbk.bk_ag.bk_processing import *
 from tbk_qgis.tbk.bk_ag.perimeter_processing import *
@@ -234,7 +240,8 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         """
         Here is where the processing itself takes place.
         """
-        # Load data   
+
+        # ------- Load data -------#
         vhm = str(self.parameterAsRasterLayer(parameters, self.VHM, context).source())
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
         roads = self.parameterAsVectorLayer(parameters, self.ROADS, context)
@@ -252,27 +259,35 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         limit_bh1 = self.parameterAsInt(parameters, self.LIMIT_BH1, context)
         limit_bh2 = self.parameterAsInt(parameters, self.LIMIT_BH2, context)
         reclass_table = [-99,limit_ju,1, limit_ju,limit_sh1,2, limit_sh1,limit_sh2,3, limit_sh2,limit_bh1,4, limit_bh1,limit_bh2,5, limit_bh2,99,6]
-
-        # Set paths
+        
+        # ------- Set paths -------#
+        # General output path
         wd_path = os.path.join(output_root,f'bk_{datetime.now().strftime("%Y%m%d-%H%M")}')
+        #wd_path = os.path.join(output_root,f'bk_test')
         os.makedirs(wd_path, exist_ok=True)
 
+        # Paths for perimeters
         perimeter_path = os.path.join(wd_path, 'perimeter')
         os.makedirs(perimeter_path, exist_ok=True)
 
-        perimeter_dissolve_path = os.path.join(perimeter_path, 'perimeter_dissolve.shp')
-        perimeter_split_path = os.path.join(perimeter_path, 'perimeter_split.shp')
-        perimeter_dissolve_roads_path = os.path.join(perimeter_path, 'perimeter_dissolve_roads.shp')
-        perimeter_clean_roads_path = os.path.join(perimeter_path, 'perimeter_clean_roads.shp')
+        perimeter_dissolve_path = os.path.join(perimeter_path, 'perimeter_dissolve.gpkg')
+        perimeter_split_path = os.path.join(perimeter_path, 'perimeter_split.gpkg')
+        perimeter_snap_path = os.path.join(perimeter_path, 'perimeter_snap_roads.gpkg')
+        perimeter_dissolve_roads_path = os.path.join(perimeter_path, 'perimeter_dissolve_roads.gpkg')
+        perimeter_clean_roads_path = os.path.join(perimeter_path, 'perimeter_clean_roads.gpkg')
 
+        # Paths for VHMs
         vhm_clipped_path = os.path.join(wd_path, 'vhm_tiles')
         os.makedirs(vhm_clipped_path, exist_ok=True)
 
+        # Path for interim results
         shape_path = os.path.join(wd_path, 'shapefiles')
         os.makedirs(shape_path, exist_ok=True)
 
-        final_output_path = os.path.join(wd_path, 'bk_final.shp')
+        # Path for final results
+        final_output_path = os.path.join(wd_path, 'bk_final.gpkg')
 
+        # Path for the log
         logfile_tmp_path  = os.path.join(wd_path, 'bk_processing.log')
 
         # Setup logger
@@ -288,7 +303,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         rootLogger = logging.getLogger()
         rootLogger.info('Run BK AG')
 
-
+        # ------- Processing -------#
         # Dissolve WE
         # ToDo: remove features smaller than certain threshold
         rootLogger.info('Dissolve perimeter')
@@ -296,24 +311,62 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         perimeter_dissolve_singlepart = processing.run('qgis:multiparttosingleparts', {'INPUT':perimeter_dissolve_owner['OUTPUT'], 'OUTPUT':perimeter_dissolve_path})
         perimeter_dissolve_singlepart = QgsVectorLayer(perimeter_dissolve_path, "Perimeter dissolved", "ogr")
 
-
+        # ToDo: an Schluss verschieben
         # Split perimeter with roads
         if roads is not None:
+        #if False:
             rootLogger.info('Split perimeter with roads')
-            processing.run("qgis:splitwithlines", {'INPUT':perimeter_dissolve_singlepart, 'LINES': roads, 'OUTPUT':perimeter_split_path})['OUTPUT']
-            perimeter_split = QgsVectorLayer(perimeter_split_path)
+            roads_extended = processing.run("native:extendlines", {'INPUT':roads,'START_DISTANCE':5,
+                                                                   'END_DISTANCE':5,'OUTPUT':'TEMPORARY_OUTPUT'})
+            roads_bufferd = processing.run("native:buffer", {'INPUT':roads_extended['OUTPUT'],
+                                                             'DISTANCE':0.0001,'SEGMENTS':5,'END_CAP_STYLE':0,
+                                                             'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,
+                                                             'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})
+            peri_split = processing.run("native:difference", {'INPUT': perimeter_dissolve_singlepart,
+                                                 'OVERLAY':roads_bufferd['OUTPUT'],
+                                                 'OUTPUT':'TEMPORARY_OUTPUT','GRID_SIZE':None})
+
+            peri_single = processing.run('qgis:multiparttosingleparts', {'INPUT':peri_split['OUTPUT'], 'OUTPUT':perimeter_split_path})
+            
+
+            peri_snap = processing.run("native:snapgeometries", {'INPUT':peri_single['OUTPUT'],
+                                                     'REFERENCE_LAYER':roads_extended['OUTPUT'],
+                                                     'TOLERANCE':1,'BEHAVIOR':0,
+                                                     'OUTPUT':perimeter_snap_path})
+            
+            peri_buf = processing.run("native:buffer", {'INPUT':perimeter_snap_path,'DISTANCE':1e-04,'SEGMENTS':5,'END_CAP_STYLE':0,
+                'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'OUTPUT':'TEMPORARY_OUTPUT'})
+            #################################################################################
+
+           #roads_dissolve = processing.run("native:dissolve", {'INPUT': roads_extended['OUTPUT'],'FIELD':[],'SEPARATE_DISJOINT':False,'OUTPUT':'TEMPORARY_OUTPUT'})
+            #processing.run("qgis:splitwithlines", {'INPUT':perimeter_dissolve_singlepart, 'LINES': roads_dissolve['OUTPUT'], 'OUTPUT':perimeter_split_path})['OUTPUT']
+            #processing.run("qgis:splitwithlines", {'INPUT':perimeter_dissolve_singlepart, 'LINES':roads, 'OUTPUT':perimeter_split_path})['OUTPUT']
+            #perimeter_split = QgsVectorLayer(perimeter_snap_path)
+            perimeter_split = peri_buf['OUTPUT']
+
+            expression = "$area < " + str(min_area_perimeter)
+            perimeter_split.selectByExpression(expression)
+
+            param = {'INPUT': perimeter_split, 'MODE': 2, 'OUTPUT': 'memory:'}
+            algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
+
+            ctc = QgsProject.instance().transformContext()
+            QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], perimeter_dissolve_roads_path, ctc,
+                                              getVectorSaveOptions('GPKG', 'utf-8'))
 
             # Dissolve perimeter to remove small polygons
-            dissolve_perimeter(perimeter_split, min_area_perimeter, perimeter_dissolve_roads_path)
+            #dissolve_perimeter(perimeter_split, min_area_perimeter, perimeter_dissolve_roads_path)
 
             # Apply small buffer to remove geometry errors
-            processing.run("native:buffer", {'INPUT':perimeter_dissolve_roads_path,'DISTANCE':1e-05,'SEGMENTS':5,'END_CAP_STYLE':0,
+            processing.run("native:buffer", {'INPUT':perimeter_dissolve_roads_path,'DISTANCE':1e-04,'SEGMENTS':5,'END_CAP_STYLE':0,
                 'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'OUTPUT':perimeter_clean_roads_path})
 
             perimeter_dissolve = QgsVectorLayer(perimeter_clean_roads_path)
 
         else:
             perimeter_dissolve = perimeter_dissolve_singlepart
+
+
 
         # Add id attribute
         rootLogger.info('Add id attribute')
@@ -326,6 +379,7 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
 
         # Cut VHM to perimeter elements for separate calculation
         # ToDo: Use function provided by TBK (clip_vhm_to_perimeter)
+
         rootLogger.info('Cut VHM to perimeter')
         vhm_prefix = 'vhm_'
         cut_vhm_to_perimeter(perimeter_dissolve, vhm, vhm_prefix, vhm_clipped_path)
@@ -343,12 +397,28 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         rootLogger.info('Focal statistics all')
         focal_folder (perimeter_dissolve, window_size_all, 'majority', 0, vhm_clipped_path, "vhm_focal1_", vhm_clipped_path, "vhm_focal2_")
 
+        # Shrink
+        #rootLogger.info('Focal statistics shrink')
+        #focal_folder (perimeter_dissolve, window_size_all, 'shrink', 0, vhm_clipped_path, "vhm_focal2_", vhm_clipped_path, "vhm_shrink_")
+        rootLogger.info('Shrinking areas')
+        vhm_to_polygon(perimeter_dissolve, "vhm_focal2_", "vhm_poly_", vhm_clipped_path, shape_path)
+        buffer_polygons(perimeter_dissolve, "vhm_poly_", "vhm_poly_negbuf_", shape_path, -2)
+        multipart_to_singlepart(perimeter_dissolve, "vhm_poly_negbuf_", "vhm_poly_negbuf_single_", shape_path)
+        delete_small_polygons(perimeter_dissolve, "vhm_poly_negbuf_single_", "vhm_poly_minarea_", shape_path, 100)
+
+        # Expand
+        rootLogger.info('Focal statistics expand')
+        #ToDo: Remove reference raster
+        polygon_to_raster(perimeter_dissolve, "vhm_poly_minarea_", "vhm_", "vhm_rasterized_", vhm_clipped_path, shape_path)
+        focal_folder(perimeter_dissolve, window_size_all, 'expand', 0, vhm_clipped_path, "vhm_rasterized_", vhm_clipped_path, "vhm_expand_")
+
+
         # Convert VHM to Polygon
         rootLogger.info('Convert VHM to polygon')
-        source_prefix = "vhm_focal2_"
+        source_prefix = "vhm_expand_"
         dest_prefix = "bk_raw_"
 
-        vhm_to_polygon(perimeter_dissolve, source_prefix, dest_prefix, vhm_clipped_path, shape_path)
+        vhm_to_polygon(perimeter_dissolve, source_prefix, dest_prefix, vhm_clipped_path, shape_path)        
 
         # Simplify polygons
         rootLogger.info('Simplify polygon geometry')
@@ -357,9 +427,22 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
 
         simplify_polygons(perimeter_dissolve, source_prefix, dest_prefix, simplify_threshold, shape_path)
 
+        rootLogger.info('Clip polygons to perimeter')
+        source_prefix = "bk_simple_"
+        dest_prefix = "bk_clip_"
+
+        clip_polygons(perimeter_dissolve, source_prefix, dest_prefix, shape_path)
+        
+
+        # Multipart to singlepart
+        rootLogger.info('Multipart to singleparts')
+        source_prefix = "bk_clip_"
+        dest_prefix = "bk_single_"
+        multipart_to_singlepart(perimeter_dissolve, source_prefix, dest_prefix, shape_path)
+        
         # Combine polygons < 20a with neighbors
         rootLogger.info('Dissolve small polygons')
-        source_prefix = "bk_simple_"
+        source_prefix = "bk_single_"
         dest_prefix = "bk_def_"
 
         merge_small_polygons(perimeter_dissolve, source_prefix, dest_prefix, min_area_bk, shape_path)
@@ -370,15 +453,14 @@ class BkAGAlgorithm(QgsProcessingAlgorithm):
         paths = []
         for feature in perimeter_dissolve.getFeatures():
             id = feature['id']
-            name_shp = source_prefix + str(id) + '.shp'
+            name_shp = source_prefix + str(id) + '.gpkg'
             bk_path = os.path.join(shape_path, name_shp)
             paths.append(bk_path)
 
-        bk_combine = processing.run("native:mergevectorlayers", {'LAYERS':paths,'CRS':None,'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+        bk_combine = processing.run("native:mergevectorlayers", {'LAYERS':paths,'CRS':None,'OUTPUT': final_output_path})['OUTPUT']
 
-        par = {'FIELD': 'ES', 'INPUT': bk_combine, 'OPERATOR': 1, 'OUTPUT': final_output_path, 'VALUE': 0}
-        processing.run("qgis:extractbyattribute", par)
-
+        #par = {'FIELD': 'ES', 'INPUT': final_output_path, 'OPERATOR': 1, 'OUTPUT': final_output_path, 'VALUE': 0}
+        #processing.run("qgis:extractbyattribute", par)
 
         logging.FileHandler(logfile_tmp_path).close()
         rootLogger=None

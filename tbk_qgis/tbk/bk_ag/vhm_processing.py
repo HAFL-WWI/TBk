@@ -57,8 +57,14 @@ def cut_vhm_to_perimeter(perimeter_dissolve, vhm, vhm_prefix, vhm_clipped_path):
         par = {'FIELD': 'id', 'INPUT': perimeter_dissolve, 'OPERATOR': 0, 'OUTPUT': 'TEMPORARY_OUTPUT', 'VALUE': id}
         
         mask = processing.run("qgis:extractbyattribute", par)
+
+        # Buffer to remove edge effects
+        mask_buf = processing.run("native:buffer", {'INPUT':mask['OUTPUT'],'DISTANCE':5,'SEGMENTS':5,'END_CAP_STYLE':0,
+            'JOIN_STYLE':0,'MITER_LIMIT':2,'DISSOLVE':False,'OUTPUT':'TEMPORARY_OUTPUT'})
+
+
         name_tile = vhm_prefix + str(id) + '.tif'
-        par = {'INPUT': vhm, 'MASK': mask['OUTPUT'], 'NODATA': None, 'ALPHA_BAND': True, 'CROP_TO_CUTLINE' : True, 'KEEP_RESOLUTION': False,
+        par = {'INPUT': vhm, 'MASK': mask_buf['OUTPUT'], 'NODATA': None, 'ALPHA_BAND': True, 'CROP_TO_CUTLINE' : True, 'KEEP_RESOLUTION': False,
         'SET_RESOLUTION' : False, 'OPTIONS': '', 'DATA_TYPE': 0, 'OUTPUT': os.path.join(vhm_clipped_path, name_tile)}
         
         clip = processing.run('gdal:cliprasterbymasklayer', par)
@@ -124,6 +130,29 @@ def focal(raster_layer, window_radius, method, weighting_sh1, output_path):
                     else:
                         new_value=1
 
+            elif method=='shrink':
+                array = get_values_array(vhm_arr, window_radius, r, c, n_rows, n_cols)
+                #array_sel= array[array == val_centre]
+                counts = np.bincount(array.flatten())
+
+                if counts[val_centre]>(window_radius*window_radius*1.5):
+                    new_value=val_centre
+                else:
+                    new_value=0
+
+            elif method=='expand':
+                if val_centre ==0:
+                    array = get_values_array(vhm_arr, window_radius, r, c, n_rows, n_cols)
+                    array_sel= array[array != 0]
+                    counts = np.bincount(array_sel.flatten())
+                    if (len(counts)>0):
+                        new_value = np.argmax(counts)
+                    else:
+                        new_value=0
+                else:
+                    new_value=val_centre
+            
+
             else:
                 print('Method not defined')
                 break
@@ -171,3 +200,4 @@ def vhm_to_polygon(perimeter_dissolve, source_prefix, dest_prefix, vhm_clipped_p
         shp_out_path = os.path.join(shape_path, name_shp)
 
         processing.run('gdal:polygonize', {'INPUT': vhm_temp, 'BAND':1, 'FIELD':"ES", 'OUTPUT':shp_out_path})
+
