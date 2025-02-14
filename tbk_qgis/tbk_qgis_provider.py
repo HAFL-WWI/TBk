@@ -72,6 +72,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkAlgorithm())
+        self.addAlgorithm(BkAGAlgorithm())
         # [grpID: postproc]     grpName: 2 Postprocessing
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
@@ -83,7 +84,6 @@ class TBkProvider(QgsProcessingProvider):
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: legacy]     grpName: Y LEGACY
-        self.addAlgorithm(BkAGAlgorithm())
         self.addAlgorithm(TBkPrepareVhmAlgorithm())
         self.addAlgorithm(TBkPrepareMgAlgorithm())
         self.addAlgorithm(TBkPrepareAlgorithm())
