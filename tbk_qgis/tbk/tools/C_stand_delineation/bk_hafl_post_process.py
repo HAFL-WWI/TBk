@@ -224,8 +224,9 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
 
     # finally persist output
     shape_out_path = os.path.join(working_root, shape_out)
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], shape_out_path, ctc,
+    result = QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], shape_out_path, ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
+    new_layer_path = result[2]
 
     # Delete files
     if del_tmp:
@@ -237,4 +238,4 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
     print("DONE!")
 
     # Return final result
-    return shape_out_path
+    return new_layer_path
