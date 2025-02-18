@@ -58,7 +58,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     # arcpy.env.parallelProcessingFactor = "50%"
 
     # TBk shapefile
-    stands_file = os.path.join(working_root, "stands_clipped.gpkg")
+    stands_file = os.path.join(working_root, "output_clipped.gpkg")
 
     # Create dg layer output directory
     dg_layers_dir = os.path.join(tbk_result_dir, "dg_layers")

@@ -51,7 +51,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         print("No coniferous raster found.")
         return
     nh_raster = coniferous_raster
-    stands_shapefile = os.path.join(working_root,"stands_clipped.gpkg")
+    stands_shapefile = os.path.join(working_root,"output_clipped.gpkg")
 
     print("calc mean coniferous proportion...")
 
