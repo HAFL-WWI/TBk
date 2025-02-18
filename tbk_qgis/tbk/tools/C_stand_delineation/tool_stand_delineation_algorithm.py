@@ -85,6 +85,14 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         """
         Here we define the inputs and outputs of the algorithm.
         """
+        # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
+        is_standalone_context = True
+
+        # --- Handle config parameter
+        if config:
+            if 'is_standalone_context' in config:
+                is_standalone_context = config['is_standalone_context']
+
         # --- Parameters
 
         # Config file containing all parameter key-value pairs
@@ -109,11 +117,13 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
 
-        # Main output (stand boundaries) for algorithm output
-        self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
-                                                                "Output Stand Boundaries",
-                                                                "GPKG files (*.gpkg)",
-                                                                optional=True))
+        # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
+        if is_standalone_context:
+            # Main output (stand boundaries) for algorithm output
+            self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
+                                                                    "Output Stand Boundaries",
+                                                                    "GPKG files (*.gpkg)",
+                                                                    optional=True))
 
         # --- Advanced Parameters
 
@@ -176,11 +186,14 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         params = self._extract_context_params(parameters, context)
 
-        # Handle the working root and temp output folders
-        output_root = params.output_root
-        # the result folder(with time stamp) can be passed as parameter from the modularized main algorithm but can
-        #  not be extracted from the context as for the other parameters
-        result_dir = self._get_result_dir(output_root) if "result_dir" not in parameters else parameters["result_dir"]
+        # Adapt the parameters if modular mode
+        if parameters["invoker_params"]:
+            result_dir = parameters["result_dir"]
+        else:
+            output_root = params.output_root
+            result_dir = self._get_result_dir(output_root)
+
+        # Handle the bk directory
         bk_dir = self._get_bk_output_dir(result_dir)
         ensure_dir(bk_dir)
 
