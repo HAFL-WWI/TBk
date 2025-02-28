@@ -37,7 +37,6 @@
 """
 
 
-# Import arcpy module
 
 import processing
 from datetime import timedelta
@@ -46,38 +45,21 @@ import time
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=True):
+def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del_tmp=True):
     print("--------------------------------------------")
     print("START DG calculation...")
 
-    # TBk folder path
-    workspace = working_root
-    scratchWorkspace = tmp_output_folder
-
-    # Use half of the cores on the machine.
-    # arcpy.env.parallelProcessingFactor = "50%"
-
-    # TBk shapefile
-    stands_file = os.path.join(working_root, "output_clipped.gpkg")
-
     # Create dg layer output directory
-    dg_layers_dir = os.path.join(tbk_result_dir, "dg_layers")
-    if not os.path.exists(dg_layers_dir):
-        os.makedirs(dg_layers_dir)
-
-    # Create tmp output directory if none is provided
-    if tmp_output_folder is None:
-        tmp_output_folder = os.path.join(dg_layers_dir, "tmp")
-        if not os.path.exists(tmp_output_folder):
-            os.makedirs(tmp_output_folder)
+    if not os.path.exists(dg_dir):
+        os.makedirs(dg_dir)
 
     # DG layers
-    dg_ks_classified = os.path.join(dg_layers_dir, "dg_layer_ks.tif")
-    dg_us_classified = os.path.join(dg_layers_dir, "dg_layer_us.tif")
-    dg_ms_classified = os.path.join(dg_layers_dir, "dg_layer_ms.tif")
-    dg_os_classified = os.path.join(dg_layers_dir, "dg_layer_os.tif")
-    dg_ueb_classified = os.path.join(dg_layers_dir, "dg_layer_ueb.tif")
-    dg_classified = os.path.join(dg_layers_dir, "dg_layer.tif")
+    dg_ks_classified = os.path.join(dg_dir, "dg_layer_ks.tif")
+    dg_us_classified = os.path.join(dg_dir, "dg_layer_us.tif")
+    dg_ms_classified = os.path.join(dg_dir, "dg_layer_ms.tif")
+    dg_os_classified = os.path.join(dg_dir, "dg_layer_os.tif")
+    dg_ueb_classified = os.path.join(dg_dir, "dg_layer_ueb.tif")
+    dg_classified = os.path.join(dg_dir, "dg_layer.tif")
 
     # tmp files
     tmp_lim_ks = os.path.join(tmp_output_folder, "dg_ks_max.tif")
@@ -96,7 +78,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     ########################################################################
 
-    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_input, "stands", "ogr")
 
     # Add DG limits fields per stand
     with edit(stands_layer):
@@ -128,7 +110,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     # create a list (for iteration) with dg-classes to be calculated
     # assign: 1. a column_prefix, 2. a limit (dg_lim_field),
-    # 3. - 5. the necessary raster layers (dg_tmp_file_B and C as well as dg_layer_file)
+    # 3. - 5. the necessary raster layers (dg_tmp_file_b and C as well as dg_layer_file)
     # and 6. the raster calculator formula for each dg-type
     field_file_pairs = [
         ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
@@ -145,13 +127,13 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     print("classify stand layers...")
     for column_prefix, \
             dg_lim_field, \
-            dg_tmp_file_B, \
-            dg_tmp_file_C, \
+            dg_tmp_file_b, \
+            dg_tmp_file_c, \
             dg_layer_file, \
             formula \
             in field_file_pairs:
         start_time = time.time()
-        # print(dg_lim_field, "->", dg_tmp_file_B, "->", dg_layer_file)
+        # print(dg_lim_field, "->", dg_tmp_file_b, "->", dg_layer_file)
         if (column_prefix == 'dg_'):
             # DG Layer can be created by using OS and UEB (need to be present)
             processing.run("gdal:rastercalculator", {
@@ -164,29 +146,29 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
                 'OUTPUT': dg_layer_file})
         else:
             # create an empty DG layer based on vhm extents for each layer
-            create_empty_copy(vhm, dg_tmp_file_B)
+            create_empty_copy(vhm, dg_tmp_file_b)
             # burn vector value into raster
             processing.run("gdal:rasterize_over", {
-                'INPUT': stands_file,
-                'INPUT_RASTER': dg_tmp_file_B,
+                'INPUT': stands_input,
+                'INPUT_RASTER': dg_tmp_file_b,
                 'FIELD': dg_lim_field,
                 'ADD': False, 'EXTRA': ''})
             # classify raster
             processing.run("gdal:rastercalculator", {
                 'INPUT_A': vhm, 'BAND_A': 1,
-                'INPUT_B': dg_tmp_file_B, 'BAND_B': 1,
-                'INPUT_C': dg_tmp_file_C, 'BAND_C': 1,
+                'INPUT_B': dg_tmp_file_b, 'BAND_B': 1,
+                'INPUT_C': dg_tmp_file_c, 'BAND_C': 1,
                 'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '', 'OUTPUT': dg_layer_file})
 
         # clean up temp files as soon as possible
         if del_tmp:
-            if dg_tmp_file_C is not None:
-                if os.path.exists(dg_tmp_file_C):
-                    delete_raster(dg_tmp_file_C)
-                if os.path.exists(dg_tmp_file_C + ".aux.xml"):
-                    os.remove(dg_tmp_file_C + ".aux.xml")
+            if dg_tmp_file_c is not None:
+                if os.path.exists(dg_tmp_file_c):
+                    delete_raster(dg_tmp_file_c)
+                if os.path.exists(dg_tmp_file_c + ".aux.xml"):
+                    os.remove(dg_tmp_file_c + ".aux.xml")
 
         end_time = time.time()
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
@@ -199,7 +181,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
         # using the "old" zonalstatistics algorithm (not zonalstatisticsfb), that appends fields to input layer
         # for more info, read https://github.com/qgis/QGIS/issues/40356
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
-                 'INPUT_VECTOR': stands_file,
+                 'INPUT_VECTOR': stands_input,
                  'COLUMN_PREFIX': column_prefix, 'STATS': [2]}
         processing.run("qgis:zonalstatistics", param)
 
@@ -207,7 +189,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # re-read the input, as it was modified by zonal statistics
-    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_input, "stands", "ogr")
     with edit(stands_layer):
         # Add DG fields
         provider = stands_layer.dataProvider()

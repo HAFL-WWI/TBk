@@ -24,7 +24,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         '2 Simplify and Clean': {"algorithm": TBkSimplifyAndCleanAlgorithm(), "invoker_params": {"input_to_simplify_name": "stand_boundaries", "output_name": "output_simplified"}},
         '3 Merge similar neighbours (FM)': {"algorithm": TBkMergeSimilarNeighboursAlgorithm(), "invoker_params": {"input_to_merge_name": "output_simplified", "output_name": "output_merged"}},
         '4 Clip to perimeter and eliminate gaps': {"algorithm": TBkClipToPerimeterAndEliminateGapsAlgorithm(), "invoker_params": {"input_to_clip_name": "output_merged", "output_name": "output_clipped"}},
-        '5 Calculate crown coverage': {"algorithm": TBkCalculateCrownCoverageAlgorithm(), "invoker_params": {}},
+        '5 Calculate crown coverage': {"algorithm": TBkCalculateCrownCoverageAlgorithm(), "invoker_params": {"stands_input": "output_clipped"}},
         '6 Add coniferous proportion': {"algorithm": TBkAddConiferousProportionAlgorithm(), "invoker_params": {}},
         'Calculate attribute "struktur"': {"algorithm": TBkUpdateStandAttributesAlgorithm(), "invoker_params": {}},
     }
