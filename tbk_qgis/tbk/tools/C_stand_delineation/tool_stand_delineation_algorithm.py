@@ -121,7 +121,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         if is_standalone_context:
             # Main output (stand boundaries) for algorithm output
             self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
-                                                                    "Output Stand Boundaries",
+                                                                    "Stand Boundaries Output (GeoPackage)",
                                                                     "GPKG files (*.gpkg)",
                                                                     optional=True))
 

@@ -95,7 +95,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         if is_standalone_context:
             # Output
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED, "Output GeoPackage",
+                QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED, "Simplified Stand Boundaries Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                          optional=True))
 

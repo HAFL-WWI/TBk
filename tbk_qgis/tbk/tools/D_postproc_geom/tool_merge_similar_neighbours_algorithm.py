@@ -84,7 +84,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
         if is_standalone_context:
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Output GeoPackage",
+                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 

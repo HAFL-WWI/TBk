@@ -87,7 +87,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
         if is_standalone_context:
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED, "Output GeoPackage",
+                QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED, "Clip and Eliminate Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
