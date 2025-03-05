@@ -20,13 +20,51 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
     # Dictionary storing algorithms and parameters, typically using result parameters from previous tools.
     # invoker_params must be given for each algorithm even if empty.
     algorithms = {
-        '1 Delineate Stand': { "algorithm": TBkStandDelineationAlgorithm(), "invoker_params": {"result_dir": "result_dir"}},
-        '2 Simplify and Clean': {"algorithm": TBkSimplifyAndCleanAlgorithm(), "invoker_params": {"input_to_simplify_name": "stand_boundaries", "output_name": "output_simplified"}},
-        '3 Merge similar neighbours (FM)': {"algorithm": TBkMergeSimilarNeighboursAlgorithm(), "invoker_params": {"input_to_merge_name": "output_simplified", "output_name": "output_merged"}},
-        '4 Clip to perimeter and eliminate gaps': {"algorithm": TBkClipToPerimeterAndEliminateGapsAlgorithm(), "invoker_params": {"input_to_clip_name": "output_merged", "output_name": "output_clipped"}},
-        '5 Calculate crown coverage': {"algorithm": TBkCalculateCrownCoverageAlgorithm(), "invoker_params": {"stands_input": "output_clipped"}},
-        '6 Add coniferous proportion': {"algorithm": TBkAddConiferousProportionAlgorithm(), "invoker_params": {}},
-        'Calculate attribute "struktur"': {"algorithm": TBkUpdateStandAttributesAlgorithm(), "invoker_params": {}},
+        '1 Delineate Stand': {
+            "algorithm": TBkStandDelineationAlgorithm(),
+            "invoker_params": {
+                "result_dir": "result_dir"
+            }},
+        '2 Simplify and Clean': {
+            "algorithm": TBkSimplifyAndCleanAlgorithm(),
+            "invoker_params": {
+                "input_to_simplify_name": "stand_boundaries",
+                "output_name": "output_simplified"
+            }},
+        '3 Merge similar neighbours (FM)': {
+            "algorithm": TBkMergeSimilarNeighboursAlgorithm(),
+            "invoker_params": {
+                "input_to_merge_name": "output_simplified",
+                "output_name": "output_merged"
+            }},
+        '4 Clip to perimeter and eliminate gaps': {
+            "algorithm": TBkClipToPerimeterAndEliminateGapsAlgorithm(),
+            "invoker_params": {
+                "input_to_clip_name": "output_merged",
+                "output_name": "output_clipped"
+            }},
+        '5 Calculate crown coverage': {
+            "algorithm": TBkCalculateCrownCoverageAlgorithm(),
+            "invoker_params": {
+                "stands_input": "output_clipped",
+            }},
+        '6 Add coniferous proportion': {
+            "algorithm": TBkAddConiferousProportionAlgorithm(),
+            "invoker_params": {
+                "clipped_stands_input": "output_clipped",
+                "dg_layers_input": {
+                    "input_dg_layer_ks": "output_dg_layer_ks",
+                    "input_dg_layer_us": "output_dg_layer_us",
+                    "input_dg_layer_ms": "output_dg_layer_ms",
+                    "input_dg_layer_os": "output_dg_layer_os",
+                    "input_dg_layer_ueb": "output_dg_layer_ueb",
+                    "input_dg_layer_main": "output_dg_layer_main",
+                }
+            }},
+        'Calculate attribute "struktur"': {
+            "algorithm": TBkUpdateStandAttributesAlgorithm(),
+            "invoker_params": {
+            }},
     }
 
     def initAlgorithm(self, config=None):

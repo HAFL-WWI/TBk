@@ -39,27 +39,23 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, coniferous_raster, calc_main_layer, del_tmp=True):
+def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, clipped_stands_input, coniferous_raster, calc_main_layer, del_tmp=True):
     print("--------------------------------------------")
     print("START coniferous proportion...")
 
-    workspace = working_root
-    scratchWorkspace = tmp_output_folder
-    
     print("loading files...")
     if coniferous_raster == 'null' or coniferous_raster == None:
         print("No coniferous raster found.")
         return
     nh_raster = coniferous_raster
-    stands_shapefile = os.path.join(working_root,"output_clipped.gpkg")
 
     print("calc mean coniferous proportion...")
 
 
-    param ={'INPUT_RASTER':nh_raster,'RASTER_BAND':1,'INPUT_VECTOR':stands_shapefile,'COLUMN_PREFIX':'nh_','STATS':[2]}
+    param ={'INPUT_RASTER':nh_raster,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
     processing.run("qgis:zonalstatistics", param)
 
-    stands_layer = QgsVectorLayer(stands_shapefile, "stands", "ogr")
+    stands_layer = QgsVectorLayer(clipped_stands_input, "stands", "ogr")
 
     with edit(stands_layer):
         # Add NH fields
@@ -126,14 +122,14 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
-        param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':stands_shapefile,'COLUMN_PREFIX':'nh_','STATS':[2]}
+        param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
         processing.run("qgis:zonalstatistics", param)
 
         # Calculate sum NH_OS pixels
-        param ={'INPUT_RASTER':dg_layer_os_10m_mask,'RASTER_BAND':1,'INPUT_VECTOR':stands_shapefile,'COLUMN_PREFIX':'nhm_','STATS':[1]}
+        param ={'INPUT_RASTER':dg_layer_os_10m_mask,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nhm_','STATS':[1]}
         processing.run("qgis:zonalstatistics", param)
 
-        stands_layer = QgsVectorLayer(stands_shapefile, "stands", "ogr")
+        stands_layer = QgsVectorLayer(clipped_stands_input, "stands", "ogr")
 
         with edit(stands_layer):
             # Add NH fields
