@@ -36,9 +36,9 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
-    # Default log file name
+    # Input layer to process
     INPUT_TO_CLIP = "input_to_clip"
-    # Default log file name
+    # Processed output layer
     OUTPUT_CLIPPED = "output_clipped"
 
     # Additional parameters
@@ -65,7 +65,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
-
+        # todo: if is_standalone_context
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
@@ -141,15 +141,15 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # ---  Clip
         log.info('Starting')
         # run clip function
-        algOutput = clip_to_perimeter(working_root, params.input_to_clip,
+        alg_output = clip_to_perimeter(working_root, params.input_to_clip,
                                       os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg"),
                                       tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         # run gaps function
-        algOutput = eliminate_gaps(working_root, algOutput, params.output_clipped, tmp_output_folder, params.perimeter,
+        alg_output = eliminate_gaps(working_root, alg_output, params.output_clipped, tmp_output_folder, params.perimeter,
                                    del_tmp=params.del_tmp)
 
-        return {'OUTPUT': algOutput}
+        return {'OUTPUT': alg_output}
 
     def createInstance(self):
         """
