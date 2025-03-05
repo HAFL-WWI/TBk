@@ -121,7 +121,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         self.prepare(parameters, context, feedback)
 
         # Adapt the parameters if modular mode
-        if parameters["invoker_params"]:
+        if "invoker_params" in parameters:
 
             input_name = parameters['invoker_params']["input_to_merge_name"]  # name of the parameter to use as input
 

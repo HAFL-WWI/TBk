@@ -187,7 +187,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         params = self._extract_context_params(parameters, context)
 
         # Adapt the parameters if modular mode
-        if parameters["invoker_params"]:
+        if "invoker_params" in parameters:
             result_dir = parameters["result_dir"]
         else:
             output_root = params.output_root

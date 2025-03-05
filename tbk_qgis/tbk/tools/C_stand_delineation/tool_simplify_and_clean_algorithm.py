@@ -125,7 +125,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         self.prepare(parameters, context, feedback)
 
         # Adapt the parameters if modular mode
-        if parameters["invoker_params"]:
+        if "invoker_params" in parameters:
             input_name = parameters['invoker_params']["input_to_simplify_name"]  # name of the parameter to use as input
 
             output_file_name = parameters['invoker_params']["output_name"] + ".gpkg"

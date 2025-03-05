@@ -95,7 +95,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         params = self._extract_context_params(parameters, context)
 
         # Adapt the parameters if modular mode
-        if parameters["invoker_params"]:
+        if "invoker_params" in parameters:
             clipped_stands_input_name = parameters["invoker_params"]["clipped_stands_input"]
             params.clipped_stands_input = parameters[clipped_stands_input_name]
 
