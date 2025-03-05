@@ -128,9 +128,9 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        calculate_dg(bk_dir, input_for_calcul, tmp_output_folder, dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
+        results = calculate_dg(bk_dir, input_for_calcul, tmp_output_folder, dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
 
-        return {self.RESULT_DIR: dg_dir}
+        return results
 
     def createInstance(self):
         """

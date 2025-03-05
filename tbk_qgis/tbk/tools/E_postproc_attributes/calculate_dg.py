@@ -53,21 +53,31 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
     if not os.path.exists(dg_dir):
         os.makedirs(dg_dir)
 
-    # DG layers
-    dg_ks_classified = os.path.join(dg_dir, "dg_layer_ks.tif")
-    dg_us_classified = os.path.join(dg_dir, "dg_layer_us.tif")
-    dg_ms_classified = os.path.join(dg_dir, "dg_layer_ms.tif")
-    dg_os_classified = os.path.join(dg_dir, "dg_layer_os.tif")
-    dg_ueb_classified = os.path.join(dg_dir, "dg_layer_ueb.tif")
-    dg_classified = os.path.join(dg_dir, "dg_layer.tif")
+    # DG file names
+    dg_file_names = {
+        "ks": "dg_layer_ks.tif",
+        "us": "dg_layer_us.tif",
+        "ms": "dg_layer_ms.tif",
+        "os": "dg_layer_os.tif",
+        "ueb": "dg_layer_ueb.tif",
+        "main": "dg_layer.tif"
+    }
 
-    # tmp files
-    tmp_lim_ks = os.path.join(tmp_output_folder, "dg_ks_max.tif")
-    tmp_lim_us = os.path.join(tmp_output_folder, "dg_us_min.tif")
-    tmp_lim_ms = os.path.join(tmp_output_folder, "dg_ms_min.tif")
-    tmp_lim_os = os.path.join(tmp_output_folder, "dg_lim_os.tif")
-    tmp_lim_ueb = os.path.join(tmp_output_folder, "dg_lim_ueb.tif")
-    tmp_lim_dg = os.path.join(tmp_output_folder, "dg_lim_dg.tif")
+    # Dictionary containing the path to the crown coverage files
+    dg_files = {key: os.path.join(dg_dir, filename) for key, filename in dg_file_names.items()}
+
+    # Temporary files
+    tmp_files_names = {
+        "ks_max": "dg_ks_max.tif",
+        "us_min": "dg_us_min.tif",
+        "ms_min": "dg_ms_min.tif",
+        "lim_os": "dg_lim_os.tif",
+        "lim_ueb": "dg_lim_ueb.tif",
+        "lim_dg": "dg_lim_dg.tif"
+    }
+
+    # Dictionary containing the path to temp files
+    tmp_files = {key: os.path.join(tmp_output_folder, filename) for key, filename in tmp_files_names.items()}
 
     # Layer threshold values (based on NFI definition, www.lfi.ch)
     max_height_ks = 1.0
@@ -113,12 +123,12 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
     # 3. - 5. the necessary raster layers (dg_tmp_file_b and C as well as dg_layer_file)
     # and 6. the raster calculator formula for each dg-type
     field_file_pairs = [
-        ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
-        ['dg_os_', 'dg_os_min', tmp_lim_os, tmp_lim_ueb, dg_os_classified, '((A>B) & (A<=C))*1'],
-        ['dg_ms_', 'dg_ms_min', tmp_lim_ms, tmp_lim_os, dg_ms_classified, '((A>B) & (A<=C))*1'],
-        ['dg_us_', 'dg_us_min', tmp_lim_us, tmp_lim_ms, dg_us_classified, '((A>=B) & (A<=C))*1'],
-        ['dg_ks_', 'dg_ks_max', tmp_lim_ks, tmp_lim_us, dg_ks_classified, '((A<B) & True)*1'],
-        ['dg_', 'dg_min', tmp_lim_dg, tmp_lim_ks, dg_classified, '((A>B) & True)*1']
+        ['dg_ueb_', 'dg_ueb_min', tmp_files['lim_ueb'], None, dg_files["ueb"], '((A>B) & True)*1'],
+        ['dg_os_', 'dg_os_min', tmp_files['lim_os'], tmp_files['lim_ueb'], dg_files["os"], '((A>B) & (A<=C))*1'],
+        ['dg_ms_', 'dg_ms_min', tmp_files['ms_min'], tmp_files['lim_os'], dg_files["ms"], '((A>B) & (A<=C))*1'],
+        ['dg_us_', 'dg_us_min', tmp_files['us_min'], tmp_files['ms_min'], dg_files["us"], '((A>=B) & (A<=C))*1'],
+        ['dg_ks_', 'dg_ks_max', tmp_files['ks_max'], tmp_files['us_min'], dg_files["ks"], '((A<B) & True)*1'],
+        ['dg_', 'dg_min', tmp_files['lim_dg'], tmp_files['ks_max'], dg_files["main"], '((A>B) & True)*1']
     ]
 
     # Produce final "1" / "0" raster for each layer
@@ -137,9 +147,9 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
         if (column_prefix == 'dg_'):
             # DG Layer can be created by using OS and UEB (need to be present)
             processing.run("gdal:rastercalculator", {
-                'INPUT_A': dg_os_classified,
+                'INPUT_A': dg_files["os"],
                 'BAND_A': 1,
-                'INPUT_B': dg_ueb_classified,
+                'INPUT_B': dg_files["ueb"],
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
                 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
@@ -223,3 +233,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
                        ])
 
     print("DONE!")
+
+    # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
+    results = {f"output_dg_layer_{key}": value for key, value in dg_files.items()}
+    return results
