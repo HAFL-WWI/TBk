@@ -487,8 +487,14 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                     m_coniferous = np.ones(m_tol.shape, dtype=bool)
                     if coniferous_data is not None:
                         coniferous_sub = helper.get_matrix_subset(coniferous_data, row, col, s)
-                        if counter == 0 and coniferous_sub[m_tol].size:
-                            coniferous_mean = np.mean(coniferous_sub[m_tol])
+                        # initialize coniferous mean on first iteration
+                        if counter == 0:
+                            # only consider pixels that are within similar height threshold
+                            if coniferous_sub[m_tol].size:
+                                coniferous_mean = np.mean(coniferous_sub[m_tol])
+                            else:
+                                # ensure coniferous_mean is initialized. With 50 it won't trigger seperate delineation
+                                coniferous_mean = 50
                         m_coniferous = helper.get_similar_neighbours_coniferous(coniferous_sub, coniferous_mean)
 
                     # combine matrices to get final filters
