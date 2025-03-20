@@ -34,7 +34,7 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
+def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
     # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")
@@ -54,15 +54,12 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
     tmp_simplified = "tmp_simplified.gpkg"
     tmp_simplified_error = "tmp_simplified_error.gpkg"
 
-    highest_raster_in = "hmax.tif"
     highest_point_out = "stands_highest_tree_tmp.gpkg"
 
     ########################################
     # --- Vectorize highest trees
-    highest_raster_path = os.path.join(working_root, highest_raster_in)
-    print(highest_raster_path)
 
-    params = {'INPUT_RASTER': highest_raster_path, 'RASTER_BAND': 1, 'FIELD_NAME': 'VALUE',
+    params = {'INPUT_RASTER': h_max_input, 'RASTER_BAND': 1, 'FIELD_NAME': 'VALUE',
               'OUTPUT': 'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("native:pixelstopoints", params)
 

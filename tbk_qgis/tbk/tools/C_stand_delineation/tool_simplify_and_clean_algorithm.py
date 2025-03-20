@@ -19,7 +19,8 @@ __revision__ = '$Format:%H$'
 import logging
 import os
 
-from qgis._core import QgsProcessingParameterFeatureSource, QgsProcessingParameterFileDestination, QgsProcessing
+from qgis._core import QgsProcessingParameterFeatureSource, QgsProcessingParameterFileDestination, QgsProcessing, \
+    QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterString, QgsProcessingParameterNumber, \
     QgsProcessingParameterBoolean, QgsProcessingParameterFile
 from tbk_qgis.tbk.tools.C_stand_delineation.bk_hafl_post_process import post_process
@@ -53,6 +54,8 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
     # Default log file name
     INPUT_TO_SIMPLIFY = "input_to_simplify"
+    # H_max Input layer
+    H_MAX_INPUT = "h_max_input"
     # Default log file name
     OUTPUT_SIMPLIFIED = "output_simplified"
 
@@ -76,23 +79,25 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      optional=True))
 
-        # This parameter is only shown when the tool is running in standalone mode
+        # Those parameters are only shown when the tool is running in standalone mode
         if is_standalone_context:
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
 
-        # Not needed in a modular context; can use the previous algorithm's output directly
-        if is_standalone_context:
+            # Not needed in a modular context; can use the previous algorithm's output directly
             # Input stand map to be processed
             self.addParameter(
                 QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
                                                     [QgsProcessing.TypeVectorPolygon],
                                                          optional=True))
 
-        # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
-        if is_standalone_context:
+            # H_max raster
+            self.addParameter(QgsProcessingParameterRasterLayer(self.H_MAX_INPUT,
+                                                                "Highest path layer to use (.tif)"))
+
+            # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             # Output
             self.addParameter(
                 QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED, "Simplified Stand Boundaries Output (GeoPackage)",
@@ -126,13 +131,15 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         # Adapt the parameters if modular mode
         if "invoker_params" in parameters:
-            input_name = parameters['invoker_params']["input_to_simplify_name"]  # name of the parameter to use as input
+            input_to_simplify_name = parameters['invoker_params']["input_to_simplify_name"]  # name of the parameter to use as input
+            h_max_input_name = parameters['invoker_params']["h_max_input"]
 
             output_file_name = parameters['invoker_params']["output_name"] + ".gpkg"
             output_simplified_path = os.path.join(parameters["working_root"], output_file_name)
 
             invoker_params = {
-                "input_to_simplify": parameters[input_name],
+                "input_to_simplify": parameters[input_to_simplify_name],
+                "h_max_input": parameters[h_max_input_name],
                 "output_simplified": output_simplified_path
             }
             parameters.update(invoker_params)
@@ -163,7 +170,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         log.debug(f"used parameters: {working_root}, {params.input_to_simplify}, {params.output_simplified}, "
                   f"{tmp_output_folder}, {params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
 
-        results = post_process(working_root, params.input_to_simplify, params.output_simplified,
+        results = post_process(working_root, params.input_to_simplify, params.h_max_input, params.output_simplified,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 

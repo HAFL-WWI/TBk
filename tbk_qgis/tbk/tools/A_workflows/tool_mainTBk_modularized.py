@@ -29,6 +29,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             "algorithm": TBkSimplifyAndCleanAlgorithm(),
             "invoker_params": {
                 "input_to_simplify_name": "stand_boundaries",
+                "h_max_input": "hmax",
                 "output_name": "output_simplified"
             }},
         '3 Merge similar neighbours (FM)': {
