@@ -242,6 +242,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         log.debug(f"Results: {results}")
         log.info(f"Finished")
 
+        # Add the output_root to the results, so that the following algorithm knows where to store files
+        results["output_root"] = params.output_root
+
         return results
 
     def createInstance(self):
