@@ -57,6 +57,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     # Coniferous raster to be used during stand delineation
     CONIFEROUS_RASTER_FOR_CLASSIFICATION = "coniferous_raster_for_classification"
 
+    # Result directory output (folder with timestamp)
+    OUTPUT_RESULT_DIR = "result_dir"
     # Main output layer
     OUTPUT_STAND_BOUNDARIES = "output_stand_boundaries"
     # H max file output
@@ -129,6 +131,10 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
             # --- Add output definition, so that they can be used in model designer
             # todo: add output for the other file outputs
+
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_RESULT_DIR,
+                                                   "Result output folder"))
+
             # Stand boundaries output
             self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STAND_BOUNDARIES,
                                                    "Stand Boundaries Output file"))
@@ -258,10 +264,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         results["output_root"] = params.output_root
 
         results = {
-            self.OUTPUT_ROOT: params.output_root,
+            self.OUTPUT_RESULT_DIR: result_dir,
             self.OUTPUT_STAND_BOUNDARIES: results["stand_boundaries"],
             self.OUTPUT_H_MAX: results["hmax"],
-
         }
 
         return results
