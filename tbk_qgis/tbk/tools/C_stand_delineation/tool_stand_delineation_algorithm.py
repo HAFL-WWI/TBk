@@ -23,7 +23,7 @@ import time
 import numpy as np
 from osgeo import gdal, osr
 from osgeo.gdalconst import GA_ReadOnly
-from qgis._core import QgsProcessingParameterFileDestination
+from qgis._core import QgsProcessingParameterFileDestination, QgsProcessingOutputFile
 from qgis.core import (QgsProcessingParameterFile,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
@@ -126,6 +126,16 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                     "Stand Boundaries Output (GeoPackage)",
                                                                     "GPKG files (*.gpkg)",
                                                                     optional=True))
+
+            # --- Add output definition, so that they can be used in model designer
+            # todo: add output for the other file outputs
+            # Stand boundaries output
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STAND_BOUNDARIES,
+                                                   "Stand Boundaries Output file"))
+
+            # Hmax output
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_H_MAX,
+                                                   "H max Output file"))
 
         # --- Advanced Parameters
 
@@ -253,6 +263,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             self.OUTPUT_H_MAX: results["hmax"],
 
         }
+
         return results
 
     def createInstance(self):
