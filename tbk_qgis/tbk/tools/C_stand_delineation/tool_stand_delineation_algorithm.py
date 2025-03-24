@@ -59,6 +59,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
     # Main output layer
     OUTPUT_STAND_BOUNDARIES = "output_stand_boundaries"
+    # H max file output
+    OUTPUT_H_MAX = "output_h_max"
 
     # Short description
     DESCRIPTION = "description"
@@ -245,6 +247,12 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # Add the output_root to the results, so that the following algorithm knows where to store files
         results["output_root"] = params.output_root
 
+        results = {
+            self.OUTPUT_ROOT: params.output_root,
+            self.OUTPUT_STAND_BOUNDARIES: results["stand_boundaries"],
+            self.OUTPUT_H_MAX: results["hmax"],
+
+        }
         return results
 
     def createInstance(self):

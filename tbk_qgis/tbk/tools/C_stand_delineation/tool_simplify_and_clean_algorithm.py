@@ -128,7 +128,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         """
         # prepare the algorithm
         self.prepare(parameters, context, feedback)
-
+        print(f"parameters: {parameters}")
         # Adapt the parameters if modular mode
         if "invoker_params" in parameters:
             input_to_simplify_name = parameters['invoker_params']["input_to_simplify_name"]  # name of the parameter to use as input
