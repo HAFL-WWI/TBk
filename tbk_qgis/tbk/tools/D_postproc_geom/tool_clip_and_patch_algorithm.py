@@ -2,11 +2,10 @@
 import logging
 import os
 
-import processing
-from qgis._core import QgsProcessingParameterFileDestination
 from qgis.core import (QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessing,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -65,7 +64,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
-        # todo: if is_standalone_context
+
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
@@ -85,7 +84,6 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
         # Output
         # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
-        if is_standalone_context:
             self.addParameter(
                 QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED, "Clip and Eliminate Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
@@ -141,15 +139,15 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # ---  Clip
         log.info('Starting')
         # run clip function
-        alg_output = clip_to_perimeter(working_root, params.input_to_clip,
+        tmp_clipped_file_path = clip_to_perimeter(working_root, params.input_to_clip,
                                       os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg"),
                                       tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         # run gaps function
-        alg_output = eliminate_gaps(working_root, alg_output, params.output_clipped, tmp_output_folder, params.perimeter,
-                                   del_tmp=params.del_tmp)
+        output_clipped = eliminate_gaps(working_root, tmp_clipped_file_path, params.output_clipped, tmp_output_folder,
+                                    params.perimeter, del_tmp=params.del_tmp)
 
-        return {'OUTPUT': alg_output}
+        return {'OUTPUT': output_clipped}
 
     def createInstance(self):
         """
