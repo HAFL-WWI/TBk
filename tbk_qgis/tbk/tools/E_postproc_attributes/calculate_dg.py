@@ -235,5 +235,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
     print("DONE!")
 
     # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
-    results = {f"output_dg_layer_{key}": value for key, value in dg_files.items()}
+    results = {f"dg_layer_{key}": value for key, value in dg_files.items()}
+    results["stands_with_dg"] = stands_input
+
     return results

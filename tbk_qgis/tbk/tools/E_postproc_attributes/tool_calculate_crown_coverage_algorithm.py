@@ -3,6 +3,7 @@ import logging
 import os
 
 from qgis.core import (QgsProcessing,
+                       QgsProcessingOutputFile,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
@@ -35,6 +36,8 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
     # Input layer used for the calculation
     STANDS_INPUT = "stands_input"
+    # Stands output with supplementary crown coverage fields
+    OUTPUT_STANDS_WITH_DG = "stands_with_dg"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -73,6 +76,11 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
 
+            # --- Add output definition, so that they can be used in model designer
+            # Stands output with crown coverage fields
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STANDS_WITH_DG,
+                                                   "Stand Output file with crown coverage fields"))
+
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
@@ -96,7 +104,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         Here is where the processing itself takes place.
         """
         # Adapt the parameters if modular mode
-        if parameters["invoker_params"]:
+        if "invoker_params" in parameters:
             input_name = parameters['invoker_params']["stands_input"]  # name of the parameter to use as input
 
             invoker_params = {
@@ -128,7 +136,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, input_for_calcul, tmp_output_folder, dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
+        results = calculate_dg(bk_dir, input_for_calcul, tmp_output_folder,  dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
 
         return results
 
