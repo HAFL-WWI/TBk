@@ -175,7 +175,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
-        return {'OUTPUT': simplified_file_path}
+        return {'output_simplified': simplified_file_path}
 
     def createInstance(self):
         """
