@@ -2,10 +2,11 @@
 import logging
 import os
 
-from qgis._core import QgsProcessingParameterFeatureSource, QgsProcessing, QgsProcessingOutputVectorLayer, \
-    QgsProcessingParameterFeatureSink, QgsProcessingParameterFileDestination
-from qgis.core import (QgsProcessingParameterBoolean,
+from qgis.core import (QgsProcessing,
+                       QgsProcessingParameterBoolean,
+                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -32,9 +33,9 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     # Default log file name
     LOGFILE_NAME = "logfile_name"
 
-    # Default log file name
+    # Input layer to merge
     INPUT_TO_MERGE = "input_to_merge"
-    # Default log file name
+    # Merged output layer
     OUTPUT_MERGED = "output_merged"
     # Min. area to merge similar stands
     SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
@@ -63,6 +64,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                                      'non-optional parameters must still be set but will not be used.',
                                                      extension='toml',
                                                      optional=True))
+
         # These parameters are only displayed a config parameter is given
         if not config:
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
@@ -80,9 +82,8 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
 
-        # Output
-        # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
-        if is_standalone_context:
+            # Output
+            # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
                 QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
@@ -153,7 +154,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         log.debug(f"Used parameters: {working_root}, {params.input_to_merge}, {params.output_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
-        results = merge_similar_neighbours(working_root,
+        merged_file_path = merge_similar_neighbours(working_root,
                                            params.input_to_merge,
                                            params.output_merged,
                                            params.similar_neighbours_min_area,
@@ -161,7 +162,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                            params.del_tmp)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return {'OUTPUT': results}
+        return {'OUTPUT': merged_file_path}
 
     def createInstance(self):
         """
