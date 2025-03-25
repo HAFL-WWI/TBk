@@ -52,11 +52,11 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
-    # Default log file name
+    # Input stand map to simplify
     INPUT_TO_SIMPLIFY = "input_to_simplify"
     # H_max Input layer
     H_MAX_INPUT = "h_max_input"
-    # Default log file name
+    # Output simplified stand map
     OUTPUT_SIMPLIFIED = "output_simplified"
 
     def initAlgorithm(self, config=None):
@@ -86,7 +86,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
 
-            # Not needed in a modular context; can use the previous algorithm's output directly
+            # Not needed in a modular context: can use the previous algorithm's output directly
             # Input stand map to be processed
             self.addParameter(
                 QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
@@ -128,7 +128,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         """
         # prepare the algorithm
         self.prepare(parameters, context, feedback)
-        print(f"parameters: {parameters}")
+
         # Adapt the parameters if modular mode
         if "invoker_params" in parameters:
             input_to_simplify_name = parameters['invoker_params']["input_to_simplify_name"]  # name of the parameter to use as input
@@ -167,16 +167,15 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         # --- Simplify & Clean
 
         log.info('Starting')
-        log.debug(f"used parameters: {working_root}, {params.input_to_simplify}, {params.output_simplified}, "
-                  f"{tmp_output_folder}, {params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
+        log.debug(f"used parameters: {working_root}, {params.input_to_simplify}, {params.h_max_input,},"
+                  f"{params.output_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
+                  f"{params.simplification_tolerance}, {params.del_tmp}")
 
-        results = post_process(working_root, params.input_to_simplify, params.h_max_input, params.output_simplified,
+        simplified_file_path = post_process(working_root, params.input_to_simplify, params.h_max_input, params.output_simplified,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
-        # todo: add the run_stand_classification code in this file, remove all unnecessary code portion and return the
-        #  results
-        return {'OUTPUT': results}
+        return {'OUTPUT': simplified_file_path}
 
     def createInstance(self):
         """
