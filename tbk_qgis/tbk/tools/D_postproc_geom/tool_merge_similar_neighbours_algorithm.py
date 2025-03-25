@@ -162,7 +162,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                            params.del_tmp)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return {'OUTPUT': merged_file_path}
+        return {'output_merged': merged_file_path}
 
     def createInstance(self):
         """
