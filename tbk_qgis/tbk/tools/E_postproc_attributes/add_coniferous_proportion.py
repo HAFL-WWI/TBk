@@ -159,3 +159,5 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
             delete_raster(dg_layer_os_10m_mask)
 
     print("DONE!")
+
+    return clipped_stands_input
