@@ -65,6 +65,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         'Calculate attribute "struktur"': {
             "algorithm": TBkUpdateStandAttributesAlgorithm(),
             "invoker_params": {
+                "input_for_computation": "output_clipped",
             }},
     }
 
