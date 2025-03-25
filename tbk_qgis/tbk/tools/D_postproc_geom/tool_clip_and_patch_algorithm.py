@@ -147,7 +147,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         output_clipped = eliminate_gaps(working_root, tmp_clipped_file_path, params.output_clipped, tmp_output_folder,
                                     params.perimeter, del_tmp=params.del_tmp)
 
-        return {'OUTPUT': output_clipped}
+        return {'output_clipped': output_clipped}
 
     def createInstance(self):
         """
