@@ -22,9 +22,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
     algorithms = {
         '1 Delineate Stand': {
             "algorithm": TBkStandDelineationAlgorithm(),
-            "invoker_params": {
-                "result_dir": "result_dir"
-            }},
+            "invoker_params": {}},
         '2 Simplify and Clean': {
             "algorithm": TBkSimplifyAndCleanAlgorithm(),
             "invoker_params": {
@@ -79,8 +77,6 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         init_config = {
             # Indicates the tool is running in a standalone or modularized context in the initAlgorithm() method
             'is_standalone_context': False,
-            # Path used for the output_root of all invoked tools
-            'output_root': {'name': "output_root", 'description': "Output folder"} # todo: still used???
         }
 
         # init all used algorithm and add there parameters to parameters list
@@ -105,55 +101,63 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         """
         Here is where the processing itself takes place.
         """
-        # --- get and check input parameters
 
+        # --- Setup output directories ---
         # Add result_dir and working_root to the parameters for shared access across all tools.
         output_root = parameters["output_root"]
         result_dir = self._get_result_dir(output_root)
+        # todo: rename as bk_dir
         working_root = self._get_bk_output_dir(result_dir)
-        parameters.update({'result_dir': result_dir, 'working_root': working_root})
 
-        # set logger
+        # --- Configure logging ---
         self._configure_logging(result_dir, parameters['logfile_name'])
         log = logging.getLogger(self.name())
 
-        # Dictionary to store the results
-        results = {}
-
-        # --- run main algorithm
         log.info('Starting')
 
+        # --- Execute all sub-algorithms ---
         for key, value in self.algorithms.items():
-            log.info(f'Starting processing tool: {key}')
+            log.info(f'Starting tool: {key}')
 
             alg = value['algorithm']
 
             # Update the parameters. It would be simpler update directly the dictionary parameter's. But we pass it
             # via invoker_params parameter to clearly indicate in the sub-tools that these parameters originate from this tool.
-            invoker_params = {"invoker_params": value['invoker_params']}
-            parameters.update(invoker_params)
-            log.debug(f"Added the following invoker_params to the parameters: {invoker_params}")
+            invoker_params = {
+                "invoker_params": value['invoker_params'],
+                'result_dir': result_dir,
+                'working_root': working_root
+            }
+            tool_params = parameters.copy()
+            tool_params.update(invoker_params)
 
-            results = processing.run(alg, parameters, context=context, feedback=feedback, is_child_algorithm=True)
-            log.debug(f"Results of the tool: {results}")
+            log.debug(f"Updated parameters: {invoker_params}")
 
-            config_removed, config_added, config_changed = dict_diff(parameters, results)
+            # Run the processing algorithm
+            try:
+                results = processing.run(alg, tool_params, context=context, feedback=feedback, is_child_algorithm=True)
+                log.debug(f"Results of the tool: {results}")
 
-            if config_changed:
-                log.debug(f"The parameters {list(config_changed.keys())} values was overridden by the previous tool results, "
-                        f"which could lead to undesired behavior")
+                # Detect new parameters
+                _, _, config_changed = dict_diff(parameters, results)
 
-            # Adapt the output key (standard key is "output") otherwise the value can be overridden in the next sub-algorithm.
-            # Handling of a result with multiple results is not implemented.
-            if 'output_name' in value['invoker_params'] and len(results)==1:
-                new_key = value['invoker_params']['output_name']
-                results = { new_key: list(results.values())[0]}
+                # Adapt the output key (standard key is "output") otherwise the value can be overridden in the next sub-algorithm.
+                # Handling of a result with multiple results is not implemented.
+                if 'output_name' in value['invoker_params'] and len(results)==1:
+                    new_key = value['invoker_params']['output_name']
+                    results = { new_key: list(results.values())[0]}
 
-            # Add the algorithm outputs to the parameters, so that they can be reused as input in the following tool
-            parameters.update(results)
+                # Add the algorithm outputs to the parameters, so that they can be reused as input in the following tool
+                parameters.update(results)
 
-        log.debug(f"Results: {results}")
-        log.info(f"Finished")
+                if config_changed:
+                    log.warning(
+                        f"Parameters {list(config_changed.keys())} were overridden by {key}, which may cause issues.")
+            except Exception as e:
+                log.error(f"Error processing {key}: {e}", exc_info=True)
+                feedback.reportError(f"Error in tool {key}: {e}")
+
+        log.info("Finished")
 
         return {}
 

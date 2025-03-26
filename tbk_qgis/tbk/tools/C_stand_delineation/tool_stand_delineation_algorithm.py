@@ -23,8 +23,9 @@ import time
 import numpy as np
 from osgeo import gdal, osr
 from osgeo.gdalconst import GA_ReadOnly
-from qgis._core import QgsProcessingParameterFileDestination, QgsProcessingOutputFile
-from qgis.core import (QgsProcessingParameterFile,
+from qgis.core import (QgsProcessingOutputFile,
+                       QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
@@ -89,13 +90,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         """
         Here we define the inputs and outputs of the algorithm.
         """
+        # --- Handle config argument
         # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
-        is_standalone_context = True
-
-        # --- Handle config parameter
-        if config:
-            if 'is_standalone_context' in config:
-                is_standalone_context = config['is_standalone_context']
+        is_standalone_context = config.get('is_standalone_context') if config else True
 
         # --- Parameters
 
@@ -121,7 +118,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
 
-        # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
+        # Not needed in a modular context; can use the previous algorithm's output directly
         if is_standalone_context:
             # Main output (stand boundaries) for algorithm output
             self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
@@ -133,13 +130,13 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             # todo: add output for the other file outputs
 
             self.addOutput(QgsProcessingOutputFile(self.OUTPUT_RESULT_DIR,
-                                                   "Result output folder"))
+                                                   "Result output folder (folder with timestamp)"))
 
             # Stand boundaries output
             self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STAND_BOUNDARIES,
                                                    "Stand Boundaries Output file"))
 
-            # Hmax output
+            # H max output
             self.addOutput(QgsProcessingOutputFile(self.OUTPUT_H_MAX,
                                                    "H max Output file"))
 
@@ -204,7 +201,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         params = self._extract_context_params(parameters, context)
 
-        # Adapt the parameters if modular mode
+        # Adapt the parameters if modular mode 
         if "invoker_params" in parameters:
             result_dir = parameters["result_dir"]
         else:
@@ -233,7 +230,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # ------- TBk Processing --------#
         # --- Stand delineation (Main)
-        log.info(f'Starting')
+        log.info('Starting')
 
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
@@ -258,10 +255,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         results = self.run_stand_delineation(**params_args)
 
         log.debug(f"Results: {results}")
-        log.info(f"Finished")
-
-        # Add the output_root to the results, so that the following algorithm knows where to store files
-        results["output_root"] = params.output_root
+        log.info("Finished")
 
         results = {
             self.OUTPUT_RESULT_DIR: result_dir,
