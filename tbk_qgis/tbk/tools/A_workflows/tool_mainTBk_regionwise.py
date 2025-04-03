@@ -41,7 +41,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         TBkClipToPerimeterAndEliminateGapsAlgorithm(),
         TBkCalculateCrownCoverageAlgorithm(),
         TBkAddConiferousProportionAlgorithm(),
-        TBkUpdateStandAttributesAlgorithm()
+        TBkUpdateStandAttributesAlgorithm(),
+        TBkAppendStandAttributesAlgorithm()
     ]
 
     def initAlgorithm(self, config=None):
@@ -178,7 +179,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         for feature in perimeter_layer.getFeatures():
             # --- Create folders for current feature
             region_name = feature["region"]  # Adjust attribute name if different
-            region_root_dir = os.path.join(regions_dir, region_name)
+            region_root_dir = os.path.join(regions_dir, str(region_name))
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
             os.makedirs(region_base_data_dir, exist_ok=True)
             print(f"\n--------------------------------")
@@ -483,7 +484,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'OUTPUT': merged_raster,  # Output path for the merged raster file
                         'NODATA_INPUT': 0,  # Define NoData value in input rasters
                         'NODATA_OUTPUT': 0,  # Define NoData value in output raster
-                        'DATA_TYPE': 0,  # Use the same data type as inputs
+                        'DATA_TYPE': 4,  # Use the same data type as inputs
                         'SEPARATE': False,  # False ensures layers are merged, not stacked
                         'PREFERRED': 'FIRST'  # Keeps the first valid data (prevents overwriting)
                     })
@@ -507,7 +508,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # run remaining algorithms
         for alg in algorithms_attributation:
-            # print("->------------------------------------------")
+            print("->------------------------------------------")
+            print(f"-> run {alg} -")
             result = processing.run(alg, parameters, context=context, feedback=feedback)
             print(f"{result}")
             print("----------------------------------------->|-\n")
@@ -515,6 +517,20 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         print("\n--------------------------------------------")
         print("\n--- Final cleanup and appends ---")
         finalize_TBk(result['OUTPUT'], os.path.join(output_root, 'TBk_Bestandeskarte.gpkg'))
+        print("--------------------------------------------")
+
+        print("\n--------------------------------------------")
+        print("\n--- Run Local Densities ---")
+        processing.run("TBk:TBk postprocess local density", {
+            'path_tbk_input': output_root,
+            'mg_use': True,
+            'mg_input': parameters["coniferous_raster"],
+            'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
+            'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
+                                      100, 14],
+            'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
+            'buffer_smoothing': True,
+            'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
         print("--------------------------------------------")
 
         print(f"\n---------------------------------")
@@ -658,7 +674,7 @@ def merge_layers_with_composite_id(vector_paths, region_ids, output_path):
             # Set the composite ID and original ID fields
             original_id = feature["ID"]
             new_feature.setAttributes([
-                f"{region_id}_{original_id}",  # Composite ID (ID field)
+                f"{region_id}-{original_id}",  # Composite ID (ID field)
                 original_id  # Original ID (ID_inRegion field)
             ])
 
