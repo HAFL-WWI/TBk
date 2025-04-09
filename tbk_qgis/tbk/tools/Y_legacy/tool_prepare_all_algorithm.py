@@ -59,7 +59,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     def deleteRasterIfExists(self, raster_path):
@@ -125,7 +125,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                                                             self.tr("Forest mixture degree 10m input (.tif)")))
         self.addParameter(QgsProcessingParameterFeatureSource(self.MASK,
                                                               self.tr("Polygon mask to clip final result"),
-                                                              [QgsProcessing.TypeVectorPolygon]))
+                                                              [QgsProcessing.SourceType.TypeVectorPolygon]))
 
         # Folder for algo output
         self.addParameter(QgsProcessingParameterFolderDestination(self.OUTPUT_ROOT, self.tr('Output folder')))
@@ -181,17 +181,17 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VMIN, self.tr("VHM min value"),
-                                                 type=QgsProcessingParameterNumber.Double,
+                                                 type=QgsProcessingParameterNumber.Type.Double,
                                                  defaultValue=0)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VMAX, self.tr("VHM max value"),
-                                                 type=QgsProcessingParameterNumber.Double,
+                                                 type=QgsProcessingParameterNumber.Type.Double,
                                                  defaultValue=60)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VNA, self.tr("VHM NA value"),
-                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 type=QgsProcessingParameterNumber.Type.Integer,
                                                  defaultValue=255)
         self.addAdvancedParameter(parameter)
 
@@ -211,22 +211,22 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Decidious (Laubholz) value"),
-                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 type=QgsProcessingParameterNumber.Type.Integer,
                                                  defaultValue=1)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Decidious (Laubholz) value"),
-                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 type=QgsProcessingParameterNumber.Type.Integer,
                                                  defaultValue=50)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Coniferous (Nadelholz) value"),
-                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 type=QgsProcessingParameterNumber.Type.Integer,
                                                  defaultValue=50)
         self.addAdvancedParameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Coniferous (Nadelholz) value"),
-                                                 type=QgsProcessingParameterNumber.Integer,
+                                                 type=QgsProcessingParameterNumber.Type.Integer,
                                                  defaultValue=100)
         self.addAdvancedParameter(parameter)
 

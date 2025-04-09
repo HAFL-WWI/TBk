@@ -128,41 +128,41 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_TOL, "Relative min tolerance",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.1)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_TOL, "Relative max tolerance",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.1)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.1)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CORR, "Extension of the range down [m]",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=4)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MAX_CORR, "Extension of the range up [m]",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=4)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=4)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_VALID_CELLS,
                                                  "Minimum relative amount of valid cells",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0.5)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0.5)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_STAND, "Minimum cells per stand",
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=10)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=10)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_CELLS_PER_PURE_STAND,
                                                  "Minimum cells for pure mixture stands",
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=30)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=30)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MIN_HEIGHT, "VHM minimum height",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=0)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.VHM_MAX_HEIGHT, "VHM maximum height",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=60)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=60)
         self._add_advanced_parameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):

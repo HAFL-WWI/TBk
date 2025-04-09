@@ -40,7 +40,7 @@ from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TB
 class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # Constants used to refer to parameters and outputs. They will be
@@ -120,13 +120,13 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
         self.addParameter(QgsProcessingParameterFeatureSource(
             self.PERIMETER,
             self.tr("Perimeter of extraction (polygon(s) and/or mutlipolygon(s)"),
-            [QgsProcessing.TypeVectorPolygon])
+            [QgsProcessing.SourceType.TypeVectorPolygon])
         )
 
         # Folder with input
         self.addParameter(QgsProcessingParameterFile(
             self.PATH_TBk_INPUT, self.tr("Folder with TBk project to extract from"),
-            behavior=QgsProcessingParameterFile.Folder,
+            behavior=QgsProcessingParameterFile.Behavior.Folder,
             fileFilter='All Folders (*.*)', defaultValue=None)
         )
 

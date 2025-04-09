@@ -31,7 +31,7 @@ __revision__ = '$Format:%H$'
 import os
 
 from qgis.core import QgsProcessingProvider
-from PyQt5.QtGui import *
+from qgis.PyQt.QtGui import *
 
 from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk import TBkAlgorithm
 from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk_modularized import TBkAlgorithmModularized
