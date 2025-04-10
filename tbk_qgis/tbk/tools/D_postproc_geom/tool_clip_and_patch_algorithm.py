@@ -100,19 +100,6 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         """
         Here is where the processing itself takes place.
         """
-        # Adapt the parameters if modular mode
-        if "invoker_params" in parameters:
-            input_name = parameters['invoker_params']["input_to_clip_name"]  # name of the parameter to use as input
-
-            output_file_name = parameters['invoker_params']["output_name"] + ".gpkg"
-            output_simplified_path = os.path.join(parameters["working_root"], output_file_name)
-
-            invoker_params = {
-                "input_to_clip": parameters[input_name],
-                "output_clipped": output_simplified_path
-            }
-            parameters.update(invoker_params)
-
         # --- Get input parameters
 
         params = self._extract_context_params(parameters, context)

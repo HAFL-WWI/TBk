@@ -1,8 +1,8 @@
 # todo: set header
 import processing
-import logging
+import os
 from collections import ChainMap
-from tbk_qgis.tbk.general.tbk_utilities import dict_diff
+from qgis.core import (QgsProcessingMultiStepFeedback,)
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
@@ -17,55 +17,16 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
     """
     todo
     """
-    # Dictionary storing algorithms and parameters, typically using result parameters from previous tools.
-    # invoker_params must be given for each algorithm even if empty.
-    algorithms = {
-        '1 Delineate Stand': {
-            "algorithm": TBkStandDelineationAlgorithm(),
-            "invoker_params": {}},
-        '2 Simplify and Clean': {
-            "algorithm": TBkSimplifyAndCleanAlgorithm(),
-            "invoker_params": {
-                "input_to_simplify_name": "output_stand_boundaries",
-                "h_max_input": "output_h_max",
-                "output_name": "output_simplified"
-            }},
-        '3 Merge similar neighbours (FM)': {
-            "algorithm": TBkMergeSimilarNeighboursAlgorithm(),
-            "invoker_params": {
-                "input_to_merge_name": "output_simplified",
-                "output_name": "output_merged"
-            }},
-        '4 Clip to perimeter and eliminate gaps': {
-            "algorithm": TBkClipToPerimeterAndEliminateGapsAlgorithm(),
-            "invoker_params": {
-                "input_to_clip_name": "output_merged",
-                "output_name": "output_clipped"
-            }},
-        '5 Calculate crown coverage': {
-            "algorithm": TBkCalculateCrownCoverageAlgorithm(),
-            "invoker_params": {
-                "stands_input": "output_clipped",
-            }},
-        '6 Add coniferous proportion': {
-            "algorithm": TBkAddConiferousProportionAlgorithm(),
-            "invoker_params": {
-                "clipped_stands_input": "output_clipped",
-                "dg_layers_input": {
-                    "input_dg_layer_ks": "output_dg_layer_ks",
-                    "input_dg_layer_us": "output_dg_layer_us",
-                    "input_dg_layer_ms": "output_dg_layer_ms",
-                    "input_dg_layer_os": "output_dg_layer_os",
-                    "input_dg_layer_ueb": "output_dg_layer_ueb",
-                    "input_dg_layer_main": "output_dg_layer_main",
-                }
-            }},
-        'Calculate attribute "struktur"': {
-            "algorithm": TBkUpdateStandAttributesAlgorithm(),
-            "invoker_params": {
-                "input_for_computation": "output_clipped",
-            }},
-    }
+    # array containing the algorithms to use
+    algorithms = [
+        TBkStandDelineationAlgorithm(),
+        TBkSimplifyAndCleanAlgorithm(),
+        TBkMergeSimilarNeighboursAlgorithm(),
+        TBkClipToPerimeterAndEliminateGapsAlgorithm(),
+        TBkCalculateCrownCoverageAlgorithm(),
+        TBkAddConiferousProportionAlgorithm(),
+        TBkUpdateStandAttributesAlgorithm()
+    ]
 
     def initAlgorithm(self, config=None):
         """
@@ -80,8 +41,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         }
 
         # init all used algorithm and add there parameters to parameters list
-        for key, value  in self.algorithms.items():
-            alg = value['algorithm']
+        for alg in self.algorithms:
             alg.initAlgorithm(init_config)
 
             # Append the child parameters definitions to this algorithm
@@ -101,65 +61,180 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         """
         Here is where the processing itself takes place.
         """
+        # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
+        # overall progress through the model
+        feedback = QgsProcessingMultiStepFeedback(7, feedback)
+        results = {}
+        outputs = {}
 
-        # --- Setup output directories ---
-        # Add result_dir and working_root to the parameters for shared access across all tools.
-        output_root = parameters["output_root"]
-        result_dir = self._get_result_dir(output_root)
-        # todo: rename as bk_dir
-        working_root = self._get_bk_output_dir(result_dir)
+        # set the stand map output directory
+        result_dir = self._get_result_dir(parameters['output_root'])
+        bk_dir = self._get_bk_output_dir(result_dir)
 
-        # --- Configure logging ---
-        self._configure_logging(result_dir, parameters['logfile_name'])
-        log = logging.getLogger(self.name())
+        # 1 Delineate Stand
+        # todo: del_temp parameter is missing
+        parameters['output_stand_boundaries'] = os.path.join(bk_dir, "stand_boundaries.gpkg")
+        outputs['DelineateStand'] = self.run_delineate_stand(parameters, outputs, context, feedback)
+        # todo: add classified_raw etc. to result???
+        results['stand_boundaries'] = outputs['DelineateStand']['output_stand_boundaries']
 
-        log.info('Starting')
 
-        # --- Execute all sub-algorithms ---
-        for key, value in self.algorithms.items():
-            log.info(f'Starting tool: {key}')
+        feedback.setCurrentStep(1)
+        if feedback.isCanceled():
+            return {}
 
-            alg = value['algorithm']
+        # 2 Simplify and Clean
+        parameters['output_simplified'] = os.path.join(bk_dir, "output_simplified.gpkg")
+        outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
+        results['stands_simplified'] = outputs['SimplifyAndClean']['output_simplified']
 
-            # Update the parameters. It would be simpler update directly the dictionary parameter's. But we pass it
-            # via invoker_params parameter to clearly indicate in the sub-tools that these parameters originate from this tool.
-            invoker_params = {
-                "invoker_params": value['invoker_params'],
-                'result_dir': result_dir,
-                'working_root': working_root
-            }
-            tool_params = parameters.copy()
-            tool_params.update(invoker_params)
+        feedback.setCurrentStep(2)
+        if feedback.isCanceled():
+            return {}
 
-            log.debug(f"Updated parameters: {invoker_params}")
+        # 3 Merge similar neighbours (FM)
+        parameters['output_merged'] = os.path.join(bk_dir, "output_merged.gpkg")
+        outputs['MergeSimilarNeighboursFm'] = self.run_merge_similar_neighbours(parameters, outputs, context, feedback)
+        results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['output_merged']
 
-            # Run the processing algorithm
-            try:
-                results = processing.run(alg, tool_params, context=context, feedback=feedback, is_child_algorithm=True)
-                log.debug(f"Results of the tool: {results}")
+        feedback.setCurrentStep(3)
+        if feedback.isCanceled():
+            return {}
 
-                # Detect new parameters
-                _, _, config_changed = dict_diff(parameters, results)
+        # 4 Clip to perimeter and eliminate gaps
+        parameters['output_clipped'] = os.path.join(bk_dir, "output_clipped.gpkg")
+        outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
+        results['stands_clipped'] = outputs['ClipToPerimeterAndEliminateGaps']['output_clipped']
 
-                # Adapt the output key (standard key is "output") otherwise the value can be overridden in the next sub-algorithm.
-                # Handling of a result with multiple results is not implemented.
-                if 'output_name' in value['invoker_params'] and len(results)==1:
-                    new_key = value['invoker_params']['output_name']
-                    results = { new_key: list(results.values())[0]}
+        feedback.setCurrentStep(4)
+        if feedback.isCanceled():
+            return {}
 
-                # Add the algorithm outputs to the parameters, so that they can be reused as input in the following tool
-                parameters.update(results)
+        # 5 Calculate crown coverage
+        outputs['CalculateCrownCoverage'] = self.run_calculate_crown_coverage(parameters, outputs, context, feedback)
+        # todo: add optional output destination field as for the other algs???
+        results['stands_with_dg'] = outputs['CalculateCrownCoverage']['stands_with_dg']
 
-                if config_changed:
-                    log.warning(
-                        f"Parameters {list(config_changed.keys())} were overridden by {key}, which may cause issues.")
-            except Exception as e:
-                log.error(f"Error processing {key}: {e}", exc_info=True)
-                feedback.reportError(f"Error in tool {key}: {e}")
+        feedback.setCurrentStep(5)
+        if feedback.isCanceled():
+            return {}
 
-        log.info("Finished")
+        # 6 Add coniferous proportion
+        outputs['AddConiferousProportion'] = self.run_add_coniferous_proportion(parameters, outputs, context, feedback)
+
+        feedback.setCurrentStep(6)
+        if feedback.isCanceled():
+            return {}
+
+        # Calculate attribute "struktur"
+        outputs['CalculateAttributeStruktur'] = self.run_calculate_attribute_struktur(parameters, outputs, context, feedback)
 
         return {}
+
+    def run_delineate_stand(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'coniferous_raster_for_classification': parameters['coniferous_raster_for_classification'],
+            'description': parameters['description'],
+            'logfile_name': parameters['logfile_name'],
+            'max_corr': parameters['max_corr'],
+            'max_tol': parameters['max_tol'],
+            'min_cells_per_pure_stand': parameters['min_cells_per_pure_stand'],
+            'min_cells_per_stand': parameters['min_cells_per_stand'],
+            'min_corr': parameters['min_corr'],
+            'min_tol': parameters['min_tol'],
+            'min_valid_cells': parameters['min_valid_cells'],
+            'vhm_10m': parameters['vhm_10m'],
+            'vhm_max_height': parameters['vhm_max_height'],
+            'vhm_min_height': parameters['vhm_min_height'],
+            'output_root': parameters['output_root'],
+            'output_stand_boundaries': parameters['output_stand_boundaries'],
+        }
+        return processing.run('TBk:1 Delineate Stand', alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
+
+    def run_simplify_and_clean(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'h_max_input': outputs['DelineateStand']['output_h_max'],
+            'input_to_simplify': outputs['DelineateStand']['output_stand_boundaries'],
+            'logfile_name': parameters['logfile_name'],
+            'min_area_m2': parameters['min_area_m2'],
+            'simplification_tolerance': parameters['simplification_tolerance'],
+            'working_root': outputs['DelineateStand']['result_dir'],
+            'output_simplified': parameters['output_simplified'],
+        }
+        return processing.run('TBk:2 Simplify and Clean', alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
+
+    def run_merge_similar_neighbours(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'input_to_merge': outputs['SimplifyAndClean']['output_simplified'],
+            'logfile_name': parameters['logfile_name'],
+            'similar_neighbours_hdom_diff_rel': parameters['similar_neighbours_hdom_diff_rel'],
+            'similar_neighbours_min_area': parameters['similar_neighbours_min_area'],
+            'working_root': outputs['DelineateStand']['result_dir'],
+            'output_merged': parameters['output_merged'],
+        }
+        return processing.run('TBk:3 Merge similar neighbours (FM)', alg_params,
+                                                             context=context, feedback=feedback,
+                                                             is_child_algorithm=True)
+
+    def run_clip_and_eliminate(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'input_to_clip': outputs['MergeSimilarNeighboursFm']['output_merged'],
+            'logfile_name': parameters['logfile_name'],
+            'perimeter': parameters['perimeter'],
+            'working_root': outputs['DelineateStand']['result_dir'],
+            'output_clipped': parameters['output_clipped']
+        }
+        return processing.run('TBk:4 Clip to perimeter and eliminate gaps',
+                                                                    alg_params, context=context, feedback=feedback,
+                                                                    is_child_algorithm=True)
+
+    def run_calculate_crown_coverage(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'logfile_name': parameters['logfile_name'],
+            'result_dir': outputs['DelineateStand']['result_dir'],
+            'stands_input': outputs['ClipToPerimeterAndEliminateGaps']['output_clipped'],
+            'vhm_150cm': parameters['vhm_150cm']
+        }
+        return processing.run('TBk:5 Calculate crown coverage', alg_params,
+                                                           context=context, feedback=feedback,
+                                                           is_child_algorithm=True)
+
+    def run_add_coniferous_proportion(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'calc_mixture_for_main_layer': parameters['calc_mixture_for_main_layer'],
+            'config_file': parameters['config_file'],
+            'coniferous_raster': parameters['coniferous_raster'],
+            'del_tmp': parameters['del_tmp'],
+            'logfile_name': parameters['logfile_name'],
+            'result_dir': outputs['DelineateStand']['result_dir'],
+            'stands_with_dg': outputs['CalculateCrownCoverage']['stands_with_dg']
+        }
+        return processing.run('TBk:6 Add coniferous proportion', alg_params,
+                                                            context=context, feedback=feedback,
+                                                            is_child_algorithm=True)
+
+    def run_calculate_attribute_struktur(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'input_for_computation': outputs['AddConiferousProportion']['stands_with_coniferous'],
+            'logfile_name': parameters['logfile_name'],
+            'result_dir': outputs['DelineateStand']['result_dir']
+        }
+        return processing.run('TBk:Calculate attribute "struktur"', alg_params,
+                                                               context=context, feedback=feedback,
+                                                               is_child_algorithm=True)
 
     def createInstance(self):
         """

@@ -95,15 +95,6 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         """
         Here is where the processing itself takes place.
         """
-        # Adapt the parameters if modular mode
-        if "invoker_params" in parameters:
-            input_name = parameters['invoker_params']["stands_input"]  # name of the parameter to use as input
-
-            invoker_params = {
-                "stands_input": parameters[input_name],
-            }
-            parameters.update(invoker_params)
-
         # --- Get input parameters
 
         params = self._extract_context_params(parameters, context)

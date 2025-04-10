@@ -115,20 +115,6 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         # prepare the algorithm
         self.prepare(parameters, context, feedback)
 
-        # Adapt the parameters if modular mode
-        if "invoker_params" in parameters:
-
-            input_name = parameters['invoker_params']["input_to_merge_name"]  # name of the parameter to use as input
-
-            output_file_name = parameters['invoker_params']["output_name"] + ".gpkg"
-            output_merged_path = os.path.join(parameters["working_root"], output_file_name)
-
-            invoker_params = {
-                "input_to_merge": parameters[input_name],
-                "output_merged": output_merged_path
-            }
-            parameters.update(invoker_params)
-
         # --- get and check input parameters
 
         params = self._extract_context_params(parameters, context)

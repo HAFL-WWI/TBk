@@ -201,14 +201,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         params = self._extract_context_params(parameters, context)
 
-        # Adapt the parameters if modular mode 
-        if "invoker_params" in parameters:
-            result_dir = parameters["result_dir"]
-        else:
-            output_root = params.output_root
-            result_dir = self._get_result_dir(output_root)
-
-        # Handle the bk directory
+        # Handle the outputs directories
+        result_dir = self._get_result_dir(params.output_root)
         bk_dir = self._get_bk_output_dir(result_dir)
         ensure_dir(bk_dir)
 
@@ -235,6 +229,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
             'out_path': bk_dir,
+            'output_stand_boundaries': params.output_stand_boundaries,
             'input_vhm_raster': params.vhm_10m,
             'coniferous_raster_file': params.coniferous_raster_for_classification,
             'zone_raster': None,
@@ -251,7 +246,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         log.debug(f"used parameters: {params_args}")
 
-        # todo: take OUTPUT_STAND_BOUNDARIES as an input param
         results = self.run_stand_delineation(**params_args)
 
         log.debug(f"Results: {results}")
@@ -290,6 +284,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
     def run_stand_delineation(self,
                               out_path,
+                              output_stand_boundaries,
                               input_vhm_raster,
                               coniferous_raster_file,
                               zone_raster,
@@ -334,7 +329,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             "smooth_2": os.path.join(out_path, "classified_smooth_2.tif"),
             "hmax": os.path.join(out_path, "hmax.tif"),
             "hdom": os.path.join(out_path, "hdom.tif"),
-            "stand_boundaries": os.path.join(out_path, "stand_boundaries.gpkg")
+            "stand_boundaries": output_stand_boundaries
         }
 
         # Log configurations
