@@ -135,6 +135,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'coniferous_raster_for_classification': parameters['coniferous_raster_for_classification'],
+            'del_tmp': parameters['del_tmp'],
             'description': parameters['description'],
             'logfile_name': parameters['logfile_name'],
             'max_corr': parameters['max_corr'],

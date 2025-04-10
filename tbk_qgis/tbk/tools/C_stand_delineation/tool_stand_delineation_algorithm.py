@@ -24,11 +24,13 @@ import numpy as np
 from osgeo import gdal, osr
 from osgeo.gdalconst import GA_ReadOnly
 from qgis.core import (QgsProcessingOutputFile,
+                       QgsProcessingParameterBoolean,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
+                       QgsProcessingUtils,
                        QgsProcessingParameterNumber)
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -85,6 +87,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     VHM_MIN_HEIGHT = "vhm_min_height"
     # VHM maximum height
     VHM_MAX_HEIGHT = "vhm_max_height"
+    # Delete temporary files and fields
+    DEL_TMP = "del_tmp"
 
     def initAlgorithm(self, config=None):
         """
@@ -190,6 +194,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=60)
         self._add_advanced_parameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields", defaultValue=True)
+        self._add_advanced_parameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -228,8 +235,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
+            'del_tmp': params.del_tmp,
             'out_path': bk_dir,
-            'output_stand_boundaries': params.output_stand_boundaries,
             'input_vhm_raster': params.vhm_10m,
             'coniferous_raster_file': params.coniferous_raster_for_classification,
             'zone_raster': None,
@@ -241,7 +248,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             'min_cells_per_stand': params.min_cells_per_stand,
             'min_cells_per_pure_stand': params.min_cells_per_pure_stand,
             'vhm_min_height': params.vhm_min_height,
-            'vhm_max_height': params.vhm_max_height
+            'vhm_max_height': params.vhm_max_height,
+            'output_stand_boundaries': params.output_stand_boundaries,
         }
 
         log.debug(f"used parameters: {params_args}")
@@ -283,6 +291,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                 'usually a 10x10m max height raster from LiDAR or stereo image matching data.')
 
     def run_stand_delineation(self,
+                              del_tmp,
                               out_path,
                               output_stand_boundaries,
                               input_vhm_raster,
@@ -328,8 +337,19 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             "smooth_1": os.path.join(out_path, "classified_smooth_1.tif"),
             "smooth_2": os.path.join(out_path, "classified_smooth_2.tif"),
             "hmax": os.path.join(out_path, "hmax.tif"),
-            "hdom": os.path.join(out_path, "hdom.tif"),
             "stand_boundaries": output_stand_boundaries
+        }
+
+        # Define temporary output file paths
+        temp_folder = QgsProcessingUtils.tempFolder()
+        if del_tmp:
+            tmp_stat = os.path.join(temp_folder, "stand_boundaries_stat.gpkg")
+        else:
+            tmp_stat = output_stand_boundaries.rsplit(".gpkg", 1)[0] + "_stat.gpkg"
+
+        temp_output_files = {
+            "hdom": os.path.join(temp_folder, "hdom.tif"),
+            'stand_boundaries_stat': tmp_stat,
         }
 
         # Log configurations
@@ -416,7 +436,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # Save results
         helper.store_raster(stand, output_files["raw_classified"], vhm_projection, geotransform, gdal.GDT_UInt32)
         helper.store_raster(hmax, output_files["hmax"], vhm_projection, geotransform, gdal.GDT_Byte)
-        helper.store_raster(hdom, output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
+        if not del_tmp:
+            helper.store_raster(hdom, temp_output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raw_classified, hmax and hdom saved  ---")
 
         # ------- SMOOTHING -------#
@@ -442,8 +463,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, stand attributes added ---")
 
         # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
-        # todo: A statistic file is created. Its path should be added in the output array and given as parameter below
-        helper.add_vhm_stats(output_files["stand_boundaries"], input_vhm_raster)
+        helper.add_vhm_stats(output_files["stand_boundaries"], temp_output_files['stand_boundaries_stat'], input_vhm_raster)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, vhm stats calculated ---")
 
         return output_files
