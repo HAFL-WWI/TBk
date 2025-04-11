@@ -151,15 +151,15 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         # --- Simplify & Clean
 
         log.info('Starting')
-        log.debug(f"used parameters: {working_root}, {params.input_to_simplify}, {params.h_max_input,},"
+        log.debug(f"used parameters: {params.input_to_simplify}, {params.h_max_input,},"
                   f"{params.output_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
                   f"{params.simplification_tolerance}, {params.del_tmp}")
 
-        simplified_file_path = post_process(working_root, params.input_to_simplify, params.h_max_input, params.output_simplified,
+        output_files = post_process(params.input_to_simplify, params.h_max_input, params.output_simplified,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
-        return {'output_simplified': simplified_file_path}
+        return output_files
 
     def createInstance(self):
         """

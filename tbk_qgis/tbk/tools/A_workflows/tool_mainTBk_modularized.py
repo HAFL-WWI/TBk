@@ -78,22 +78,22 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # todo: add classified_raw etc. to result???
         results['stand_boundaries'] = outputs['DelineateStand']['output_stand_boundaries']
 
-
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
             return {}
 
         # 2 Simplify and Clean
-        parameters['output_simplified'] = os.path.join(bk_dir, "output_simplified.gpkg")
+        parameters['output_simplified'] = os.path.join(bk_dir, "stands_simplified.gpkg")
         outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
-        results['stands_simplified'] = outputs['SimplifyAndClean']['output_simplified']
+        results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
+        results['stands_highest_tree'] = outputs['SimplifyAndClean']['stands_highest_tree']
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
             return {}
 
         # 3 Merge similar neighbours (FM)
-        parameters['output_merged'] = os.path.join(bk_dir, "output_merged.gpkg")
+        parameters['output_merged'] = os.path.join(bk_dir, "stands_merged.gpkg")
         outputs['MergeSimilarNeighboursFm'] = self.run_merge_similar_neighbours(parameters, outputs, context, feedback)
         results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['output_merged']
 
@@ -102,7 +102,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # 4 Clip to perimeter and eliminate gaps
-        parameters['output_clipped'] = os.path.join(bk_dir, "output_clipped.gpkg")
+        parameters['output_clipped'] = os.path.join(bk_dir, "stands_clipped.gpkg")
         outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
         results['stands_clipped'] = outputs['ClipToPerimeterAndEliminateGaps']['output_clipped']
 
@@ -173,7 +173,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
-            'input_to_merge': outputs['SimplifyAndClean']['output_simplified'],
+            'input_to_merge': outputs['SimplifyAndClean']['stands_simplified'],
             'logfile_name': parameters['logfile_name'],
             'similar_neighbours_hdom_diff_rel': parameters['similar_neighbours_hdom_diff_rel'],
             'similar_neighbours_min_area': parameters['similar_neighbours_min_area'],

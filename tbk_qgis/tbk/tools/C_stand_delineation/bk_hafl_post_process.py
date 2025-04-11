@@ -24,23 +24,19 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
-
-
+import os
 
 # Import system modules
 
 import processing
+from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
+from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile
 
-from tbk_qgis.tbk.general.tbk_utilities import *
 
-
-def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
+def post_process(shape_in, h_max_input, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
     # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")
-
-    # TBk folder path
-    workspace = working_root
 
     # Expression to eliminate small polygons
     expression = "area_m2 < " + str(min_area)
@@ -48,13 +44,22 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     # Expression to calculate area m2
     eArea = "{0}".format("to_int(area($geometry))")
 
-    # File names
-    tmp_stands_buf = "tmp_stand_boundaries_buf0.gpkg"
-    tmp_reduced = "tmp_reduced.gpkg"
-    tmp_simplified = "tmp_simplified.gpkg"
-    tmp_simplified_error = "tmp_simplified_error.gpkg"
+    # Temp File names
+    tmp_files_names = {
+        "stands_buf": "tmp_stand_boundaries_buf0.gpkg",
+        "reduced": "tmp_reduced.gpkg",
+        "simplified": "tmp_simplified.gpkg",
+        "simplified_error": "tmp_simplified_error.gpkg",
+    }
 
-    highest_point_out = "stands_highest_tree_tmp.gpkg"
+    # Dictionary containing the path to temp files
+    tmp_files = {key: os.path.join(tmp_output_folder, filename) for key, filename in tmp_files_names.items()}
+
+    # Output files
+    output_files = {
+        "stands_highest_tree": os.path.join(tmp_output_folder, "stands_highest_tree.gpkg"),
+        "stands_simplified": shape_out
+    }
 
     ########################################
     # --- Vectorize highest trees
@@ -63,23 +68,18 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
               'OUTPUT': 'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("native:pixelstopoints", params)
 
-    highest_point_path = os.path.join(tmp_output_folder, highest_point_out)
     params = {'INPUT': algoOutput["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
-              'OUTPUT': highest_point_path}
+              'OUTPUT': output_files['stands_highest_tree']}
     algoOutput = processing.run("native:extractbyattribute", params)
 
     ########################################
     # --- Eliminate small polygons
 
-    # Create tmp layer
-    stand_boundaries_path = os.path.join(working_root, shape_in)
-    tmp_stands_buf_path = os.path.join(tmp_output_folder, tmp_stands_buf)
-
-    params = {'INPUT': stand_boundaries_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
-              'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_stands_buf_path}
+    params = {'INPUT': shape_in, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
+              'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_files['stands_buf']}
     algoOutput = processing.run("native:buffer", params)
 
-    stand_boundaries_layer = QgsVectorLayer(tmp_stands_buf_path, "stand_boundaries", "ogr")
+    stand_boundaries_layer = QgsVectorLayer(tmp_files['stands_buf'], "stand_boundaries", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
     print("selecting small polygons...")
     stand_boundaries_layer.selectByExpression(expression)
@@ -87,27 +87,23 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     # Execute Eliminate
     print("eliminating small polygons...")
 
-    tmp_reduced_path = os.path.join(tmp_output_folder, tmp_reduced)
-
     # Does not persist results when writing directly to file
     param = {'INPUT': stand_boundaries_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_files['reduced'], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
     # QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"GPKG")
 
     ########################################
     # --- Simplify
     print("simplifying polygons...")
-    tmp_simplified_path = os.path.join(tmp_output_folder, tmp_simplified)
-    tmp_simplified_error_path = os.path.join(tmp_output_folder, tmp_simplified_error)
 
-    param = {'input': tmp_reduced_path, 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
+    param = {'input': tmp_files['reduced'], 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
              'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
              'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
-             '-t': False, '-l': True, 'output': 'TEMPORARY_OUTPUT', 'error': tmp_simplified_error_path,
+             '-t': False, '-l': True, 'output': 'TEMPORARY_OUTPUT', 'error': tmp_files['simplified_error'],
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
     algoOutput = processing.run("grass7:v.generalize", param)
@@ -116,12 +112,12 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     param = {'input': algoOutput['output'], 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
              'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
              'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
-             '-t': False, '-l': True, 'output': tmp_simplified_path, 'error': tmp_simplified_error_path,
+             '-t': False, '-l': True, 'output': tmp_files['simplified'], 'error': tmp_files['simplified_error'],
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
     algoOutput = processing.run("grass7:v.generalize", param)
 
-    tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_reduced", "ogr")
+    tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified'], "stand_boundaries_reduced", "ogr")
 
     # Delete unimportant fields
     # apparently these are some dummy fields created by grass
@@ -131,7 +127,7 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     ########################################
     # --- Recalculate area
     print("recalculating area...")
-    param = {'INPUT': tmp_simplified_path, 'OUTPUT': 'memory:'}
+    param = {'INPUT': tmp_files['simplified'], 'OUTPUT': 'memory:'}
     algoOutput = processing.run("native:fixgeometries", param)
 
     param = {'INPUT': algoOutput['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
@@ -140,7 +136,7 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
 
     del tmp_simplified_layer
 
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_simplified_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_files['simplified'], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
@@ -150,7 +146,7 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     # and simplification also alters polygon area
 
     # Create tmp layer
-    tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_simplified", "ogr")
+    tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified'], "stand_boundaries_simplified", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
     print("selecting small polygons...")
     tmp_simplified_layer.selectByExpression(expression)
@@ -162,7 +158,7 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
 
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_reduced_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], tmp_files['reduced'], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
@@ -220,19 +216,17 @@ def post_process(working_root, shape_in, h_max_input, shape_out, tmp_output_fold
     ########################################
 
     # finally persist output
-    shape_out_path = os.path.join(working_root, shape_out)
-    result = QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], shape_out_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], output_files["stands_simplified"], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
-    new_layer_path = result[2]
 
     # Delete files
     if del_tmp:
-        delete_shapefile(tmp_simplified_path)
-        delete_shapefile(tmp_simplified_error_path)
-        delete_shapefile(tmp_reduced_path)
-        delete_shapefile(tmp_stands_buf_path)
+        delete_shapefile(tmp_files['simplified'])
+        delete_shapefile(tmp_files['simplified_error'])
+        delete_shapefile(tmp_files['reduced'])
+        delete_shapefile(tmp_files['stands_buf'])
 
     print("DONE!")
 
     # Return final result
-    return new_layer_path
+    return output_files
