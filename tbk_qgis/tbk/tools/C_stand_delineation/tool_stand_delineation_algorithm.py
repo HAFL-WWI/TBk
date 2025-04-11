@@ -341,14 +341,14 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         }
 
         # Define temporary output file paths
-        temp_folder = QgsProcessingUtils.tempFolder()
+        temp_file_folder = QgsProcessingUtils.tempFolder() if del_tmp else out_path
         if del_tmp:
-            tmp_stat = os.path.join(temp_folder, "stand_boundaries_stat.gpkg")
+            tmp_stat = os.path.join(temp_file_folder, "stand_boundaries_stat.gpkg")
         else:
             tmp_stat = output_stand_boundaries.rsplit(".gpkg", 1)[0] + "_stat.gpkg"
 
         temp_output_files = {
-            "hdom": os.path.join(temp_folder, "hdom.tif"),
+            "hdom": os.path.join(temp_file_folder, "hdom.tif"),
             'stand_boundaries_stat': tmp_stat,
         }
 
@@ -436,8 +436,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # Save results
         helper.store_raster(stand, output_files["raw_classified"], vhm_projection, geotransform, gdal.GDT_UInt32)
         helper.store_raster(hmax, output_files["hmax"], vhm_projection, geotransform, gdal.GDT_Byte)
-        if not del_tmp:
-            helper.store_raster(hdom, temp_output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
+        helper.store_raster(hdom, temp_output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raw_classified, hmax and hdom saved  ---")
 
         # ------- SMOOTHING -------#
