@@ -95,7 +95,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # 3 Merge similar neighbours (FM)
         parameters['output_merged'] = os.path.join(bk_dir, "stands_merged.gpkg")
         outputs['MergeSimilarNeighboursFm'] = self.run_merge_similar_neighbours(parameters, outputs, context, feedback)
-        results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['output_merged']
+        results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
 
         feedback.setCurrentStep(3)
         if feedback.isCanceled():
@@ -188,7 +188,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
-            'input_to_clip': outputs['MergeSimilarNeighboursFm']['output_merged'],
+            'input_to_clip': outputs['MergeSimilarNeighboursFm']['stands_merged'],
             'logfile_name': parameters['logfile_name'],
             'perimeter': parameters['perimeter'],
             'working_root': outputs['DelineateStand']['result_dir'],

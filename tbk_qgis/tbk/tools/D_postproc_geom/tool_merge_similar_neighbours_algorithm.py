@@ -131,18 +131,16 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
 
         # --- Merge similar neighbours
         log.info('Starting')
-        log.debug(f"Used parameters: {working_root}, {params.input_to_merge}, {params.output_merged}, "
+        log.debug(f"Used parameters: {params.input_to_merge}, {params.output_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
-        merged_file_path = merge_similar_neighbours(working_root,
-                                           params.input_to_merge,
+        merged_file_path = merge_similar_neighbours(params.input_to_merge,
                                            params.output_merged,
                                            params.similar_neighbours_min_area,
-                                           params.similar_neighbours_hdom_diff_rel,
-                                           params.del_tmp)
+                                           params.similar_neighbours_hdom_diff_rel)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return {'output_merged': merged_file_path}
+        return merged_file_path
 
     def createInstance(self):
         """

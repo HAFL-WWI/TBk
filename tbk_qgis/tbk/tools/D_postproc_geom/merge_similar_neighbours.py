@@ -24,32 +24,19 @@
  ***************************************************************************/
 """
 
-import os
-import subprocess
-import sys
 
-from qgis import core
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QVariant
-from qgis.utils import iface
-from qgis.core import QgsProject
 import processing
-from qgis.core import *
-
 from tbk_qgis.tbk.general.tbk_utilities import *
-
-import numpy as np
 import pandas as pd
 from datetime import timedelta
 import time
 
 
-def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel, del_tmp=True):
+def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel):
     """
     TBk post-process. Prepare polygons to dissolve by specific criterias.
     Used to combine small polygons with similar neighbours.
 
-    :param working_root:
     :param shape_in_path:
     :param shape_out_path:
     :param min_area_m2:
@@ -61,6 +48,10 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
     print("--------------------------------------------")
     print("START MERGE similar neighbours...")
     print("min_area_m2: ", min_area_m2, " min_hdom_diff_rel: ", min_hdom_diff_rel)
+
+    output_file = {
+        "stands_merged": shape_out_path
+    }
 
     # load stands to be merged
     simplified_layer = QgsVectorLayer(shape_in_path, "stands_to_be_merged", "ogr")
@@ -208,7 +199,7 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
         l_fid_merged = [None] * len(nbr_FID_unique)
 
         # unique scr_FID from subset of neighbours table
-        src_FID_unique = list(set(list(df_sub["src_FID"])))
+        src_FID_unique = list(set(df_sub["src_FID"]))
         print(len(src_FID_unique), "polygons to dissolve!")
 
         for i in range(len(nbr_FID_unique)):
@@ -269,8 +260,8 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
 
         # drop attribute layer, path (added by native:mergevectorlayers) & and 'fid_input' (unique identifier of input
         # features / simplified stands) finally save layer
-        param = {'INPUT': stands_merged, 'COLUMN': ['layer', 'path', 'fid_input'], 'OUTPUT': shape_out_path}
-        algoOutput = processing.run("native:deletecolumn", param)
+        param = {'INPUT': stands_merged, 'COLUMN': ['layer', 'path', 'fid_input'], 'OUTPUT': output_file["stands_merged"]}
+        processing.run("native:deletecolumn", param)
 
     else:  # no stands to merge
         print("No stands to merge")
@@ -280,13 +271,13 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
         algoOutput = processing.run("native:deletecolumn", param)
 
         # add column merged = 0 (meaning not dissolved geometry) to all simplified stands ...
-        param = {'INPUT': algoOutput["OUTPUT"], 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
-                 'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': shape_out_path}
-        algoOutput = processing.run("native:fieldcalculator", param)
+        param = {'INPUT': algo_output["OUTPUT"], 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': output_file["stands_merged"]}
+        processing.run("native:fieldcalculator", param)
         # ... and save them as merged stands
 
     end_time = time.time()
     print("Actual merger of similar neighbours execution time: " + str(timedelta(seconds=(end_time - start_time))))
 
 
-    return shape_out_path
+    return output_file
