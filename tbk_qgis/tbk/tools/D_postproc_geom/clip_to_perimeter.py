@@ -38,27 +38,33 @@ def clip_to_perimeter(working_root,
     print("--------------------------------------------")
     print("START Clip to perimeter...")
 
+    # Clip stand and convert to singlepart
     tmp_stands_clipped_path = os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg")
+    clipped = clip_vector_layer(input_to_clip_path, perimeter)
+    processing.run("native:multiparttosingleparts", {
+        'INPUT': clipped,
+        'OUTPUT': tmp_stands_clipped_path
+    })
 
-    # Clip to forest mask
-    param = {'INPUT': input_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algo_output = processing.run("native:clip", param)
-
-    # Convert multipart to singlepart
-    processing.run("native:multiparttosingleparts",
-                   {'INPUT': algo_output['OUTPUT'], 'OUTPUT': tmp_stands_clipped_path})
 
     # Clip highest trees
-    # todo: allow the user to set the path for stands_highest_tree?
     highest_point_clip_path = os.path.join(working_root, "stands_highest_tree.gpkg")
-    param = {'INPUT': tmp_stands_highest_tree, 'OVERLAY': perimeter, 'OUTPUT': highest_point_clip_path}
-    processing.run("native:clip", param)
+    clip_vector_layer(tmp_stands_highest_tree, perimeter, highest_point_clip_path)
 
     if del_tmp:
         delete_geopackage(tmp_stands_highest_tree)
 
-    return { "stands_clipped": tmp_stands_clipped_path,
-             "stands_highest_tree": highest_point_clip_path,}
+    return {"stands_clipped": tmp_stands_clipped_path,
+            "stands_highest_tree": highest_point_clip_path, }
+
+
+def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT') -> QgsVectorLayer | str:
+    result = processing.run("native:clip", {
+        'INPUT': input,
+        'OVERLAY': overlay,
+        'OUTPUT': output
+    })
+    return result['OUTPUT']
 
 
 def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
@@ -175,4 +181,4 @@ def eliminate_gaps(in_shape_path,
         delete_shapefile(union_tmp_path)
         delete_shapefile(in_shape_path)
 
-    return { "stands_clipped_no_gaps": output_shape_path,}
+    return {"stands_clipped_no_gaps": output_shape_path, }
