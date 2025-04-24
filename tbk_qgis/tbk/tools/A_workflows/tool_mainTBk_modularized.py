@@ -189,7 +189,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
             'input_to_clip': outputs['MergeSimilarNeighboursFm']['stands_merged'],
-            'stands_highest_tree_input': outputs['SimplifyAndClean']['tmp_stands_highest_tree'],
+            'tmp_stands_highest_tree': outputs['SimplifyAndClean']['tmp_stands_highest_tree'],
             'logfile_name': parameters['logfile_name'],
             'perimeter': parameters['perimeter'],
             'working_root': outputs['DelineateStand']['result_dir'],

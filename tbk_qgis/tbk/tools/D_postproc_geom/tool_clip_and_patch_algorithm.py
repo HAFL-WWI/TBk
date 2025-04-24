@@ -36,7 +36,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     # Input layer to process
     INPUT_TO_CLIP = "input_to_clip"
     # Stands highest tree
-    STANDS_HIGHEST_TREE_INPUT = "stands_highest_tree_input"
+    TMP_STANDS_HIGHEST_TREE = "tmp_stands_highest_tree"
     # Processed output layer
     OUTPUT_CLIPPED = "output_clipped"
 
@@ -72,7 +72,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
             # Input stand map to be clipped
             self.addParameter(
-                QgsProcessingParameterFeatureSource(self.STANDS_HIGHEST_TREE_INPUT,
+                QgsProcessingParameterFeatureSource(self.TMP_STANDS_HIGHEST_TREE,
                                                     "Input layer containing the highest trees points",
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
@@ -126,7 +126,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # ---  Clip
         log.info('Starting')
         # run clip function
-        clip_results = clip_to_perimeter(working_root, params.input_to_clip,params.stands_highest_tree_input,
+        clip_results = clip_to_perimeter(working_root, params.input_to_clip,params.tmp_stands_highest_tree,
                                         tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         # run gaps function
