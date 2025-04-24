@@ -20,6 +20,7 @@ import logging
 import os
 
 from qgis.core import (QgsProcessing,
+                       QgsProcessingOutputFile,
                        QgsProcessingParameterString,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterBoolean,
@@ -61,7 +62,9 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     # H_max Input layer
     H_MAX_INPUT = "h_max_input"
     # Output simplified stand map
-    OUTPUT_SIMPLIFIED = "output_simplified"
+    STAND_SIMPLIFIED = "stands_simplified"
+    # stands highest tree tmp output file
+    TMP_OUTPUT_STANDS_HIGHEST_TREE = "tmp_stands_highest_tree"
 
     def initAlgorithm(self, config=None):
         """
@@ -97,12 +100,14 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED,
+                QgsProcessingParameterFileDestination(self.STAND_SIMPLIFIED,
                                                       "Simplified Stand Boundaries Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
-                                                         optional=True))
+                                                      optional=True))
 
-
+        # Outputs
+        self.addOutput(QgsProcessingOutputFile(self.TMP_OUTPUT_STANDS_HIGHEST_TREE,
+                                                   "Stands highest tree tmp file"))
         # --- Advanced Parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
@@ -152,10 +157,10 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         log.info('Starting')
         log.debug(f"used parameters: {params.input_to_simplify}, {params.h_max_input,},"
-                  f"{params.output_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
+                  f"{params.stands_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
                   f"{params.simplification_tolerance}, {params.del_tmp}")
 
-        output_files = post_process(params.input_to_simplify, params.h_max_input, params.output_simplified,
+        output_files = post_process(params.input_to_simplify, params.h_max_input, params.stands_simplified,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 

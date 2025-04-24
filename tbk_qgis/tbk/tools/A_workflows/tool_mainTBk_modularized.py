@@ -83,7 +83,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # 2 Simplify and Clean
-        parameters['output_simplified'] = os.path.join(bk_dir, "stands_simplified.gpkg")
+        parameters['stands_simplified'] = os.path.join(bk_dir, "stands_simplified.gpkg")
         outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
         results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
 
@@ -164,7 +164,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'min_area_m2': parameters['min_area_m2'],
             'simplification_tolerance': parameters['simplification_tolerance'],
             'working_root': outputs['DelineateStand']['result_dir'],
-            'output_simplified': parameters['output_simplified'],
+            'stands_simplified': parameters['stands_simplified'],
         }
         return processing.run('TBk:2 Simplify and Clean', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
