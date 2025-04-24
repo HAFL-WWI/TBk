@@ -29,31 +29,36 @@ from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, edit
 from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopackage, getVectorSaveOptions, delete_fields
 
 
-def clip_to_perimeter(working_root, stands_to_clip_path, stands_clipped_path, tmp_output_folder, perimeter,
+def clip_to_perimeter(working_root,
+                      input_to_clip_path,
+                      tmp_stands_highest_tree,
+                      tmp_output_folder,
+                      perimeter,
                       del_tmp=True):
     print("--------------------------------------------")
     print("START Clip to perimeter...")
 
+    tmp_stands_clipped_path = os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg")
+
     # Clip to forest mask
-    param = {'INPUT': stands_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+    param = {'INPUT': input_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': 'TEMPORARY_OUTPUT'}
     algo_output = processing.run("native:clip", param)
 
     # Convert multipart to singlepart
     processing.run("native:multiparttosingleparts",
-                   {'INPUT': algo_output['OUTPUT'], 'OUTPUT': stands_clipped_path})
+                   {'INPUT': algo_output['OUTPUT'], 'OUTPUT': tmp_stands_clipped_path})
 
     # Clip highest trees
-    # todo: give the highest_point_clip_path as function argument + highest_point_path necessary???
-    highest_point_path = os.path.join(tmp_output_folder, "stands_highest_tree.gpkg")
+    # todo: allow the user to set the path for stands_highest_tree?
     highest_point_clip_path = os.path.join(working_root, "stands_highest_tree.gpkg")
-    param = {'INPUT': highest_point_path, 'OVERLAY': perimeter, 'OUTPUT': highest_point_clip_path}
+    param = {'INPUT': tmp_stands_highest_tree, 'OVERLAY': perimeter, 'OUTPUT': highest_point_clip_path}
     processing.run("native:clip", param)
 
     if del_tmp:
-        delete_shapefile(highest_point_path)
-        delete_geopackage(highest_point_path)
+        delete_geopackage(tmp_stands_highest_tree)
 
-    return stands_clipped_path
+    return { "stands_clipped": tmp_stands_clipped_path,
+             "stands_highest_tree": highest_point_clip_path,}
 
 
 def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
@@ -74,7 +79,11 @@ def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter,
     return vhm_clipped_path
 
 
-def eliminate_gaps(in_shape_path, output_shape_path, tmp_output_folder, perimeter_shape, del_tmp=True):
+def eliminate_gaps(in_shape_path,
+                   output_shape_path,
+                   tmp_output_folder,
+                   perimeter_shape,
+                   del_tmp=True):
     """
     Align tbk shapefile to perimeter (for example Waldmaske AV).
     Idea: If small gaps remain between a defined perimeter and the
@@ -166,4 +175,4 @@ def eliminate_gaps(in_shape_path, output_shape_path, tmp_output_folder, perimete
         delete_shapefile(union_tmp_path)
         delete_shapefile(in_shape_path)
 
-    return output_shape_path
+    return { "stands_clipped_no_gaps": output_shape_path,}

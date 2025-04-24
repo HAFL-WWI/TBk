@@ -35,6 +35,8 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
     # Input layer to process
     INPUT_TO_CLIP = "input_to_clip"
+    # Stands highest tree
+    STANDS_HIGHEST_TREE_INPUT = "stands_highest_tree_input"
     # Processed output layer
     OUTPUT_CLIPPED = "output_clipped"
 
@@ -67,6 +69,13 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
+
+            # Input stand map to be clipped
+            self.addParameter(
+                QgsProcessingParameterFeatureSource(self.STANDS_HIGHEST_TREE_INPUT,
+                                                    "Input layer containing the highest trees points",
+                                                    [QgsProcessing.TypeVectorPolygon],
+                                                    optional=True))
 
             # Input stand map to be merged
             self.addParameter(
@@ -117,15 +126,15 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # ---  Clip
         log.info('Starting')
         # run clip function
-        tmp_clipped_file_path = clip_to_perimeter(working_root, params.input_to_clip,
-                                      os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg"),
-                                      tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        clip_results = clip_to_perimeter(working_root, params.input_to_clip,params.stands_highest_tree_input,
+                                        tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         # run gaps function
-        output_clipped = eliminate_gaps(working_root, tmp_clipped_file_path, params.output_clipped, tmp_output_folder,
+        gaps_results = eliminate_gaps(clip_results["stands_clipped"], params.output_clipped, tmp_output_folder,
                                     params.perimeter, del_tmp=params.del_tmp)
 
-        return {'output_clipped': output_clipped}
+        return { "stands_clipped_no_gaps": gaps_results["stands_clipped_no_gaps"],
+                 "stands_highest_tree": clip_results["stands_highest_tree"],}
 
     def createInstance(self):
         """

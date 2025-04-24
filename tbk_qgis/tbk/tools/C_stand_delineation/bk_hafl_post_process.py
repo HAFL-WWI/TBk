@@ -57,7 +57,7 @@ def post_process(shape_in, h_max_input, shape_out, tmp_output_folder, min_area, 
 
     # Output files
     output_files = {
-        "stands_highest_tree": os.path.join(tmp_output_folder, "stands_highest_tree.gpkg"),
+        "tmp_stands_highest_tree": os.path.join(tmp_output_folder, "tmp_stands_highest_tree.gpkg"),
         "stands_simplified": shape_out
     }
 
@@ -69,7 +69,7 @@ def post_process(shape_in, h_max_input, shape_out, tmp_output_folder, min_area, 
     algo_output = processing.run("native:pixelstopoints", params)
 
     params = {'INPUT': algo_output["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
-              'OUTPUT': output_files['stands_highest_tree']}
+              'OUTPUT': output_files['tmp_stands_highest_tree']}
     processing.run("native:extractbyattribute", params)
 
     ########################################
