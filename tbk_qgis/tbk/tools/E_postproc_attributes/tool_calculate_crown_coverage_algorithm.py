@@ -33,7 +33,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     LOGFILE_NAME = "logfile_name"
 
     # Input layer used for the calculation
-    STANDS_INPUT = "stands_input"
+    STANDS_CLIPPED_NO_GAPS = "stands_clipped_no_gaps"
     # Stands output with supplementary crown coverage fields
     OUTPUT_STANDS_WITH_DG = "stands_with_dg"
 
@@ -66,7 +66,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         if is_standalone_context:
             # Input stand map to be merged
             self.addParameter(
-                QgsProcessingParameterFeatureSource(self.STANDS_INPUT, "Input layer used for the calculation",
+                QgsProcessingParameterFeatureSource(self.STANDS_CLIPPED_NO_GAPS, "Input layer used for the calculation",
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
 
@@ -99,9 +99,6 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         params = self._extract_context_params(parameters, context)
 
-        # Get input layer parameter
-        input_for_calcul = params.stands_input
-
         # Handle the working root and temp output folders
         bk_dir = self._get_bk_output_dir(params.result_dir)
         tmp_output_folder = self._get_tmp_output_path(params.result_dir)
@@ -119,7 +116,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, input_for_calcul, tmp_output_folder,  dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
+        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, tmp_output_folder,  dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
 
         return results
 

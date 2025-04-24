@@ -101,7 +101,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # 4 Clip to perimeter and eliminate gaps
-        parameters['output_clipped'] = os.path.join(bk_dir, "stands_clipped.gpkg")
+        parameters['stands_clipped_no_gaps'] = os.path.join(bk_dir, "stands_clipped.gpkg")
         outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
         results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
         results['stands_highest_tree'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree']
@@ -193,7 +193,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'perimeter': parameters['perimeter'],
             'working_root': outputs['DelineateStand']['result_dir'],
-            'output_clipped': parameters['output_clipped']
+            'stands_clipped_no_gaps': parameters['stands_clipped_no_gaps']
         }
         return processing.run('TBk:4 Clip to perimeter and eliminate gaps',
                                                                     alg_params, context=context, feedback=feedback,
@@ -205,7 +205,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'del_tmp': parameters['del_tmp'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
-            'stands_input': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
+            'stands_clipped_no_gaps': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
             'vhm_150cm': parameters['vhm_150cm']
         }
         return processing.run('TBk:5 Calculate crown coverage', alg_params,
