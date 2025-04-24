@@ -36,7 +36,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     # Input layer to merge
     INPUT_TO_MERGE = "input_to_merge"
     # Merged output layer
-    OUTPUT_MERGED = "output_merged"
+    STANDS_MERGED = "stands_merged"
     # Min. area to merge similar stands
     SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
     # hdom relative diff to merge similar stands
@@ -79,7 +79,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
             # Output
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
+                QgsProcessingParameterFileDestination(self.STANDS_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
@@ -131,11 +131,11 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
 
         # --- Merge similar neighbours
         log.info('Starting')
-        log.debug(f"Used parameters: {params.input_to_merge}, {params.output_merged}, "
+        log.debug(f"Used parameters: {params.input_to_merge}, {params.stands_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
         merged_file_path = merge_similar_neighbours(params.input_to_merge,
-                                           params.output_merged,
+                                           params.stands_merged,
                                            params.similar_neighbours_min_area,
                                            params.similar_neighbours_hdom_diff_rel)
 
