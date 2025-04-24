@@ -86,4 +86,4 @@ def calc_attributes(working_root, shape_in, tmp_output_folder, del_tmp=True):
         delete_fields(out_layer, ["type", "NH_pixels", "NH_prob"])
 
     print("DONE!")
-    return (shape_out)
+    return shape_out

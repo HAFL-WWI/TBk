@@ -119,7 +119,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         path = add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.stands_with_dg,
                                   params.coniferous_raster, params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
 
-        return {self.OUTPUT_STANDS_WITH_CONIFEROUS: path}
+        return { self.OUTPUT_STANDS_WITH_CONIFEROUS: path }
 
     def createInstance(self):
         """

@@ -24,8 +24,6 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     # These constants will be used when calling the algorithm from another algorithm,
     # or when calling from the QGIS console.
 
-    # Directory containing the output files
-    OUTPUT = "OUTPUT"
     # Folder for storing all input files and saving output files
     WORKING_ROOT = "working_root"
     # File storing configuration parameters
@@ -36,7 +34,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     # Input layer to merge
     INPUT_TO_MERGE = "input_to_merge"
     # Merged output layer
-    STANDS_MERGED = "stands_merged"
+    OUTPUT_MERGED = "stands_merged"
     # Min. area to merge similar stands
     SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
     # hdom relative diff to merge similar stands
@@ -79,7 +77,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
             # Output
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.STANDS_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
+                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
@@ -131,16 +129,17 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
 
         # --- Merge similar neighbours
         log.info('Starting')
+        # todo: also log the keys
         log.debug(f"Used parameters: {params.input_to_merge}, {params.stands_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
-        merged_file_path = merge_similar_neighbours(params.input_to_merge,
+        results = merge_similar_neighbours(params.input_to_merge,
                                            params.stands_merged,
                                            params.similar_neighbours_min_area,
                                            params.similar_neighbours_hdom_diff_rel)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return merged_file_path
+        return {self.OUTPUT_MERGED: results["stands_merged"],}
 
     def createInstance(self):
         """

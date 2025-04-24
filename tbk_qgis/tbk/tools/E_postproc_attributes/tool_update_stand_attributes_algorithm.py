@@ -113,7 +113,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         log.info("Calculating attribute 'struktur'")
         stands_file_attributed = calc_attributes(bk_dir, params.input_for_computation, tmp_output_folder, del_tmp=params.del_tmp)
 
-        return {self.OUTPUT_STANDS_WITH_STRUCTURE: stands_file_attributed}
+        return { self.OUTPUT_STANDS_WITH_STRUCTURE: stands_file_attributed }
 
     def createInstance(self):
         """

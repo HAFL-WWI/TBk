@@ -104,7 +104,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         parameters['stands_clipped_no_gaps'] = os.path.join(bk_dir, "stands_clipped.gpkg")
         outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
         results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
-        results['stands_highest_tree'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree']
+        results['stands_highest_tree'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree_clipped']
 
         feedback.setCurrentStep(4)
         if feedback.isCanceled():

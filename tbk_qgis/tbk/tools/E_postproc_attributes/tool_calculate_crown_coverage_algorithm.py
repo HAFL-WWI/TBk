@@ -1,4 +1,4 @@
-#todo
+# todo
 import logging
 import os
 
@@ -33,7 +33,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     LOGFILE_NAME = "logfile_name"
 
     # Input layer used for the calculation
-    STANDS_CLIPPED_NO_GAPS = "stands_clipped_no_gaps"
+    STANDS_INPUT = "stands_clipped_no_gaps"
     # Stands output with supplementary crown coverage fields
     OUTPUT_STANDS_WITH_DG = "stands_with_dg"
 
@@ -66,7 +66,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         if is_standalone_context:
             # Input stand map to be merged
             self.addParameter(
-                QgsProcessingParameterFeatureSource(self.STANDS_CLIPPED_NO_GAPS, "Input layer used for the calculation",
+                QgsProcessingParameterFeatureSource(self.STANDS_INPUT, "Input layer used for the calculation",
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
 
@@ -116,9 +116,17 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, tmp_output_folder,  dg_dir, params.vhm_150cm, del_tmp=params.del_tmp)
+        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, tmp_output_folder, dg_dir, params.vhm_150cm,
+                               del_tmp=params.del_tmp)
 
-        return results
+        return {self.OUTPUT_STANDS_WITH_DG: results["stands_with_dg"],
+                'dg_layer_ks': results["dg_layer_ks"],
+                'dg_layer_main': results["dg_layer_main"],
+                'dg_layer_ms': results["dg_layer_ms"],
+                'dg_layer_os': results["dg_layer_os"],
+                'dg_layer_ueb': results["dg_layer_ueb"],
+                'dg_layer_us': results["dg_layer_us"],
+                }
 
     def createInstance(self):
         """
@@ -136,7 +144,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         """
         return '5 Calculate crown coverage'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.

@@ -238,9 +238,8 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
                 'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
-            stands_file_appended = stands_file_forestSite
 
-        return {'OUTPUT': stands_file_appended}
+        return { self.OUTPUT_ATTRIBUTED: stands_file_forestSite }
 
     def createInstance(self):
         """

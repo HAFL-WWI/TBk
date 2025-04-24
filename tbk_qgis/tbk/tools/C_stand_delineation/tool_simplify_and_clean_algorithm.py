@@ -62,7 +62,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     # H_max Input layer
     H_MAX_INPUT = "h_max_input"
     # Output simplified stand map
-    STAND_SIMPLIFIED = "stands_simplified"
+    OUTPUT_SIMPLIFIED = "stands_simplified"
     # stands highest tree tmp output file
     TMP_OUTPUT_STANDS_HIGHEST_TREE = "tmp_stands_highest_tree"
 
@@ -100,7 +100,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.STAND_SIMPLIFIED,
+                QgsProcessingParameterFileDestination(self.OUTPUT_SIMPLIFIED,
                                                       "Simplified Stand Boundaries Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
@@ -156,15 +156,18 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         # --- Simplify & Clean
 
         log.info('Starting')
+        # todo: also log the key:
         log.debug(f"used parameters: {params.input_to_simplify}, {params.h_max_input,},"
                   f"{params.stands_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
                   f"{params.simplification_tolerance}, {params.del_tmp}")
 
-        output_files = post_process(params.input_to_simplify, params.h_max_input, params.stands_simplified,
+        results = post_process(params.input_to_simplify, params.h_max_input, params.stands_simplified,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
-        return output_files
+        return { self.OUTPUT_SIMPLIFIED: results["stands_simplified"],
+                 self.TMP_OUTPUT_STANDS_HIGHEST_TREE: results["tmp_stands_highest_tree"],
+                 }
 
     def createInstance(self):
         """

@@ -2,11 +2,12 @@
 import logging
 import os
 
-from qgis.core import (QgsProcessingParameterBoolean,
+from qgis.core import (QgsProcessing,
+                       QgsProcessingOutputFile,
+                       QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination,
-                       QgsProcessing,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
 from tbk_qgis.tbk.tools.D_postproc_geom.clip_to_perimeter import clip_to_perimeter, eliminate_gaps
@@ -36,9 +37,11 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     # Input layer to process
     INPUT_TO_CLIP = "input_to_clip"
     # Stands highest tree
-    TMP_STANDS_HIGHEST_TREE = "tmp_stands_highest_tree"
-    # Processed output layer
-    STANDS_CLIPPED_NO_GAPS = "stands_clipped_no_gaps"
+    TMP_STANDS_HIGHEST_TREE_TO_CLIP = "tmp_stands_highest_tree"
+    # Clipped stands
+    OUTPUT_CLIPPED_NO_GAPS = "stands_clipped_no_gaps"
+    # Clipped highest trees
+    OUTPUT_STANDS_HIGHEST_TREE_CLIPPED = "stands_highest_tree_clipped"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -70,14 +73,14 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
 
-            # Input stand map to be clipped
+            # Input layer with the highest trees
             self.addParameter(
-                QgsProcessingParameterFeatureSource(self.TMP_STANDS_HIGHEST_TREE,
-                                                    "Input layer containing the highest trees points",
+                QgsProcessingParameterFeatureSource(self.TMP_STANDS_HIGHEST_TREE_TO_CLIP,
+                                                    "Input layer to clip containing the highest trees points",
                                                     [QgsProcessing.TypeVectorPolygon],
                                                     optional=True))
 
-            # Input stand map to be merged
+            # Input stand map to be clipped
             self.addParameter(
                 QgsProcessingParameterFeatureSource(self.INPUT_TO_CLIP, "Input layer to be clipped",
                                                     [QgsProcessing.TypeVectorPolygon],
@@ -85,7 +88,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.STANDS_CLIPPED_NO_GAPS, "Clip and Eliminate Output (GeoPackage)",
+                QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED_NO_GAPS, "Clip and Eliminate Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
@@ -94,6 +97,8 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
             QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
                                                 [QgsProcessing.TypeVectorPolygon]))
 
+        self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED,
+                                               "Input layer containing the highest trees points"))
         # --- Advanced Parameters
 
         # Additional parameters
@@ -133,8 +138,8 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         gaps_results = eliminate_gaps(clip_results["stands_clipped"], params.stands_clipped_no_gaps, tmp_output_folder,
                                     params.perimeter, del_tmp=params.del_tmp)
 
-        return { self.STANDS_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"],
-                 "stands_highest_tree": clip_results["stands_highest_tree"],}
+        return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"],
+                self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED: clip_results["stands_highest_tree"], }
 
     def createInstance(self):
         """
