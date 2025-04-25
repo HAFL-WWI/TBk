@@ -72,9 +72,6 @@ def add_coniferous_proportion(working_root,
         for f in stands_layer.getFeatures():
             f["NH"] = f["nh_mean"]
             stands_layer.updateFeature(f)
-    if del_tmp:
-        delete_fields(stands_layer, ["nh_mean", 'nh_count', 'nh_sum'])
-    del stands_layer
 
     # NH OS
     if calc_main_layer:
@@ -127,8 +124,7 @@ def add_coniferous_proportion(working_root,
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
-        # todo: use nh_os prefix and del temp at the end
-        param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
+        param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_os_','STATS':[2]}
         processing.run("qgis:zonalstatistics", param)
         # todo: use the new zonalstatisticsfb instead, so that we can save the changes in a new file and algo would return this new file:
         # processing.run("native:zonalstatisticsfb", {
@@ -140,8 +136,6 @@ def add_coniferous_proportion(working_root,
         param ={'INPUT_RASTER':dg_layer_os_10m_mask,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nhm_','STATS':[1]}
         processing.run("qgis:zonalstatistics", param)
 
-        stands_layer = QgsVectorLayer(clipped_stands_input, "stands", "ogr")
-
         with edit(stands_layer):
             # Add NH fields
             provider = stands_layer.dataProvider()
@@ -151,9 +145,12 @@ def add_coniferous_proportion(working_root,
 
             # Write NH_OS attribute per stand
             for f in stands_layer.getFeatures():
+                # todo: It looks like NH_OS_PIX field is not necessary. we could do:
+                #  if f["NH_OS_PIX"] > 0:
+                #  f["NH_OS"] = f["nh_os_mean"]...
                 f["NH_OS_PIX"] = f["nhm_sum"]
                 if f["NH_OS_PIX"] > 0:
-                    f["NH_OS"] = f["nh_mean"]
+                    f["NH_OS"] = f["nh_os_mean"]
                 else:
                     # set value to -1 if no NH_OS pixels
                     f["NH_OS"] = -1
@@ -161,7 +158,10 @@ def add_coniferous_proportion(working_root,
 
         # Delete tmp files and fields
         if del_tmp:
-            delete_fields(stands_layer, ["nh_mean", "nhm_sum", 'nh_count', 'nh_sum', 'nhm_count', 'nhm_mean', 'NH_OS_PIX'])
+            delete_fields(stands_layer, ['nh_count', "nh_mean", 'nh_sum',
+                                         'nhm_count', 'nhm_mean', "nhm_sum",
+                                         'nh_os_count', "nh_os_mean", 'nh_os_sum',
+                                         'NH_OS_PIX'])
             # todo: rename as tmp
             delete_raster(dg_layer_os_1m)
             delete_raster(dg_layer_os_10m_sum)
