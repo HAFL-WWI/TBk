@@ -111,9 +111,10 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # 5 Calculate crown coverage
+        parameters['stands_dg'] = os.path.join(bk_dir, "stands_dg.gpkg")
         outputs['CalculateCrownCoverage'] = self.run_calculate_crown_coverage(parameters, outputs, context, feedback)
         # todo: add optional output destination field as for the other algs???
-        results['stands_with_dg'] = outputs['CalculateCrownCoverage']['stands_with_dg']
+        results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
 
         feedback.setCurrentStep(5)
         if feedback.isCanceled():
@@ -206,6 +207,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
             'stands_clipped_no_gaps': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
+            'stands_dg': parameters['stands_dg'],
             'vhm_150cm': parameters['vhm_150cm']
         }
         return processing.run('TBk:5 Calculate crown coverage', alg_params,
@@ -220,7 +222,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'del_tmp': parameters['del_tmp'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
-            'stands_with_dg': outputs['CalculateCrownCoverage']['stands_with_dg']
+            'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],
         }
         return processing.run('TBk:6 Add coniferous proportion', alg_params,
                                                             context=context, feedback=feedback,

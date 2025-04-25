@@ -33,7 +33,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
     LOGFILE_NAME = "logfile_name"
 
     # Input layer to process
-    STANDS_WITH_DG = "stands_with_dg"
+    STANDS_DG = "stands_dg"
     # Stands output with supplementary crown coverage fields
     OUTPUT_STANDS_WITH_CONIFEROUS = "stands_with_coniferous"
     # Additional parameters
@@ -65,7 +65,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
                                                             optional=True))
         if is_standalone_context:
             # Stand raster where the coniferous proportion will be computed
-            self.addParameter(QgsProcessingParameterVectorLayer(self.STANDS_WITH_DG,
+            self.addParameter(QgsProcessingParameterVectorLayer(self.STANDS_DG,
                                                                 "Clipped stands vector file, which will be used as input for calculating the proportion of coniferous trees in each polygon",
                                                                 ))
 
@@ -116,8 +116,11 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Add coniferous proportion
         log.info('Add coniferous proportion')
-        path = add_coniferous_proportion(bk_dir, tmp_output_folder, params.result_dir, params.stands_with_dg,
-                                  params.coniferous_raster, params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
+        path = add_coniferous_proportion(bk_dir,
+                                         tmp_output_folder,
+                                         params.result_dir,
+                                         params.stands_dg,
+                                         params.coniferous_raster, params.calc_mixture_for_main_layer, del_tmp=params.del_tmp)
 
         return { self.OUTPUT_STANDS_WITH_CONIFEROUS: path }
 

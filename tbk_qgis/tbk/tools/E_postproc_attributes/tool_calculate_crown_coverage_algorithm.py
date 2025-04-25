@@ -3,10 +3,10 @@ import logging
 import os
 
 from qgis.core import (QgsProcessing,
-                       QgsProcessingOutputFile,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -35,7 +35,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     # Input layer used for the calculation
     STANDS_INPUT = "stands_clipped_no_gaps"
     # Stands output with supplementary crown coverage fields
-    OUTPUT_STANDS_WITH_DG = "stands_with_dg"
+    OUTPUT_STANDS_DG = "stands_dg"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -74,11 +74,11 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
                                                          "Directory containing all TBk output folders and files. This "
                                                          "folder must contain the previous generated data",
                                                          behavior=QgsProcessingParameterFile.Folder))
-
-            # --- Add output definition, so that they can be used in model designer
+            # --- Add output definition
             # Stands output with crown coverage fields
-            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STANDS_WITH_DG,
-                                                   "Stand Output file with crown coverage fields"))
+            self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STANDS_DG,
+                                                                    "Stand Output file with crown coverage fields",
+                                                                    "GPKG files (*.gpkg)",))
 
         # --- Advanced Parameters
 
@@ -116,10 +116,10 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, tmp_output_folder, dg_dir, params.vhm_150cm,
+        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, params.stands_dg, tmp_output_folder, dg_dir, params.vhm_150cm,
                                del_tmp=params.del_tmp)
 
-        return {self.OUTPUT_STANDS_WITH_DG: results["stands_with_dg"],
+        return {self.OUTPUT_STANDS_DG: results["stands_dg"],
                 'dg_layer_ks': results["dg_layer_ks"],
                 'dg_layer_main': results["dg_layer_main"],
                 'dg_layer_ms': results["dg_layer_ms"],

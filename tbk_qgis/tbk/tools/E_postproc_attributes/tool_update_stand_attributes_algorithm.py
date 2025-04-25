@@ -34,7 +34,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
     # Input layer used for the attributes computation
     INPUT_FOR_COMPUTATION = "input_for_computation"
     # Stands output with updated fields
-    OUTPUT_STANDS_WITH_STRUCTURE = "stands_with_dg"
+    OUTPUT_STANDS_WITH_STRUCTURE = "stands_dg"
     # Additional parameters
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"

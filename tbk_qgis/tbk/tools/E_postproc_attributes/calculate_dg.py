@@ -45,13 +45,21 @@ import time
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del_tmp=True):
+def calculate_dg(working_root,
+                 stands_input,
+                 stands_dg,
+                 tmp_output_folder,
+                 dg_dir,
+                 vhm,
+                 del_tmp=True):
     print("--------------------------------------------")
     print("START DG calculation...")
 
     # Create dg layer output directory
     if not os.path.exists(dg_dir):
         os.makedirs(dg_dir)
+
+    stands_dg = processing.run("native:savefeatures", {'INPUT': stands_input, 'OUTPUT': stands_dg})['OUTPUT']
 
     # DG file names
     dg_file_names = {
@@ -88,7 +96,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
 
     ########################################################################
 
-    stands_layer = QgsVectorLayer(stands_input, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_dg, "stands", "ogr")
 
     # Add DG limits fields per stand
     with edit(stands_layer):
@@ -159,7 +167,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
             create_empty_copy(vhm, dg_tmp_file_b)
             # burn vector value into raster
             processing.run("gdal:rasterize_over", {
-                'INPUT': stands_input,
+                'INPUT': stands_dg,
                 'INPUT_RASTER': dg_tmp_file_b,
                 'FIELD': dg_lim_field,
                 'ADD': False, 'EXTRA': ''})
@@ -191,7 +199,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
         # using the "old" zonalstatistics algorithm (not zonalstatisticsfb), that appends fields to input layer
         # for more info, read https://github.com/qgis/QGIS/issues/40356
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
-                 'INPUT_VECTOR': stands_input,
+                 'INPUT_VECTOR': stands_dg,
                  'COLUMN_PREFIX': column_prefix, 'STATS': [2]}
         processing.run("qgis:zonalstatistics", param)
 
@@ -199,7 +207,7 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # re-read the input, as it was modified by zonal statistics
-    stands_layer = QgsVectorLayer(stands_input, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_dg, "stands", "ogr")
     with edit(stands_layer):
         # Add DG fields
         provider = stands_layer.dataProvider()
@@ -236,6 +244,6 @@ def calculate_dg(working_root, stands_input, tmp_output_folder, dg_dir, vhm, del
 
     # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
     results = {f"dg_layer_{key}": value for key, value in dg_files.items()}
-    results["stands_with_dg"] = stands_input
+    results["stands_dg"] = stands_dg
 
     return results
