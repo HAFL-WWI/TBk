@@ -13,6 +13,7 @@ from qgis.core import (QgsProcessing,
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
 from tbk_qgis.tbk.tools.E_postproc_attributes.calculate_dg import calculate_dg
 from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
+from tbk_qgis.tbk.general.tbk_utilities import copy_vector_file
 
 class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     """
@@ -115,12 +116,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         # check tif files extension
         self._check_tif_extension(params.vhm_150cm, self.VHM_150CM)
 
-        stands_clipped_copy = processing.run("native:savefeatures",
-                                             {'INPUT': params.stands_clipped_no_gaps, 'OUTPUT': params.stands_dg},
-                                             context=context,
-                                             feedback=feedback,
-                                             is_child_algorithm=True
-                                             )['OUTPUT']
+        stands_clipped_copy = copy_vector_file(params.stands_clipped_no_gaps, params.stands_dg, context, feedback)
 
         # --- Calculate DG
         log.info('Starting')
