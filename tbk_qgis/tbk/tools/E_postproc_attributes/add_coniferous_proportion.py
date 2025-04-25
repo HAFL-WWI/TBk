@@ -92,33 +92,55 @@ def add_coniferous_proportion(working_root,
         nh_sum_table = os.path.join(tmp_output_folder, "nh_sum_table")
 
         # Resample os layer to 1m to align with 10m raster
-        param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
+        param = {'INPUT': dg_layer_os, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 1, 'NODATA': None,
+                 'TARGET_RESOLUTION': 1, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'DATA_TYPE': 0,
+                 'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
+                 'OUTPUT': dg_layer_os_1m}
         algoOutput = processing.run("gdal:warpreproject", param)
 
         # Aggregate os sum per 10m Sentinel-2 pixel
         meta_data = get_raster_metadata(coniferous_raster)
-        extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0],meta_data["extent"][2],meta_data["extent"][1],meta_data["extent"][3],meta_data["epsg"])
+        extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0],
+                                                     meta_data["extent"][2],
+                                                     meta_data["extent"][1],
+                                                     meta_data["extent"][3],
+                                                     meta_data["epsg"])
 
-        param = {'input':dg_layer_os_1m,'method':8,'quantile':0.5,'-n':False,'-w':False,'output':dg_layer_os_10m_sum,
-                 'GRASS_REGION_PARAMETER':extent,'GRASS_REGION_CELLSIZE_PARAMETER':10,'GRASS_RASTER_FORMAT_OPT':'','GRASS_RASTER_FORMAT_META':''}
+        param = {'input': dg_layer_os_1m, 'method': 8, 'quantile': 0.5, '-n': False, '-w': False,
+                 'output': dg_layer_os_10m_sum,
+                 'GRASS_REGION_PARAMETER': extent, 'GRASS_REGION_CELLSIZE_PARAMETER': 10, 'GRASS_RASTER_FORMAT_OPT': '',
+                 'GRASS_RASTER_FORMAT_META': ''}
         algoOutput = processing.run("grass7:r.resamp.stats", param)
 
         meta_data = get_raster_metadata(dg_layer_os)
-        param = {'INPUT': dg_layer_os_10m_sum,'CRS':QgsCoordinateReferenceSystem('EPSG:{0}'.format(meta_data["epsg"]))}
+        param = {'INPUT': dg_layer_os_10m_sum,
+                 'CRS': QgsCoordinateReferenceSystem('EPSG:{0}'.format(meta_data["epsg"]))}
         processing.run("gdal:assignprojection", param)
 
         # Reclassify
         condition_string = "(A > {0})*1".format(str(cover))
-        param = {'INPUT_A':dg_layer_os_10m_sum,'BAND_A':1,'INPUT_B':None,'BAND_B':-1,'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':condition_string,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_10m_mask}
+        param = {'INPUT_A': dg_layer_os_10m_sum, 'BAND_A': 1,
+                 'INPUT_B': None, 'BAND_B': -1,
+                 'INPUT_C': None, 'BAND_C': -1,
+                 'INPUT_D': None, 'BAND_D': -1,
+                 'INPUT_E': None, 'BAND_E': -1,
+                 'INPUT_F': None, 'BAND_F': -1,
+                 'FORMULA': condition_string, 'NO_DATA': None, 'RTYPE': 0,
+                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                 'OUTPUT': dg_layer_os_10m_mask}
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
         formula = "A*B"
-        param = {'INPUT_A':coniferous_raster,'BAND_A':1,
-                 'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,
-                 'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
-                'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_nh}
+        param = {'INPUT_A': coniferous_raster, 'BAND_A': 1,
+                 'INPUT_B': dg_layer_os_10m_mask, 'BAND_B': 1,
+                 'INPUT_C': None, 'BAND_C': -1,
+                 'INPUT_D': None, 'BAND_D': -1,
+                 'INPUT_E': None, 'BAND_E': -1,
+                 'INPUT_F': None, 'BAND_F': -1,
+                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
+                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                 'OUTPUT': dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
@@ -150,9 +172,9 @@ def add_coniferous_proportion(working_root,
         # Delete tmp files and fields
         if del_tmp:
             delete_fields(stands_layer_copy, ['nh_count', "nh_mean", 'nh_sum',
-                                         'nhm_count', 'nhm_mean', "nhm_sum",
-                                         'nh_os_count', "nh_os_mean", 'nh_os_sum',
-                                         'NH_OS_PIX'])
+                                              'nhm_count', 'nhm_mean', "nhm_sum",
+                                              'nh_os_count', "nh_os_mean", 'nh_os_sum',
+                                              'NH_OS_PIX'])
             # todo: rename as tmp
             delete_raster(dg_layer_os_1m)
             delete_raster(dg_layer_os_10m_sum)
@@ -161,6 +183,7 @@ def add_coniferous_proportion(working_root,
 
     print("DONE!")
     return stands_dg_copy
+
 
 def zonal_statistics(input_raster: str, input_vector: str, column_prefix: str, stats: list, rasterband=1) -> Dict:
     """

@@ -46,7 +46,6 @@ def clip_to_perimeter(working_root,
         'OUTPUT': tmp_stands_clipped_path
     })
 
-
     # Clip highest trees
     highest_point_clip_path = os.path.join(working_root, "stands_highest_tree.gpkg")
     clip_vector_layer(tmp_stands_highest_tree, perimeter, highest_point_clip_path)

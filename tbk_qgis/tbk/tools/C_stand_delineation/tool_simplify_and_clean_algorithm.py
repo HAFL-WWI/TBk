@@ -93,7 +93,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
             self.addParameter(
                 QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
                                                     [QgsProcessing.TypeVectorPolygon],
-                                                         optional=True))
+                                                    optional=True))
 
             self.addParameter(QgsProcessingParameterRasterLayer(self.H_MAX_INPUT,
                                                                 "Highest path layer to use (.tif)"))
@@ -107,7 +107,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         # Outputs
         self.addOutput(QgsProcessingOutputFile(self.TMP_OUTPUT_STANDS_HIGHEST_TREE,
-                                                   "Stands highest tree tmp file"))
+                                               "Stands highest tree tmp file"))
         # --- Advanced Parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
@@ -165,9 +165,8 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
-        return { self.OUTPUT_SIMPLIFIED: results["stands_simplified"],
-                 self.TMP_OUTPUT_STANDS_HIGHEST_TREE: results["tmp_stands_highest_tree"],
-                 }
+        return {self.OUTPUT_SIMPLIFIED: results["stands_simplified"],
+                self.TMP_OUTPUT_STANDS_HIGHEST_TREE: results["tmp_stands_highest_tree"], }
 
     def createInstance(self):
         """

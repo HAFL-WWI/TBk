@@ -462,7 +462,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, stand attributes added ---")
 
         # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
-        helper.add_vhm_stats(output_files["stand_boundaries"], temp_output_files['stand_boundaries_stat'], input_vhm_raster)
+        helper.add_vhm_stats(output_files["stand_boundaries"],
+                             temp_output_files['stand_boundaries_stat'],
+                             input_vhm_raster)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, vhm stats calculated ---")
 
         return output_files

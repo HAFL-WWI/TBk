@@ -15,6 +15,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.calculate_dg import calculate_dg
 from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 from tbk_qgis.tbk.general.tbk_utilities import copy_vector_file
 
+
 class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     """
     todo
@@ -80,7 +81,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
             # Stands output with crown coverage fields
             self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STANDS_DG,
                                                                     "Stand Output file with crown coverage fields",
-                                                                    "GPKG files (*.gpkg)",))
+                                                                    "GPKG files (*.gpkg)", ))
 
         # --- Advanced Parameters
 

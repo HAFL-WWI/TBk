@@ -33,7 +33,13 @@ from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
 from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile
 
 
-def post_process(shape_in, h_max_input, shape_out, tmp_output_folder, min_area, simplification_tolerance=8, del_tmp=True):
+def post_process(shape_in,
+                 h_max_input,
+                 shape_out,
+                 tmp_output_folder,
+                 min_area,
+                 simplification_tolerance=8,
+                 del_tmp=True):
     # -------- INIT -------#
     print("--------------------------------------------")
     print("START post processing...")

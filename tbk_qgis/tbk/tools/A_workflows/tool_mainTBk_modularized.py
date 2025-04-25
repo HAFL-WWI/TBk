@@ -2,14 +2,18 @@
 import processing
 import os
 from collections import ChainMap
-from qgis.core import (QgsProcessingMultiStepFeedback,)
+from qgis.core import QgsProcessingMultiStepFeedback
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
-from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm import TBkMergeSimilarNeighboursAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm import \
+    TBkMergeSimilarNeighboursAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algorithm import TBkCalculateCrownCoverageAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import TBkAddConiferousProportionAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import TBkUpdateStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algorithm import \
+    TBkCalculateCrownCoverageAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import \
+    TBkAddConiferousProportionAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import \
+    TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 
 
@@ -129,7 +133,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # Calculate attribute "struktur"
-        outputs['CalculateAttributeStruktur'] = self.run_calculate_attribute_struktur(parameters, outputs, context, feedback)
+        outputs['CalculateAttributeStruktur'] = self.run_calculate_attribute_struktur(parameters, outputs, context,
+                                                                                      feedback)
 
         return {}
 
@@ -183,8 +188,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'stands_merged': parameters['stands_merged'],
         }
         return processing.run('TBk:3 Merge similar neighbours (FM)', alg_params,
-                                                             context=context, feedback=feedback,
-                                                             is_child_algorithm=True)
+                              context=context, feedback=feedback,
+                              is_child_algorithm=True)
 
     def run_clip_and_eliminate(self, parameters, outputs, context, feedback):
         alg_params = {
@@ -198,8 +203,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'stands_clipped_no_gaps': parameters['stands_clipped_no_gaps']
         }
         return processing.run('TBk:4 Clip to perimeter and eliminate gaps',
-                                                                    alg_params, context=context, feedback=feedback,
-                                                                    is_child_algorithm=True)
+                              alg_params, context=context, feedback=feedback,
+                              is_child_algorithm=True)
 
     def run_calculate_crown_coverage(self, parameters, outputs, context, feedback):
         alg_params = {
@@ -212,8 +217,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'vhm_150cm': parameters['vhm_150cm']
         }
         return processing.run('TBk:5 Calculate crown coverage', alg_params,
-                                                           context=context, feedback=feedback,
-                                                           is_child_algorithm=True)
+                              context=context, feedback=feedback,
+                              is_child_algorithm=True)
 
     def run_add_coniferous_proportion(self, parameters, outputs, context, feedback):
         alg_params = {
@@ -228,8 +233,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
         }
         return processing.run('TBk:6 Add coniferous proportion', alg_params,
-                                                            context=context, feedback=feedback,
-                                                            is_child_algorithm=True)
+                              context=context, feedback=feedback,
+                              is_child_algorithm=True)
 
     def run_calculate_attribute_struktur(self, parameters, outputs, context, feedback):
         alg_params = {
@@ -240,8 +245,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'result_dir': outputs['DelineateStand']['result_dir']
         }
         return processing.run('TBk:Calculate attribute "struktur"', alg_params,
-                                                               context=context, feedback=feedback,
-                                                               is_child_algorithm=True)
+                              context=context, feedback=feedback,
+                              is_child_algorithm=True)
 
     def createInstance(self):
         """

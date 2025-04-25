@@ -1,4 +1,4 @@
-#todo
+# todo
 import logging
 import os
 import processing
@@ -15,6 +15,7 @@ from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
 from tbk_qgis.tbk.tools.E_postproc_attributes.add_coniferous_proportion import add_coniferous_proportion
 from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 from tbk_qgis.tbk.general.tbk_utilities import copy_vector_file
+
 
 class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
     """
@@ -77,8 +78,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
             self.addParameter(
                 QgsProcessingParameterRasterLayer(self.DG_LAYER,
-                                                    "Upper layer(Oberschicht in german) crown coverage raster file",
-                                                    optional=True))
+                                                  "Upper layer(Oberschicht in german) crown coverage raster file",
+                                                  optional=True))
 
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
                                                          "Directory containing all TBk output folders and files. This "
@@ -132,14 +133,14 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         # --- Add coniferous proportion
         log.info('Add coniferous proportion')
         stands_dg_nh = add_coniferous_proportion(bk_dir,
-                                         tmp_output_folder,
-                                         stands_dg_copy,
-                                         params.coniferous_raster,
-                                         params.calc_mixture_for_main_layer,
-                                         params.result_dir,
-                                         del_tmp=params.del_tmp)
+                                                 tmp_output_folder,
+                                                 stands_dg_copy,
+                                                 params.coniferous_raster,
+                                                 params.calc_mixture_for_main_layer,
+                                                 params.result_dir,
+                                                 del_tmp=params.del_tmp)
 
-        return { self.OUTPUT_STANDS_WITH_CONIFEROUS: stands_dg_nh }
+        return {self.OUTPUT_STANDS_WITH_CONIFEROUS: stands_dg_nh}
 
     def createInstance(self):
         """
@@ -157,7 +158,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         """
         return '6 Add coniferous proportion'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.

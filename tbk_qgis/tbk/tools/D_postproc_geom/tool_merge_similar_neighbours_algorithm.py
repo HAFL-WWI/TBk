@@ -77,7 +77,8 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
             # Output
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED, "Merge Similar Neighbours Output (GeoPackage)",
+                QgsProcessingParameterFileDestination(self.OUTPUT_MERGED,
+                                                      "Merge Similar Neighbours Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
@@ -139,7 +140,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                            params.similar_neighbours_hdom_diff_rel)
 
         # todo: return as featuresink for QGIS to automatically load results
-        return {self.OUTPUT_MERGED: results["stands_merged"],}
+        return {self.OUTPUT_MERGED: results["stands_merged"], }
 
     def createInstance(self):
         """

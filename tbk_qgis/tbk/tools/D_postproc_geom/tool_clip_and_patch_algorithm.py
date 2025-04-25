@@ -88,7 +88,8 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
             # Add the parameter only if running as a standalone tool to avoid multiple outputs in modularized mode.
             self.addParameter(
-                QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED_NO_GAPS, "Clip and Eliminate Output (GeoPackage)",
+                QgsProcessingParameterFileDestination(self.OUTPUT_CLIPPED_NO_GAPS,
+                                                      "Clip and Eliminate Output (GeoPackage)",
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
@@ -131,12 +132,12 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         # ---  Clip
         log.info('Starting')
         # run clip function
-        clip_results = clip_to_perimeter(working_root, params.input_to_clip,params.tmp_stands_highest_tree,
-                                        tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+        clip_results = clip_to_perimeter(working_root, params.input_to_clip, params.tmp_stands_highest_tree,
+                                         tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
 
         # run gaps function
         gaps_results = eliminate_gaps(clip_results["stands_clipped"], params.stands_clipped_no_gaps, tmp_output_folder,
-                                    params.perimeter, del_tmp=params.del_tmp)
+                                      params.perimeter, del_tmp=params.del_tmp)
 
         return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"],
                 self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED: clip_results["stands_highest_tree"], }

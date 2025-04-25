@@ -36,8 +36,6 @@
  ***************************************************************************/
 """
 
-
-
 import processing
 from datetime import timedelta
 import time
@@ -231,11 +229,13 @@ def calculate_dg(working_root,
     # Delete temporary fields
     if del_tmp:
         delete_fields(stands_layer,
-                      ["dg_ks_max", "dg_us_min", "dg_ms_min", "dg_os_min", "dg_ueb_min", "dg_min", "dissolve",
-                       "dg_ks_mean", "dg_us_mean", "dg_ms_mean", "dg_os_mean", "dg_ueb_mean", "dg_mean",
-                       'dg_ks_count', 'dg_ks_sum', 'dg_us_count', 'dg_us_sum', 'dg_ms_count', 'dg_ms_sum', 'dg_os_count',
-                       'dg_os_sum', 'dg_ueb_count', 'dg_ueb_sum', 'dg_count', 'dg_sum',
-                       ])
+                      ["dg_ks_max", 'dg_ks_count', "dg_ks_mean", 'dg_ks_sum',
+                       "dg_us_min", "dg_us_mean", 'dg_us_count', 'dg_us_sum',
+                       "dg_ms_min", "dg_ms_mean", 'dg_ms_count', 'dg_ms_sum',
+                       "dg_os_min", "dg_os_mean", 'dg_os_count', 'dg_os_sum',
+                       "dg_ueb_min", "dg_ueb_mean", 'dg_ueb_count', 'dg_ueb_sum',
+                       "dg_min", "dg_mean", 'dg_count', 'dg_sum',
+                       "dissolve",])
 
     print("DONE!")
 

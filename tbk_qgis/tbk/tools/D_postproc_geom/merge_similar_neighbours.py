@@ -24,7 +24,6 @@
  ***************************************************************************/
 """
 
-
 import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 import pandas as pd
@@ -260,7 +259,9 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
 
         # drop attribute layer, path (added by native:mergevectorlayers) & and 'fid_input' (unique identifier of input
         # features / simplified stands) finally save layer
-        param = {'INPUT': stands_merged, 'COLUMN': ['layer', 'path', 'fid_input'], 'OUTPUT': output_file["stands_merged"]}
+        param = {'INPUT': stands_merged,
+                 'COLUMN': ['layer', 'path', 'fid_input'],
+                 'OUTPUT': output_file["stands_merged"]}
         processing.run("native:deletecolumn", param)
 
     else:  # no stands to merge
@@ -278,6 +279,5 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
 
     end_time = time.time()
     print("Actual merger of similar neighbours execution time: " + str(timedelta(seconds=(end_time - start_time))))
-
 
     return output_file

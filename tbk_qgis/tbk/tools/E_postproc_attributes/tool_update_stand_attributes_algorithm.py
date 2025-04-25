@@ -1,4 +1,4 @@
-#todo
+# todo
 import logging
 import os
 
@@ -64,7 +64,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         if is_standalone_context:
             # File that will be used as input layer for the attribute computations
             self.addParameter(QgsProcessingParameterFeatureSource(self.INPUT_FOR_COMPUTATION,
-                                                                "Input vector layer for the attribute computation",
+                                                                  "Input vector layer for the attribute computation",
                                                                   [QgsProcessing.TypeVectorPolygon]))
 
             # --- Add output definition, so that they can be used in model designer
@@ -111,9 +111,12 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calc specific attributes
         log.info("Calculating attribute 'struktur'")
-        stands_file_attributed = calc_attributes(bk_dir, params.input_for_computation, tmp_output_folder, del_tmp=params.del_tmp)
+        stands_file_attributed = calc_attributes(bk_dir,
+                                                 params.input_for_computation,
+                                                 tmp_output_folder,
+                                                 del_tmp=params.del_tmp)
 
-        return { self.OUTPUT_STANDS_WITH_STRUCTURE: stands_file_attributed }
+        return {self.OUTPUT_STANDS_WITH_STRUCTURE: stands_file_attributed}
 
     def createInstance(self):
         """
@@ -131,7 +134,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         """
         return 'Calculate attribute "struktur"'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.
