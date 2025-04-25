@@ -223,6 +223,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
             'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],
+            'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
         }
         return processing.run('TBk:6 Add coniferous proportion', alg_params,
                                                             context=context, feedback=feedback,

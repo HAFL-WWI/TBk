@@ -2,6 +2,7 @@
 import logging
 import os
 
+from qgis import processing
 from qgis.core import (QgsProcessing,
                        QgsProcessingParameterBoolean,
                        QgsProcessingParameterFeatureSource,
@@ -114,9 +115,16 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         # check tif files extension
         self._check_tif_extension(params.vhm_150cm, self.VHM_150CM)
 
+        stands_clipped_copy = processing.run("native:savefeatures",
+                                             {'INPUT': params.stands_clipped_no_gaps, 'OUTPUT': params.stands_dg},
+                                             context=context,
+                                             feedback=feedback,
+                                             is_child_algorithm=True
+                                             )['OUTPUT']
+
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, params.stands_clipped_no_gaps, params.stands_dg, tmp_output_folder, dg_dir, params.vhm_150cm,
+        results = calculate_dg(bk_dir, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
                                del_tmp=params.del_tmp)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],

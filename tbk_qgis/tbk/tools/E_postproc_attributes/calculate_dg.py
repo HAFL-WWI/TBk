@@ -46,7 +46,6 @@ from tbk_qgis.tbk.general.tbk_utilities import *
 
 
 def calculate_dg(working_root,
-                 stands_input,
                  stands_dg,
                  tmp_output_folder,
                  dg_dir,
@@ -58,8 +57,6 @@ def calculate_dg(working_root,
     # Create dg layer output directory
     if not os.path.exists(dg_dir):
         os.makedirs(dg_dir)
-
-    stands_dg = processing.run("native:savefeatures", {'INPUT': stands_input, 'OUTPUT': stands_dg})['OUTPUT']
 
     # DG file names
     dg_file_names = {

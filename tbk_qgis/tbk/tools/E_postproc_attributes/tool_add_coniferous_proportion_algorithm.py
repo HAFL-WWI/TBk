@@ -2,8 +2,10 @@
 import logging
 import os
 
-from qgis.core import (QgsProcessingOutputFile,
+from qgis.core import (QgsProcessing,
+                       QgsProcessingOutputFile,
                        QgsProcessingParameterBoolean,
+                       QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
@@ -34,6 +36,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
     # Input layer to process
     STANDS_DG = "stands_dg"
+    # Crown coverage input raster
+    DG_LAYER = "dg_layer"
     # Stands output with supplementary crown coverage fields
     OUTPUT_STANDS_WITH_CONIFEROUS = "stands_with_coniferous"
     # Additional parameters
@@ -68,6 +72,11 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
             self.addParameter(QgsProcessingParameterVectorLayer(self.STANDS_DG,
                                                                 "Clipped stands vector file, which will be used as input for calculating the proportion of coniferous trees in each polygon",
                                                                 ))
+
+            self.addParameter(
+                QgsProcessingParameterRasterLayer(self.DG_LAYER,
+                                                    "Upper layer(Oberschicht in german) crown coverage raster file",
+                                                    optional=True))
 
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
                                                          "Directory containing all TBk output folders and files. This "
