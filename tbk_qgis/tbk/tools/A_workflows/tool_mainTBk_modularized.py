@@ -121,6 +121,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # 6 Add coniferous proportion
+        parameters['stands_dg_nh'] = os.path.join(bk_dir, "stands_dg_nh.gpkg")
         outputs['AddConiferousProportion'] = self.run_add_coniferous_proportion(parameters, outputs, context, feedback)
 
         feedback.setCurrentStep(6)
@@ -223,6 +224,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
             'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],
+            'stands_dg_nh': parameters['stands_dg_nh'],
             'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
         }
         return processing.run('TBk:6 Add coniferous proportion', alg_params,
@@ -233,7 +235,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
-            'input_for_computation': outputs['AddConiferousProportion']['stands_with_coniferous'],
+            'input_for_computation': outputs['AddConiferousProportion']['stands_dg_nh'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir']
         }

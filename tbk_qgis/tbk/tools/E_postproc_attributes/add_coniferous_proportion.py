@@ -28,7 +28,7 @@
 import sys
 import os
 import shutil
-
+from typing import Dict
 from qgis import core
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QVariant
@@ -41,10 +41,10 @@ from tbk_qgis.tbk.general.tbk_utilities import *
 
 def add_coniferous_proportion(working_root,
                               tmp_output_folder,
-                              tbk_result_dir,
-                              clipped_stands_input,
+                              stands_dg_copy,
                               coniferous_raster,
                               calc_main_layer,
+                              tbk_result_dir,
                               del_tmp=True):
     print("--------------------------------------------")
     print("START coniferous proportion...")
@@ -56,22 +56,20 @@ def add_coniferous_proportion(working_root,
 
     print("calc mean coniferous proportion...")
 
+    zonal_statistics(coniferous_raster, stands_dg_copy, 'nh_', [2])
 
-    param ={'INPUT_RASTER':coniferous_raster,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
-    processing.run("qgis:zonalstatistics", param)
+    stands_layer_copy = QgsVectorLayer(stands_dg_copy, "stands", "ogr")
 
-    stands_layer = QgsVectorLayer(clipped_stands_input, "stands", "ogr")
-
-    with edit(stands_layer):
+    with edit(stands_layer_copy):
         # Add NH fields
-        provider = stands_layer.dataProvider()
+        provider = stands_layer_copy.dataProvider()
         provider.addAttributes([QgsField("NH", QVariant.Int)])
-        stands_layer.updateFields()
+        stands_layer_copy.updateFields()
 
         # Write NH attribute per stand
-        for f in stands_layer.getFeatures():
+        for f in stands_layer_copy.getFeatures():
             f["NH"] = f["nh_mean"]
-            stands_layer.updateFeature(f)
+            stands_layer_copy.updateFeature(f)
 
     # NH OS
     if calc_main_layer:
@@ -124,27 +122,20 @@ def add_coniferous_proportion(working_root,
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
-        param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_os_','STATS':[2]}
-        processing.run("qgis:zonalstatistics", param)
-        # todo: use the new zonalstatisticsfb instead, so that we can save the changes in a new file and algo would return this new file:
-        # processing.run("native:zonalstatisticsfb", {
-        #     'INPUT': "C:\\dev\\hafl\\TBk\\data\\tbk_test_output\\20250425-1343\\bk_process\\stands_clipped.gpkg",
-        #     'INPUT_RASTER': dg_layer_os_nh,
-        #     'RASTER_BAND': 1, 'COLUMN_PREFIX': 'nh_', 'STATISTICS': [0,1,2], 'OUTPUT': 'C:\\Users\\user\\Downloads\\Neuer Ordner (2)\\new\\new_output_2.gpkg'})
+        zonal_statistics(dg_layer_os_nh, stands_dg_copy, 'nh_os_', [2])
 
         # Calculate sum NH_OS pixels
-        param ={'INPUT_RASTER':dg_layer_os_10m_mask,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nhm_','STATS':[1]}
-        processing.run("qgis:zonalstatistics", param)
+        zonal_statistics(dg_layer_os_10m_mask, stands_dg_copy, 'nhm_', [1])
 
-        with edit(stands_layer):
+        with edit(stands_layer_copy):
             # Add NH fields
-            provider = stands_layer.dataProvider()
+            provider = stands_layer_copy.dataProvider()
             provider.addAttributes([QgsField("NH_OS", QVariant.Int),
                                     QgsField("NH_OS_PIX", QVariant.Int)])
-            stands_layer.updateFields()
+            stands_layer_copy.updateFields()
 
             # Write NH_OS attribute per stand
-            for f in stands_layer.getFeatures():
+            for f in stands_layer_copy.getFeatures():
                 # todo: It looks like NH_OS_PIX field is not necessary. we could do:
                 #  if f["NH_OS_PIX"] > 0:
                 #  f["NH_OS"] = f["nh_os_mean"]...
@@ -154,11 +145,11 @@ def add_coniferous_proportion(working_root,
                 else:
                     # set value to -1 if no NH_OS pixels
                     f["NH_OS"] = -1
-                stands_layer.updateFeature(f)
+                stands_layer_copy.updateFeature(f)
 
         # Delete tmp files and fields
         if del_tmp:
-            delete_fields(stands_layer, ['nh_count', "nh_mean", 'nh_sum',
+            delete_fields(stands_layer_copy, ['nh_count', "nh_mean", 'nh_sum',
                                          'nhm_count', 'nhm_mean', "nhm_sum",
                                          'nh_os_count', "nh_os_mean", 'nh_os_sum',
                                          'NH_OS_PIX'])
@@ -169,5 +160,15 @@ def add_coniferous_proportion(working_root,
             delete_raster(dg_layer_os_10m_mask)
 
     print("DONE!")
-    # todo: store results in a temp stands_dg_nh file
-    return clipped_stands_input
+    return stands_dg_copy
+
+def zonal_statistics(input_raster: str, input_vector: str, column_prefix: str, stats: list, rasterband=1) -> Dict:
+    """
+    For the statistics: 0=count, 1=sum, 2=mean
+    """
+    return processing.run("qgis:zonalstatistics", {
+        'INPUT_RASTER': input_raster,
+        'RASTER_BAND': rasterband,
+        'INPUT_VECTOR': input_vector,
+        'COLUMN_PREFIX': column_prefix,
+        'STATISTICS': stats})
