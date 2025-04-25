@@ -1,5 +1,5 @@
 # *************************************************************************** #
-# Add new field NH for coniferous proportion.
+# Add new field NH(german abreviation (Nadelholz) for coniferous) for coniferous proportion.
 #
 # WARNING: identical coordinate system needed!
 #
@@ -39,7 +39,13 @@ import processing
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, clipped_stands_input, coniferous_raster, calc_main_layer, del_tmp=True):
+def add_coniferous_proportion(working_root,
+                              tmp_output_folder,
+                              tbk_result_dir,
+                              clipped_stands_input,
+                              coniferous_raster,
+                              calc_main_layer,
+                              del_tmp=True):
     print("--------------------------------------------")
     print("START coniferous proportion...")
 
@@ -47,12 +53,11 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
     if coniferous_raster == 'null' or coniferous_raster == None:
         print("No coniferous raster found.")
         return
-    nh_raster = coniferous_raster
 
     print("calc mean coniferous proportion...")
 
 
-    param ={'INPUT_RASTER':nh_raster,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
+    param ={'INPUT_RASTER':coniferous_raster,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
     processing.run("qgis:zonalstatistics", param)
 
     stands_layer = QgsVectorLayer(clipped_stands_input, "stands", "ogr")
@@ -66,8 +71,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         # Write NH attribute per stand
         for f in stands_layer.getFeatures():
             f["NH"] = f["nh_mean"]
-            stands_layer.updateFeature(f)  
-    
+            stands_layer.updateFeature(f)
     if del_tmp:
         delete_fields(stands_layer, ["nh_mean", 'nh_count', 'nh_sum'])
     del stands_layer
@@ -76,11 +80,12 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
     if calc_main_layer:
         print("calc mean coniferous proportion for main layer...")
         # dg raster layer
+        # todo: take result from calculate crown coverage tool
         dg_layer_os = os.path.join(tbk_result_dir, r"dg_layers\dg_layer.tif")
 
         # minimum degree of cover to select valid 10 m NH pixels
         cover = 40
-
+        # todo: put at the begin
         # output raster file
         dg_layer_os_nh = os.path.join(working_root, "tmp", "nh_os.tif")
 
@@ -94,10 +99,10 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
         # Resample os layer to 1m to align with 10m raster
         param = {'INPUT':dg_layer_os,'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':1,'NODATA':None,'TARGET_RESOLUTION':1,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','DATA_TYPE':0,'TARGET_EXTENT':None,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,'EXTRA':'','OUTPUT':dg_layer_os_1m}
         algoOutput = processing.run("gdal:warpreproject", param)
-        
+
         # Aggregate os sum per 10m Sentinel-2 pixel
-        meta_data = get_raster_metadata(nh_raster)
-        extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0],meta_data["extent"][2],meta_data["extent"][1],meta_data["extent"][3],meta_data["epsg"]) 
+        meta_data = get_raster_metadata(coniferous_raster)
+        extent = "{0},{1},{2},{3} [EPSG:{4}]".format(meta_data["extent"][0],meta_data["extent"][2],meta_data["extent"][1],meta_data["extent"][3],meta_data["epsg"])
 
         param = {'input':dg_layer_os_1m,'method':8,'quantile':0.5,'-n':False,'-w':False,'output':dg_layer_os_10m_sum,
                  'GRASS_REGION_PARAMETER':extent,'GRASS_REGION_CELLSIZE_PARAMETER':10,'GRASS_RASTER_FORMAT_OPT':'','GRASS_RASTER_FORMAT_META':''}
@@ -115,15 +120,21 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
 
         # Extract pixels covered by OS
         formula = "A*B"
-        param = {'INPUT_A':nh_raster,'BAND_A':1,
+        param = {'INPUT_A':coniferous_raster,'BAND_A':1,
                  'INPUT_B':dg_layer_os_10m_mask,'BAND_B':1,
                  'INPUT_C':None,'BAND_C':-1,'INPUT_D':None,'BAND_D':-1,'INPUT_E':None,'BAND_E':-1,'INPUT_F':None,'BAND_F':-1,
                 'FORMULA':formula,'NO_DATA':None,'RTYPE':0,'OPTIONS':'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9','EXTRA':'','OUTPUT':dg_layer_os_nh}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
+        # todo: use nh_os prefix and del temp at the end
         param ={'INPUT_RASTER':dg_layer_os_nh,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nh_','STATS':[2]}
         processing.run("qgis:zonalstatistics", param)
+        # todo: use the new zonalstatisticsfb instead, so that we can save the changes in a new file and algo would return this new file:
+        # processing.run("native:zonalstatisticsfb", {
+        #     'INPUT': "C:\\dev\\hafl\\TBk\\data\\tbk_test_output\\20250425-1343\\bk_process\\stands_clipped.gpkg",
+        #     'INPUT_RASTER': dg_layer_os_nh,
+        #     'RASTER_BAND': 1, 'COLUMN_PREFIX': 'nh_', 'STATISTICS': [0,1,2], 'OUTPUT': 'C:\\Users\\user\\Downloads\\Neuer Ordner (2)\\new\\new_output_2.gpkg'})
 
         # Calculate sum NH_OS pixels
         param ={'INPUT_RASTER':dg_layer_os_10m_mask,'RASTER_BAND':1,'INPUT_VECTOR':clipped_stands_input,'COLUMN_PREFIX':'nhm_','STATS':[1]}
@@ -146,18 +157,17 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
                 else:
                     # set value to -1 if no NH_OS pixels
                     f["NH_OS"] = -1
-                stands_layer.updateFeature(f)  
+                stands_layer.updateFeature(f)
 
+        # Delete tmp files and fields
         if del_tmp:
             delete_fields(stands_layer, ["nh_mean", "nhm_sum", 'nh_count', 'nh_sum', 'nhm_count', 'nhm_mean', 'NH_OS_PIX'])
-
-        # Delete tmp files
-        if del_tmp:
+            # todo: rename as tmp
             delete_raster(dg_layer_os_1m)
             delete_raster(dg_layer_os_10m_sum)
             delete_raster(dg_layer_os_nh)
             delete_raster(dg_layer_os_10m_mask)
 
     print("DONE!")
-
+    # todo: store results in a temp stands_dg_nh file
     return clipped_stands_input
