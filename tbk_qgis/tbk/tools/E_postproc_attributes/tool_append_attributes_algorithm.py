@@ -155,41 +155,31 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
         log = logging.getLogger(self.name())
-
+        # todo: use params instead of parameterAsVectorLayer, etc.
         # get and check perimeter file
-        stands_file_cleaned = str(self.parameterAsVectorLayer(parameters, self.INPUT_TO_ATTRIBUTE, context).source())
+        stands_file_cleaned = params.input_to_attribute
 
-        # get and check join files/defaults
-        vegZoneDefault = self.parameterAsInt(parameters, self.VEGZONE_DEFAULT, context)
-        if self.parameterAsVectorLayer(parameters, self.VEGZONE_LAYER, context):
-            vegZoneLayer = str(self.parameterAsVectorLayer(parameters, self.VEGZONE_LAYER, context).source())
-        else:
-            vegZoneLayer = None
-        vegZoneLayerField = self.parameterAsString(parameters, self.VEGZONE_LAYER_FIELD, context)
-        if vegZoneLayer and not vegZoneLayerField:
+        # Check that the necessary files are provided
+        if params.vegZoneLayer and not params.vegZoneLayerField:
             raise QgsProcessingException("vegZoneLayer provided but no vegZoneLayerField for join")
-        forestSiteDefault = str(self.parameterAsString(parameters, self.FORESTSITE_DEFAULT, context))
-        if self.parameterAsVectorLayer(parameters, self.FORESTSITE_LAYER, context):
-            forestSiteLayer = str(self.parameterAsVectorLayer(parameters, self.FORESTSITE_LAYER, context).source())
-        else:
-            forestSiteLayer = None
-        forestSiteLayerField = self.parameterAsString(parameters, self.FORESTSITE_LAYER_FIELD, context)
-        if forestSiteLayer and not forestSiteLayerField:
+
+        if params.forestSiteLayer and not params.forestSiteLayerField:
             raise QgsProcessingException("forestSiteLayer provided but no forestSiteLayerField for join")
 
         # --- Append attributes from join layers
         log.info('Append attributes from join layers')
         # join VegZone if layer is provided
-        if vegZoneLayer:
+        if params.vegZoneLayer:
+            # todo: move this code to a helper function
             stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone1join.gpkg")
             param = {'layer_to_join_attribute_on': stands_file_cleaned,
-                     'attribute_layer': vegZoneLayer,
-                     'fields_to_join': [vegZoneLayerField], 'joined_attributes_prefix': 'VegZone_',
+                     'attribute_layer': params.vegZoneLayer,
+                     'fields_to_join': [params.vegZoneLayerField], 'joined_attributes_prefix': 'VegZone_',
                      'output_with_attribute': stands_file_join}
             processing.run("TBk:Optimized Spatial Join", param)
 
             # rename field to VegZone_Code (if vegZoneLayerField is anything other than "Code")
-            vegZone_output_fieldname = 'VegZone_' + vegZoneLayerField
+            vegZone_output_fieldname = 'VegZone_' + params.vegZoneLayerField
             if not (vegZone_output_fieldname == "VegZone_Code"):
                 stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone2Rename.gpkg")
                 processing.run("native:renametablefield", {
@@ -204,23 +194,25 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         # create field VegZone_Code (if not already existent through join) and fill (NULL values) with default
         stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone3.gpkg")
-        formula = f'if("VegZone_Code","VegZone_Code", {vegZoneDefault})'
+        formula = f'if("VegZone_Code","VegZone_Code", {params.vegZoneDefault})'
         processing.run("native:fieldcalculator", {
             'INPUT': stands_file_cleaned,
             'FIELD_NAME': 'VegZone_Code', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
             'FORMULA': formula, 'OUTPUT': stands_file_appended})
 
         # join if layer is provided
-        if forestSiteLayer:
+        # todo: put this if statement earlier so that we do not need to use stands_file_join = stands_file_rename???
+        if params.forestSiteLayer:
+            # todo: move this code to a helper function
             stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1join.gpkg")
             param = {'layer_to_join_attribute_on': stands_file_appended,
-                     'attribute_layer': forestSiteLayer,
-                     'fields_to_join': [forestSiteLayerField], 'joined_attributes_prefix': 'ForestSite_',
+                     'attribute_layer': params.forestSiteLayer,
+                     'fields_to_join': [params.forestSiteLayerField], 'joined_attributes_prefix': 'ForestSite_',
                      'output_with_attribute': stands_file_join}
             processing.run("TBk:Optimized Spatial Join", param)
 
             # rename field to ForestSite
-            forestSite_output_fieldname = 'ForestSite_' + forestSiteLayerField
+            forestSite_output_fieldname = 'ForestSite_' + params.forestSiteLayerField
             stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2Rename.gpkg")
             processing.run("native:renametablefield", {
                 'INPUT': stands_file_join,
@@ -230,15 +222,16 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
             # make output the input of nextstep
             stands_file_appended = stands_file_rename
 
-        if (forestSiteDefault is not None) and not (forestSiteDefault == ""):
+        if (params.forestSiteDefault is not None) and not (params.forestSiteDefault == ""):
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
             stands_file_forestSite = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
-            formula = f'if("ForestSite","ForestSite", \'{forestSiteDefault}\')'
+            formula = f'if("ForestSite","ForestSite", \'{params.forestSiteDefault}\')'
             processing.run("native:fieldcalculator", {
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
                 'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
-
+        # todo: stands_file_forestSite is not defined if params.forestSiteDefault == ""
+        # todo: return stands_dg_nh_vegZone
         return { self.OUTPUT_ATTRIBUTED: stands_file_forestSite }
 
     def createInstance(self):
