@@ -29,12 +29,9 @@
 
 from tbk_qgis.tbk.general.tbk_utilities import *
 
-def calc_attributes(working_root, shape_in, tmp_output_folder, del_tmp=True):
+def calc_attributes(working_root, shape_in, shape_out, del_tmp=True):
     print("--------------------------------------------")
     print("START CALC specific attributes")
-
-    # Filenames
-    shape_out = os.path.join(tmp_output_folder, "stands_attributed_tmp.gpkg")
 
     # Copy shapefile
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")

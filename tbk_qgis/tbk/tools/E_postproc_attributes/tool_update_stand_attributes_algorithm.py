@@ -34,7 +34,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
     # Input layer used for the attributes computation
     INPUT_FOR_COMPUTATION = "input_for_computation"
     # Stands output with updated fields
-    OUTPUT_STANDS_WITH_STRUCTURE = "stands_dg"
+    OUTPUT_STANDS_WITH_STRUCTURE = "stands_dg_nh"
     # Additional parameters
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
@@ -105,6 +105,9 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
         ensure_dir(tmp_output_folder)
 
+        # Define the file output path
+        shape_out = os.path.join(bk_dir, "stands_dg_nh.gpkg")
+
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
         log = logging.getLogger(self.name())
@@ -113,7 +116,7 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         log.info("Calculating attribute 'struktur'")
         stands_file_attributed = calc_attributes(bk_dir,
                                                  params.input_for_computation,
-                                                 tmp_output_folder,
+                                                 shape_out,
                                                  del_tmp=params.del_tmp)
 
         return {self.OUTPUT_STANDS_WITH_STRUCTURE: stands_file_attributed}
