@@ -124,6 +124,13 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # todo: add optional output destination field as for the other algs???
         intermediate_results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
 
+        main_results['dg_layer_main'] = outputs['CalculateCrownCoverage']['dg_layer_main']
+        main_results['dg_layer_ks'] = outputs['CalculateCrownCoverage']['dg_layer_ks']
+        main_results['dg_layer_us'] = outputs['CalculateCrownCoverage']['dg_layer_us']
+        main_results['dg_layer_ms'] = outputs['CalculateCrownCoverage']['dg_layer_ms']
+        main_results['dg_layer_os'] = outputs['CalculateCrownCoverage']['dg_layer_os']
+        main_results['dg_layer_ueb'] = outputs['CalculateCrownCoverage']['dg_layer_ueb']
+
         feedback.setCurrentStep(5)
         if feedback.isCanceled():
             return {}
