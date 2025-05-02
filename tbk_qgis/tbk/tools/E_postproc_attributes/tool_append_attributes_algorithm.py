@@ -155,9 +155,6 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         # Set the logger
         self._configure_logging(params.result_dir, params.logfile_name)
         log = logging.getLogger(self.name())
-        # todo: use params instead of parameterAsVectorLayer, etc.
-        # get and check perimeter file
-        stands_file_cleaned = params.input_to_attribute
 
         # Check that the necessary files are provided
         if params.vegZoneLayer and not params.vegZoneLayerField:
@@ -166,61 +163,41 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         if params.forestSiteLayer and not params.forestSiteLayerField:
             raise QgsProcessingException("forestSiteLayer provided but no forestSiteLayerField for join")
 
+        stands_file_join = params.input_to_attribute
+
         # --- Append attributes from join layers
         log.info('Append attributes from join layers')
         # join VegZone if layer is provided
         if params.vegZoneLayer:
-            # todo: move this code to a helper function
-            stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone1join.gpkg")
-            param = {'layer_to_join_attribute_on': stands_file_cleaned,
-                     'attribute_layer': params.vegZoneLayer,
-                     'fields_to_join': [params.vegZoneLayerField], 'joined_attributes_prefix': 'VegZone_',
-                     'output_with_attribute': stands_file_join}
-            processing.run("TBk:Optimized Spatial Join", param)
-
-            # rename field to VegZone_Code (if vegZoneLayerField is anything other than "Code")
-            vegZone_output_fieldname = 'VegZone_' + params.vegZoneLayerField
-            if not (vegZone_output_fieldname == "VegZone_Code"):
-                stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone2Rename.gpkg")
-                processing.run("native:renametablefield", {
-                    'INPUT': stands_file_join,
-                    'FIELD': vegZone_output_fieldname, 'NEW_NAME': 'VegZone_Code',
-                    'OUTPUT': stands_file_rename})
-                # make output the input of nextstep
-                stands_file_join = stands_file_rename
-
-            # make output the input of nextstep
-            stands_file_cleaned = stands_file_join
+            joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone1_joined.gpkg")
+            renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone2_renamed.gpkg")
+            stands_file_join = self.join_and_rename(joined_path,
+                                                    renamed_path,
+                                                    params.input_to_attribute,
+                                                    params.vegZoneLayer,
+                                                    params.vegZoneLayerField,
+                                                    'VegZone',
+                                                    'VegZone_Code')
 
         # create field VegZone_Code (if not already existent through join) and fill (NULL values) with default
-        stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_vegZone3.gpkg")
+        stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone3.gpkg")
         formula = f'if("VegZone_Code","VegZone_Code", {params.vegZoneDefault})'
         processing.run("native:fieldcalculator", {
-            'INPUT': stands_file_cleaned,
+            'INPUT': stands_file_join,
             'FIELD_NAME': 'VegZone_Code', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
             'FORMULA': formula, 'OUTPUT': stands_file_appended})
 
-        # join if layer is provided
-        # todo: put this if statement earlier so that we do not need to use stands_file_join = stands_file_rename???
+        # join forestSite if layer is provided
         if params.forestSiteLayer:
-            # todo: move this code to a helper function
-            stands_file_join = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1join.gpkg")
-            param = {'layer_to_join_attribute_on': stands_file_appended,
-                     'attribute_layer': params.forestSiteLayer,
-                     'fields_to_join': [params.forestSiteLayerField], 'joined_attributes_prefix': 'ForestSite_',
-                     'output_with_attribute': stands_file_join}
-            processing.run("TBk:Optimized Spatial Join", param)
-
-            # rename field to ForestSite
-            forestSite_output_fieldname = 'ForestSite_' + params.forestSiteLayerField
-            stands_file_rename = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2Rename.gpkg")
-            processing.run("native:renametablefield", {
-                'INPUT': stands_file_join,
-                'FIELD': forestSite_output_fieldname, 'NEW_NAME': 'ForestSite',
-                'OUTPUT': stands_file_rename})
-
-            # make output the input of nextstep
-            stands_file_appended = stands_file_rename
+            joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1_joined.gpkg")
+            renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2_renamed.gpkg")
+            stands_file_join = self.join_and_rename(joined_path,
+                                                    renamed_path,
+                                                    stands_file_appended,
+                                                    params.forestSiteLayer,
+                                                    params.forestSiteLayerField,
+                                                    'ForestSite',
+                                                    'ForestSite')
 
         if (params.forestSiteDefault is not None) and not (params.forestSiteDefault == ""):
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
@@ -230,9 +207,37 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
                 'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
-        # todo: stands_file_forestSite is not defined if params.forestSiteDefault == ""
-        # todo: return stands_dg_nh_vegZone
-        return { self.OUTPUT_ATTRIBUTED: stands_file_forestSite }
+            stands_file_join = stands_file_forestSite
+
+            # todo: return stands_dg_nh_vegZone
+        return {self.OUTPUT_ATTRIBUTED: stands_file_forestSite}
+
+    def join_and_rename(self,
+                        joined_path: str,
+                        renamed_path: str,
+                        input_layer: str,
+                        join_layer: str,
+                        join_field: str,
+                        prefix: str,
+                        renamed_field: str) -> str:
+
+        param = {'layer_to_join_attribute_on': input_layer,
+                 'attribute_layer': join_layer,
+                 'fields_to_join': [join_field], 'joined_attributes_prefix': f"{prefix}_",
+                 'output_with_attribute': joined_path}
+        processing.run("TBk:Optimized Spatial Join", param)
+
+        # If the field has already the correct name, it is not necessary to rename it
+        joined_field = f"{prefix}_{join_field}"
+        if joined_field == renamed_field:
+            return joined_path
+
+        processing.run("native:renametablefield", {
+            'INPUT': joined_path,
+            'FIELD': joined_field, 'NEW_NAME': renamed_field,
+            'OUTPUT': renamed_path})
+
+        return renamed_path
 
     def createInstance(self):
         """
