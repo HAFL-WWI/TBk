@@ -143,7 +143,15 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # Append stand attributes
         outputs['AppendStandAttributes'] = self.run_append_stand_attributes(parameters, outputs, context, feedback)
 
-        return {}
+        feedback.setCurrentStep(8)
+        if feedback.isCanceled():
+            return {}
+
+        # TBk postprocess Cleanup
+        outputs['TbkPostprocessCleanup'] = self.run_postprocess_cleanup(parameters, outputs, context, feedback)
+        results['Tbk_bestandeskarte'] = outputs['TbkPostprocessCleanup']['OUTPUT']
+
+        return results
 
     def run_delineate_stand(self, parameters, outputs, context, feedback):
         alg_params = {
@@ -270,6 +278,14 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'vegZoneLayerField': parameters['vegZoneLayerField'],
         }
         return processing.run('TBk:Append stand attributes', alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
+
+    def run_postprocess_cleanup(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'input_stand_map': outputs['AppendStandAttributes']['stands_dg_nh_vegZone'],
+            'output_stand_map_clean': parameters['output_stand_map_clean']
+        }
+        return processing.run('TBk:TBk postprocess Cleanup', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
 
     def createInstance(self):

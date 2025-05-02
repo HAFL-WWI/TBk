@@ -140,7 +140,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
             'NEW_NAME': 'ID',
             'OUTPUT': parameters['output_stand_map_clean']
         }
-        results['OUTPUT'] = processing.run('native:renametablefield', alg_params, context=context,
+        results = processing.run('native:renametablefield', alg_params, context=context,
                                                       feedback=feedback, is_child_algorithm=True)
 
         # outputs['RenameFieldId_1Id'] = results['OUTPUT']
