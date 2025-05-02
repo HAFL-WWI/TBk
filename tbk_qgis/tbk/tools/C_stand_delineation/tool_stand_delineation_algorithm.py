@@ -64,8 +64,12 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     OUTPUT_RESULT_DIR = "result_dir"
     # Main output layer
     OUTPUT_STAND_BOUNDARIES = "output_stand_boundaries"
-    # H max file output
+    # Other outputs
     OUTPUT_H_MAX = "output_h_max"
+    OUTPUT_CLASSIFIED_RAW = "classified_raw"
+    OUTPUT_CLASSIFIED_SMOOTH_1 = "classified_smooth_1"
+    OUTPUT_CLASSIFIED_SMOOTH_2 = "classified_smooth_2"
+
 
     # Short description
     DESCRIPTION = "description"
@@ -260,9 +264,12 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         log.info("Finished")
 
         results = {
+            self.OUTPUT_CLASSIFIED_RAW: results["raw_classified"],
+            self.OUTPUT_CLASSIFIED_SMOOTH_1: results["smooth_1"],
+            self.OUTPUT_CLASSIFIED_SMOOTH_2: results["smooth_2"],
+            self.OUTPUT_H_MAX: results["hmax"],
             self.OUTPUT_RESULT_DIR: result_dir,
             self.OUTPUT_STAND_BOUNDARIES: results["stand_boundaries"],
-            self.OUTPUT_H_MAX: results["hmax"],
         }
 
         return results

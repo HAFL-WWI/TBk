@@ -140,7 +140,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
                                       params.perimeter, del_tmp=params.del_tmp)
 
         return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"],
-                self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED: clip_results["stands_highest_tree"], }
+                self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED: clip_results["stands_highest_tree_clipped"], }
 
     def createInstance(self):
         """

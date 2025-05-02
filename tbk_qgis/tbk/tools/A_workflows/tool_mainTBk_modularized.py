@@ -68,7 +68,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
         feedback = QgsProcessingMultiStepFeedback(7, feedback)
-        results = {}
+        intermediate_results = {}
+        main_results = {}
         outputs = {}
 
         # set the stand map output directory
@@ -80,7 +81,10 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         parameters['output_stand_boundaries'] = os.path.join(bk_dir, "stand_boundaries.gpkg")
         outputs['DelineateStand'] = self.run_delineate_stand(parameters, outputs, context, feedback)
         # todo: add classified_raw etc. to result???
-        results['stand_boundaries'] = outputs['DelineateStand']['output_stand_boundaries']
+        intermediate_results['classified_raw'] = outputs['DelineateStand']['classified_raw']
+        intermediate_results['classified_smooth_1'] = outputs['DelineateStand']['classified_smooth_1']
+        intermediate_results['classified_smooth_2'] = outputs['DelineateStand']['classified_smooth_2']
+        intermediate_results['stand_boundaries'] = outputs['DelineateStand']['output_stand_boundaries']
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
@@ -89,7 +93,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # 2 Simplify and Clean
         parameters['stands_simplified'] = os.path.join(bk_dir, "stands_simplified.gpkg")
         outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
-        results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
+        intermediate_results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
@@ -98,7 +102,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # 3 Merge similar neighbours (FM)
         parameters['stands_merged'] = os.path.join(bk_dir, "stands_merged.gpkg")
         outputs['MergeSimilarNeighboursFm'] = self.run_merge_similar_neighbours(parameters, outputs, context, feedback)
-        results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
+        intermediate_results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
 
         feedback.setCurrentStep(3)
         if feedback.isCanceled():
@@ -107,8 +111,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # 4 Clip to perimeter and eliminate gaps
         parameters['stands_clipped_no_gaps'] = os.path.join(bk_dir, "stands_clipped.gpkg")
         outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
-        results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
-        results['stands_highest_tree'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree_clipped']
+        intermediate_results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
+        intermediate_results['stands_highest_tree_clipped'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree_clipped']
 
         feedback.setCurrentStep(4)
         if feedback.isCanceled():
@@ -118,7 +122,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         parameters['stands_dg'] = os.path.join(bk_dir, "stands_dg.gpkg")
         outputs['CalculateCrownCoverage'] = self.run_calculate_crown_coverage(parameters, outputs, context, feedback)
         # todo: add optional output destination field as for the other algs???
-        results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
+        intermediate_results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
 
         feedback.setCurrentStep(5)
         if feedback.isCanceled():
@@ -149,9 +153,9 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
 
         # TBk postprocess Cleanup
         outputs['TbkPostprocessCleanup'] = self.run_postprocess_cleanup(parameters, outputs, context, feedback)
-        results['Tbk_bestandeskarte'] = outputs['TbkPostprocessCleanup']['OUTPUT']
+        main_results['Tbk_bestandeskarte'] = outputs['TbkPostprocessCleanup']['OUTPUT']
 
-        return results
+        return { 'intermediate_results': intermediate_results, 'main_results': main_results }
 
     def run_delineate_stand(self, parameters, outputs, context, feedback):
         alg_params = {
