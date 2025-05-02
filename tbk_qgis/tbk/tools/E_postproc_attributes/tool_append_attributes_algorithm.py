@@ -13,7 +13,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFileDestination,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterString)
-from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
+from tbk_qgis.tbk.general.tbk_utilities import ensure_dir, copy_vector_file
 from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
 
 
@@ -36,7 +36,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
     LOGFILE_NAME = "logfile_name"
 
     INPUT_TO_ATTRIBUTE = "input_to_attribute"
-    OUTPUT_ATTRIBUTED = "output_attributed"
+    OUTPUT_ATTRIBUTED = "stands_dg_nh_vegZone"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -147,8 +147,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         # Handle the working root and temp output folders
         # todo: do the same for the other algorithms:
         bk_dir = self._get_bk_output_dir(params.result_dir)
-        # todo: use this instead of tbk_result_dir in calculate_dg()
-        dg_dir = self._get_dg_output_dir(params.result_dir)
+
         tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
         ensure_dir(tmp_output_folder)
 
@@ -199,18 +198,20 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                     'ForestSite',
                                                     'ForestSite')
 
-        if (params.forestSiteDefault is not None) and not (params.forestSiteDefault == ""):
+        if (params.forestSiteDefault is not None) and params.forestSiteDefault != "":
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
-            stands_file_forestSite = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
+            stands_file_forest_site = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
             formula = f'if("ForestSite","ForestSite", \'{params.forestSiteDefault}\')'
             processing.run("native:fieldcalculator", {
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
-                'FORMULA': formula, 'OUTPUT': stands_file_forestSite})
-            stands_file_join = stands_file_forestSite
+                'FORMULA': formula, 'OUTPUT': stands_file_forest_site})
+            stands_file_join = stands_file_forest_site
 
-            # todo: return stands_dg_nh_vegZone
-        return {self.OUTPUT_ATTRIBUTED: stands_file_forestSite}
+        output_path = os.path.join(bk_dir, "stands_dg_nh_vegZone.gpkg")
+        copy_vector_file(stands_file_join, output_path, context, feedback)
+
+        return {self.OUTPUT_ATTRIBUTED: output_path}
 
     def join_and_rename(self,
                         joined_path: str,
