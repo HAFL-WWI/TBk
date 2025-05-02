@@ -136,6 +136,13 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         outputs['CalculateAttributeStruktur'] = self.run_calculate_attribute_struktur(parameters, outputs, context,
                                                                                       feedback)
 
+        feedback.setCurrentStep(7)
+        if feedback.isCanceled():
+            return {}
+
+        # Append stand attributes
+        outputs['AppendStandAttributes'] = self.run_append_stand_attributes(parameters, outputs, context, feedback)
+
         return {}
 
     def run_delineate_stand(self, parameters, outputs, context, feedback):
@@ -247,6 +254,23 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         return processing.run('TBk:Calculate attribute "struktur"', alg_params,
                               context=context, feedback=feedback,
                               is_child_algorithm=True)
+
+    def run_append_stand_attributes(self, parameters, outputs, context, feedback):
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'forestSiteDefault': parameters['forestSiteDefault'],
+            'forestSiteLayer': parameters['forestSiteLayer'],
+            'forestSiteLayerField': parameters['forestSiteLayerField'],
+            'input_to_attribute': outputs['CalculateAttributeStruktur']['stands_dg_nh'],
+            'logfile_name': parameters['logfile_name'],
+            'result_dir': outputs['DelineateStand']['result_dir'],
+            'vegZoneDefault': parameters['vegZoneDefault'],
+            'vegZoneLayer': parameters['vegZoneLayer'],
+            'vegZoneLayerField': parameters['vegZoneLayerField'],
+        }
+        return processing.run('TBk:Append stand attributes', alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
 
     def createInstance(self):
         """
