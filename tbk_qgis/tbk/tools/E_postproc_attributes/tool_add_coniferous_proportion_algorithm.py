@@ -79,7 +79,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
             self.addParameter(
                 QgsProcessingParameterRasterLayer(self.DG_LAYER,
                                                   "Upper layer(Oberschicht in german) crown coverage raster file",
-                                                  optional=True))
+                                                  ))
 
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
                                                          "Directory containing all TBk output folders and files. This "
@@ -134,6 +134,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         log.info('Add coniferous proportion')
         stands_dg_nh = add_coniferous_proportion(bk_dir,
                                                  tmp_output_folder,
+                                                 params.dg_layer,
                                                  stands_dg_copy,
                                                  params.coniferous_raster,
                                                  params.calc_mixture_for_main_layer,

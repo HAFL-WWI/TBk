@@ -252,6 +252,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'config_file': parameters['config_file'],
             'coniferous_raster': parameters['coniferous_raster'],
             'del_tmp': parameters['del_tmp'],
+            'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': outputs['DelineateStand']['result_dir'],
             'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],

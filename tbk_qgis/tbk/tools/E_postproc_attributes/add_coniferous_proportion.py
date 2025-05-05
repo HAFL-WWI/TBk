@@ -41,6 +41,7 @@ from tbk_qgis.tbk.general.tbk_utilities import *
 
 def add_coniferous_proportion(working_root,
                               tmp_output_folder,
+                              dg_layer,
                               stands_dg_copy,
                               coniferous_raster,
                               calc_main_layer,
@@ -75,27 +76,27 @@ def add_coniferous_proportion(working_root,
     if calc_main_layer:
         print("calc mean coniferous proportion for main layer...")
         # dg raster layer
-        # todo: take result from calculate crown coverage tool
-        dg_layer_os = os.path.join(tbk_result_dir, r"dg_layers\dg_layer.tif")
+        # todo: variable name refers to the upper layer(os) file but the main layer file is used since at least 2023. Not sure if wanted
+        dg_layer_os = dg_layer
 
         # minimum degree of cover to select valid 10 m NH pixels
         cover = 40
-        # todo: put at the begin
         # output raster file
-        dg_layer_os_nh = os.path.join(working_root, "tmp", "nh_os.tif")
+        tmp_files_names = {
+            "dg_layer_os_nh": "nh_os.tif",
+            "dg_layer_os_1m": "dg_layer_os_1m.tif",
+            "dg_layer_os_10m_sum": "dg_layer_os_10m_sum.tif",
+            "dg_layer_os_10m_mask": "dg_layer_os_10m_mask.tif",
+        }
 
-        # Output files tmp
-        dg_layer_os_1m = os.path.join(tmp_output_folder, "dg_layer_os_1m.tif")
-        dg_layer_os_10m_sum = os.path.join(tmp_output_folder, "dg_layer_os_10m_sum.tif")
-        dg_layer_os_10m_mask = os.path.join(tmp_output_folder, "dg_layer_os_10m_mask.tif")
-        nh_mean_table = os.path.join(tmp_output_folder, "nh_mean_table")
-        nh_sum_table = os.path.join(tmp_output_folder, "nh_sum_table")
+        # Dictionary containing the path to temp files
+        tmp_files = {key: os.path.join(tmp_output_folder, filename) for key, filename in tmp_files_names.items()}
 
         # Resample os layer to 1m to align with 10m raster
         param = {'INPUT': dg_layer_os, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 1, 'NODATA': None,
                  'TARGET_RESOLUTION': 1, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
-                 'OUTPUT': dg_layer_os_1m}
+                 'OUTPUT': tmp_files["dg_layer_os_1m"]}
         algoOutput = processing.run("gdal:warpreproject", param)
 
         # Aggregate os sum per 10m Sentinel-2 pixel
@@ -106,20 +107,20 @@ def add_coniferous_proportion(working_root,
                                                      meta_data["extent"][3],
                                                      meta_data["epsg"])
 
-        param = {'input': dg_layer_os_1m, 'method': 8, 'quantile': 0.5, '-n': False, '-w': False,
-                 'output': dg_layer_os_10m_sum,
+        param = {'input': tmp_files["dg_layer_os_1m"], 'method': 8, 'quantile': 0.5, '-n': False, '-w': False,
+                 'output': tmp_files["dg_layer_os_10m_sum"],
                  'GRASS_REGION_PARAMETER': extent, 'GRASS_REGION_CELLSIZE_PARAMETER': 10, 'GRASS_RASTER_FORMAT_OPT': '',
                  'GRASS_RASTER_FORMAT_META': ''}
         algoOutput = processing.run("grass7:r.resamp.stats", param)
 
         meta_data = get_raster_metadata(dg_layer_os)
-        param = {'INPUT': dg_layer_os_10m_sum,
+        param = {'INPUT': tmp_files["dg_layer_os_10m_sum"],
                  'CRS': QgsCoordinateReferenceSystem('EPSG:{0}'.format(meta_data["epsg"]))}
         processing.run("gdal:assignprojection", param)
 
         # Reclassify
         condition_string = "(A > {0})*1".format(str(cover))
-        param = {'INPUT_A': dg_layer_os_10m_sum, 'BAND_A': 1,
+        param = {'INPUT_A': tmp_files["dg_layer_os_10m_sum"], 'BAND_A': 1,
                  'INPUT_B': None, 'BAND_B': -1,
                  'INPUT_C': None, 'BAND_C': -1,
                  'INPUT_D': None, 'BAND_D': -1,
@@ -127,27 +128,27 @@ def add_coniferous_proportion(working_root,
                  'INPUT_F': None, 'BAND_F': -1,
                  'FORMULA': condition_string, 'NO_DATA': None, 'RTYPE': 0,
                  'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
-                 'OUTPUT': dg_layer_os_10m_mask}
+                 'OUTPUT': tmp_files["dg_layer_os_10m_mask"]}
         processing.run("gdal:rastercalculator", param)
 
         # Extract pixels covered by OS
         formula = "A*B"
         param = {'INPUT_A': coniferous_raster, 'BAND_A': 1,
-                 'INPUT_B': dg_layer_os_10m_mask, 'BAND_B': 1,
+                 'INPUT_B': tmp_files["dg_layer_os_10m_mask"], 'BAND_B': 1,
                  'INPUT_C': None, 'BAND_C': -1,
                  'INPUT_D': None, 'BAND_D': -1,
                  'INPUT_E': None, 'BAND_E': -1,
                  'INPUT_F': None, 'BAND_F': -1,
                  'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
                  'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
-                 'OUTPUT': dg_layer_os_nh}
+                 'OUTPUT': tmp_files["dg_layer_os_nh"]}
         processing.run("gdal:rastercalculator", param)
 
         # Calculate mean NH_OS
-        zonal_statistics(dg_layer_os_nh, stands_dg_copy, 'nh_os_', [2])
+        zonal_statistics(tmp_files["dg_layer_os_nh"], stands_dg_copy, 'nh_os_', [2])
 
         # Calculate sum NH_OS pixels
-        zonal_statistics(dg_layer_os_10m_mask, stands_dg_copy, 'nhm_', [1])
+        zonal_statistics(tmp_files["dg_layer_os_10m_mask"], stands_dg_copy, 'nhm_', [1])
 
         with edit(stands_layer_copy):
             # Add NH fields
@@ -175,11 +176,11 @@ def add_coniferous_proportion(working_root,
                                               'nhm_count', 'nhm_mean', "nhm_sum",
                                               'nh_os_count', "nh_os_mean", 'nh_os_sum',
                                               'NH_OS_PIX'])
-            # todo: rename as tmp
-            delete_raster(dg_layer_os_1m)
-            delete_raster(dg_layer_os_10m_sum)
-            delete_raster(dg_layer_os_nh)
-            delete_raster(dg_layer_os_10m_mask)
+
+            delete_raster(tmp_files["dg_layer_os_1m"])
+            delete_raster(tmp_files["dg_layer_os_10m_sum"])
+            delete_raster(tmp_files["dg_layer_os_nh"])
+            delete_raster(tmp_files["dg_layer_os_10m_mask"])
 
     print("DONE!")
     return stands_dg_copy
