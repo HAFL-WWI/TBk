@@ -29,7 +29,9 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         TBkClipToPerimeterAndEliminateGapsAlgorithm(),
         TBkCalculateCrownCoverageAlgorithm(),
         TBkAddConiferousProportionAlgorithm(),
-        TBkUpdateStandAttributesAlgorithm()
+        TBkUpdateStandAttributesAlgorithm(),
+        TBkAppendStandAttributesAlgorithm(),
+        TBkPostprocessCleanup(),
     ]
 
     def initAlgorithm(self, config=None):
