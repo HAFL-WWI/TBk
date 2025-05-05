@@ -100,7 +100,6 @@ def post_process(shape_in,
     ctc = QgsProject.instance().transformContext()
     QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['reduced'], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
-    # QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'],tmp_reduced_path,"utf-8",stand_boundaries_layer.sourceCrs(),"GPKG")
 
     ########################################
     # --- Simplify

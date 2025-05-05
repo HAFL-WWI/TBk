@@ -79,10 +79,8 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         bk_dir = self._get_bk_output_dir(result_dir)
 
         # 1 Delineate Stand
-        # todo: del_temp parameter is missing
         parameters['output_stand_boundaries'] = os.path.join(bk_dir, "stand_boundaries.gpkg")
         outputs['DelineateStand'] = self.run_delineate_stand(parameters, outputs, context, feedback)
-        # todo: add classified_raw etc. to result???
         intermediate_results['classified_raw'] = outputs['DelineateStand']['classified_raw']
         intermediate_results['classified_smooth_1'] = outputs['DelineateStand']['classified_smooth_1']
         intermediate_results['classified_smooth_2'] = outputs['DelineateStand']['classified_smooth_2']
@@ -123,7 +121,6 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # 5 Calculate crown coverage
         parameters['stands_dg'] = os.path.join(bk_dir, "stands_dg.gpkg")
         outputs['CalculateCrownCoverage'] = self.run_calculate_crown_coverage(parameters, outputs, context, feedback)
-        # todo: add optional output destination field as for the other algs???
         intermediate_results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
 
         main_results['dg_layer_main'] = outputs['CalculateCrownCoverage']['dg_layer_main']

@@ -135,8 +135,6 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                     optional=True))
 
             # --- Add output definition, so that they can be used in model designer
-            # todo: add output for the other file outputs
-
             self.addOutput(QgsProcessingOutputFile(self.OUTPUT_RESULT_DIR,
                                                    "Result output folder (folder with timestamp)"))
 
