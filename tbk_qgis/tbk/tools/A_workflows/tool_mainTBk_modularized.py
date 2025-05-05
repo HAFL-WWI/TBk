@@ -14,6 +14,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_alg
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import \
     TBkUpdateStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 
 
@@ -30,7 +31,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         TBkCalculateCrownCoverageAlgorithm(),
         TBkAddConiferousProportionAlgorithm(),
         TBkUpdateStandAttributesAlgorithm(),
-        TBkAppendStandAttributesAlgorithm(),
+        TBkUpdateStandAttributesAlgorithm(),
         TBkPostprocessCleanup(),
     ]
 
