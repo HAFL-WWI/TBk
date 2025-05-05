@@ -47,8 +47,14 @@ from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TB
 class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
 
     def initAlgorithm(self, config=None):
-        self.addParameter(
-            QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
+        # --- Handle config argument
+        # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
+        is_standalone_context = config.get('is_standalone_context') if config else True
+
+        # Not needed in a modular context; can use the previous algorithm's output directly
+        if is_standalone_context:
+            self.addParameter(
+                QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
 
         self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
                                                             type=QgsProcessing.TypeVectorAnyGeometry,
@@ -140,7 +146,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
             'NEW_NAME': 'ID',
             'OUTPUT': parameters['output_stand_map_clean']
         }
-        results['OUTPUT'] = processing.run('native:renametablefield', alg_params, context=context,
+        results = processing.run('native:renametablefield', alg_params, context=context,
                                                       feedback=feedback, is_child_algorithm=True)
 
         # outputs['RenameFieldId_1Id'] = results['OUTPUT']

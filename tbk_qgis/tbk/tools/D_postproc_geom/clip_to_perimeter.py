@@ -23,40 +23,47 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
-
-
+import os
 import processing
+from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, edit
+from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopackage, getVectorSaveOptions, delete_fields
 
-from tbk_qgis.tbk.general.tbk_utilities import *
 
-
-def clip_to_perimeter(working_root, stands_to_clip_path, stands_clipped_path, tmp_output_folder, perimeter,
+def clip_to_perimeter(working_root,
+                      input_to_clip_path,
+                      tmp_stands_highest_tree,
+                      tmp_output_folder,
+                      perimeter,
                       del_tmp=True):
     print("--------------------------------------------")
     print("START Clip to perimeter...")
 
-    # stands_merged_path = os.path.join(working_root,"stands_merged.gpkg")
-    # stands_clip_path = os.path.join(tmp_output_folder,"stands_clip_tmp.gpkg")
-
-    # Clip to forest mask
-    param = {'INPUT': stands_to_clip_path, 'OVERLAY': perimeter, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algOutput = processing.run("native:clip", param)
-
-    # Convert multipart to singlepart
-    algOutput = processing.run("native:multiparttosingleparts",
-                               {'INPUT': algOutput['OUTPUT'], 'OUTPUT': stands_clipped_path})
+    # Clip stand and convert to singlepart
+    tmp_stands_clipped_path = os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg")
+    clipped = clip_vector_layer(input_to_clip_path, perimeter)
+    processing.run("native:multiparttosingleparts", {
+        'INPUT': clipped,
+        'OUTPUT': tmp_stands_clipped_path
+    })
 
     # Clip highest trees
-    highest_point_path = os.path.join(tmp_output_folder, "stands_highest_tree_tmp.gpkg")
-    highest_point_clip_path = os.path.join(working_root, "stands_highest_tree.gpkg")
-    param = {'INPUT': highest_point_path, 'OVERLAY': perimeter, 'OUTPUT': highest_point_clip_path}
-    algoOutput = processing.run("native:clip", param)
+    highest_point_clip_path = os.path.join(working_root, "stands_highest_tree_clipped.gpkg")
+    clip_vector_layer(tmp_stands_highest_tree, perimeter, highest_point_clip_path)
 
     if del_tmp:
-        delete_shapefile(highest_point_path)
-        delete_geopackage(highest_point_path)
+        delete_geopackage(tmp_stands_highest_tree)
 
-    return stands_clipped_path
+    return {"stands_clipped": tmp_stands_clipped_path,
+            "stands_highest_tree_clipped": highest_point_clip_path, }
+
+
+def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT') -> QgsVectorLayer | str:
+    result = processing.run("native:clip", {
+        'INPUT': input,
+        'OVERLAY': overlay,
+        'OUTPUT': output
+    })
+    return result['OUTPUT']
 
 
 def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
@@ -77,27 +84,22 @@ def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter,
     return vhm_clipped_path
 
 
-def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_folder, perimeter, del_tmp=True):
-    '''
+def eliminate_gaps(in_shape_path,
+                   output_shape_path,
+                   tmp_output_folder,
+                   perimeter_shape,
+                   del_tmp=True):
+    """
     Align tbk shapefile to perimeter (for example Waldmaske AV).
     Idea: If small gaps remain between a defined perimeter and the
     stands shapefile. They need to be merged with the neighboring stand to
     exactly match the perimeter and therefore remove small gap
-    '''
+    """
 
     print("--------------------------------------------")
     print("START Eliminate gaps...")
 
-    # TBk folder path
-    workspace = working_root
-    scratchWorkspace = working_root
-
-    # Perimeter
-    perimeter_shape = perimeter
-
     # File names
-    # in_shape_path = os.path.join(tmp_output_folder,"stands_clip_tmp.gpkg")
-    # output_shape_path = os.path.join(working_root,"stands_clipped.gpkg")
     gaps_tmp_path = os.path.join(tmp_output_folder, "gaps_tmp.gpkg")
     gaps_single_tmp_path = os.path.join(tmp_output_folder, "gaps_single_tmp.gpkg")
     union_tmp_path = os.path.join(tmp_output_folder, "stands_gaps_union_tmp.gpkg")
@@ -107,13 +109,13 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
     # Find gaps
     print("finding gaps...")
     param = {'INPUT': perimeter_shape, 'OVERLAY': in_shape_path, 'OUTPUT': gaps_tmp_path}
-    algoOutput = processing.run("native:difference", param)
+    processing.run("native:difference", param)
 
     ########################################
     # Transform gaps to single part
     print("transform gaps to single part")
     param = {'INPUT': gaps_tmp_path, 'OUTPUT': gaps_single_tmp_path}
-    algoOutput = processing.run("native:multiparttosingleparts", param)
+    processing.run("native:multiparttosingleparts", param)
 
     ########################################
     # Union with stand layer
@@ -122,12 +124,12 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 1)
     param = {'INPUT': in_shape_path, 'OVERLAY': gaps_single_tmp_path, 'OVERLAY_FIELDS_PREFIX': '',
              'OUTPUT': union_tmp_path}
-    algoOutput = processing.run("native:union", param)
+    processing.run("native:union", param)
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 2)
 
     params = {'INPUT': union_tmp_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
               'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': union_tmp_buf_path}
-    algoOutput = processing.run("native:buffer", params)
+    processing.run("native:buffer", params)
 
     ########################################
     # Eliminate gaps
@@ -139,10 +141,10 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
 
     # TODO Does not persist results when writing directly to file
     param = {'INPUT': union_layer, 'MODE': 2, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algoOutput = processing.run("qgis:eliminateselectedpolygons", param)
+    algo_output = processing.run("qgis:eliminateselectedpolygons", param)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(algoOutput['OUTPUT'], output_shape_path, ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], output_shape_path, ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
@@ -157,7 +159,7 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
     out_layer = QgsVectorLayer(output_shape_path, "union_tmp", "ogr")
     prov = out_layer.dataProvider()
     for field in prov.fields():
-        if not field.name() in fields_to_keep:
+        if field.name() not in fields_to_keep:
             fields_to_delete.append(field.name())
 
     out_layer.selectByExpression(expression)
@@ -178,4 +180,4 @@ def eliminate_gaps(working_root, in_shape_path, output_shape_path, tmp_output_fo
         delete_shapefile(union_tmp_path)
         delete_shapefile(in_shape_path)
 
-    return output_shape_path
+    return {"stands_clipped_no_gaps": output_shape_path, }

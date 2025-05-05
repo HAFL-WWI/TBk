@@ -23,11 +23,14 @@ import time
 import numpy as np
 from osgeo import gdal, osr
 from osgeo.gdalconst import GA_ReadOnly
-from qgis._core import QgsProcessingParameterFileDestination
-from qgis.core import (QgsProcessingParameterFile,
+from qgis.core import (QgsProcessingOutputFile,
+                       QgsProcessingParameterBoolean,
+                       QgsProcessingParameterFile,
+                       QgsProcessingParameterFileDestination,
                        QgsProcessingParameterFolderDestination,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString,
+                       QgsProcessingUtils,
                        QgsProcessingParameterNumber)
 from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -57,8 +60,16 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     # Coniferous raster to be used during stand delineation
     CONIFEROUS_RASTER_FOR_CLASSIFICATION = "coniferous_raster_for_classification"
 
+    # Result directory output (folder with timestamp)
+    OUTPUT_RESULT_DIR = "result_dir"
     # Main output layer
     OUTPUT_STAND_BOUNDARIES = "output_stand_boundaries"
+    # Other outputs
+    OUTPUT_H_MAX = "output_h_max"
+    OUTPUT_CLASSIFIED_RAW = "classified_raw"
+    OUTPUT_CLASSIFIED_SMOOTH_1 = "classified_smooth_1"
+    OUTPUT_CLASSIFIED_SMOOTH_2 = "classified_smooth_2"
+
 
     # Short description
     DESCRIPTION = "description"
@@ -80,11 +91,17 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
     VHM_MIN_HEIGHT = "vhm_min_height"
     # VHM maximum height
     VHM_MAX_HEIGHT = "vhm_max_height"
+    # Delete temporary files and fields
+    DEL_TMP = "del_tmp"
 
     def initAlgorithm(self, config=None):
         """
         Here we define the inputs and outputs of the algorithm.
         """
+        # --- Handle config argument
+        # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
+        is_standalone_context = config.get('is_standalone_context') if config else True
+
         # --- Parameters
 
         # Config file containing all parameter key-value pairs
@@ -109,11 +126,25 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                   "Output folder (a subfolder with timestamp will be "
                                                                   "created within)"))
 
-        # Main output (stand boundaries) for algorithm output
-        self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
-                                                                "Output Stand Boundaries",
-                                                                "GPKG files (*.gpkg)",
-                                                                optional=True))
+        # Not needed in a modular context; can use the previous algorithm's output directly
+        if is_standalone_context:
+            # Main output (stand boundaries) for algorithm output
+            self.addParameter(QgsProcessingParameterFileDestination(self.OUTPUT_STAND_BOUNDARIES,
+                                                                    "Stand Boundaries Output (GeoPackage)",
+                                                                    "GPKG files (*.gpkg)",
+                                                                    optional=True))
+
+            # --- Add output definition, so that they can be used in model designer
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_RESULT_DIR,
+                                                   "Result output folder (folder with timestamp)"))
+
+            # Stand boundaries output
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_STAND_BOUNDARIES,
+                                                   "Stand Boundaries Output file"))
+
+            # H max output
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_H_MAX,
+                                                   "H max Output file"))
 
         # --- Advanced Parameters
 
@@ -165,6 +196,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=60)
         self._add_advanced_parameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields", defaultValue=True)
+        self._add_advanced_parameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -176,11 +210,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         params = self._extract_context_params(parameters, context)
 
-        # Handle the working root and temp output folders
-        output_root = params.output_root
-        # the result folder(with time stamp) can be passed as parameter from the modularized main algorithm but can
-        #  not be extracted from the context as for the other parameters
-        result_dir = self._get_result_dir(output_root) if "result_dir" not in parameters else parameters["result_dir"]
+        # Handle the outputs directories
+        result_dir = self._get_result_dir(params.output_root)
         bk_dir = self._get_bk_output_dir(result_dir)
         ensure_dir(bk_dir)
 
@@ -202,10 +233,11 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # ------- TBk Processing --------#
         # --- Stand delineation (Main)
-        log.info(f'Starting')
+        log.info('Starting')
 
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
+            'del_tmp': params.del_tmp,
             'out_path': bk_dir,
             'input_vhm_raster': params.vhm_10m,
             'coniferous_raster_file': params.coniferous_raster_for_classification,
@@ -218,16 +250,25 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             'min_cells_per_stand': params.min_cells_per_stand,
             'min_cells_per_pure_stand': params.min_cells_per_pure_stand,
             'vhm_min_height': params.vhm_min_height,
-            'vhm_max_height': params.vhm_max_height
+            'vhm_max_height': params.vhm_max_height,
+            'output_stand_boundaries': params.output_stand_boundaries,
         }
 
         log.debug(f"used parameters: {params_args}")
 
-        # todo: take OUTPUT_STAND_BOUNDARIES as an input param
         results = self.run_stand_delineation(**params_args)
 
         log.debug(f"Results: {results}")
-        log.info(f"Finished")
+        log.info("Finished")
+
+        results = {
+            self.OUTPUT_CLASSIFIED_RAW: results["raw_classified"],
+            self.OUTPUT_CLASSIFIED_SMOOTH_1: results["smooth_1"],
+            self.OUTPUT_CLASSIFIED_SMOOTH_2: results["smooth_2"],
+            self.OUTPUT_H_MAX: results["hmax"],
+            self.OUTPUT_RESULT_DIR: result_dir,
+            self.OUTPUT_STAND_BOUNDARIES: results["stand_boundaries"],
+        }
 
         return results
 
@@ -255,7 +296,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                 'usually a 10x10m max height raster from LiDAR or stereo image matching data.')
 
     def run_stand_delineation(self,
+                              del_tmp,
                               out_path,
+                              output_stand_boundaries,
                               input_vhm_raster,
                               coniferous_raster_file,
                               zone_raster,
@@ -299,8 +342,19 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             "smooth_1": os.path.join(out_path, "classified_smooth_1.tif"),
             "smooth_2": os.path.join(out_path, "classified_smooth_2.tif"),
             "hmax": os.path.join(out_path, "hmax.tif"),
-            "hdom": os.path.join(out_path, "hdom.tif"),
-            "stand_boundaries": os.path.join(out_path, "stand_boundaries.gpkg")
+            "stand_boundaries": output_stand_boundaries
+        }
+
+        # Define temporary output file paths
+        temp_file_folder = QgsProcessingUtils.tempFolder() if del_tmp else out_path
+        if del_tmp:
+            tmp_stat = os.path.join(temp_file_folder, "stand_boundaries_stat.gpkg")
+        else:
+            tmp_stat = output_stand_boundaries.rsplit(".gpkg", 1)[0] + "_stat.gpkg"
+
+        temp_output_files = {
+            "hdom": os.path.join(temp_file_folder, "hdom.tif"),
+            'stand_boundaries_stat': tmp_stat,
         }
 
         # Log configurations
@@ -387,7 +441,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # Save results
         helper.store_raster(stand, output_files["raw_classified"], vhm_projection, geotransform, gdal.GDT_UInt32)
         helper.store_raster(hmax, output_files["hmax"], vhm_projection, geotransform, gdal.GDT_Byte)
-        helper.store_raster(hdom, output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
+        helper.store_raster(hdom, temp_output_files["hdom"], vhm_projection, geotransform, gdal.GDT_Byte)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, raw_classified, hmax and hdom saved  ---")
 
         # ------- SMOOTHING -------#
@@ -413,8 +467,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, stand attributes added ---")
 
         # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
-        # todo: A statistic file is created. Its path should be added in the output array and given as parameter below
-        helper.add_vhm_stats(output_files["stand_boundaries"], input_vhm_raster)
+        helper.add_vhm_stats(output_files["stand_boundaries"],
+                             temp_output_files['stand_boundaries_stat'],
+                             input_vhm_raster)
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, vhm stats calculated ---")
 
         return output_files

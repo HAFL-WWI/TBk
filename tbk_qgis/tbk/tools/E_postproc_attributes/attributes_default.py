@@ -29,16 +29,9 @@
 
 from tbk_qgis.tbk.general.tbk_utilities import *
 
-def calc_attributes(working_root, tmp_output_folder, del_tmp=True):
+def calc_attributes(working_root, shape_in, shape_out, del_tmp=True):
     print("--------------------------------------------")
     print("START CALC specific attributes")
-
-    # TBk folder path
-    working_root
-
-    # Filenames
-    shape_in = os.path.join(working_root, "stands_clipped.gpkg")
-    shape_out = os.path.join(tmp_output_folder, "stands_attributed_tmp.gpkg")
 
     # Copy shapefile
     in_layer = QgsVectorLayer(shape_in, "stands in", "ogr")
@@ -90,4 +83,4 @@ def calc_attributes(working_root, tmp_output_folder, del_tmp=True):
         delete_fields(out_layer, ["type", "NH_pixels", "NH_prob"])
 
     print("DONE!")
-    return (shape_out)
+    return shape_out
