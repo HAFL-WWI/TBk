@@ -8,6 +8,7 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterFeatureSource,
                        QgsProcessingParameterFile,
                        QgsProcessingParameterFileDestination,
+                       QgsProcessingOutputFile,
                        QgsProcessingParameterRasterLayer,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
@@ -39,6 +40,13 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
     STANDS_INPUT = "stands_clipped_no_gaps"
     # Stands output with supplementary crown coverage fields
     OUTPUT_STANDS_DG = "stands_dg"
+    # Crown coverage rasters
+    OUTPUT_DG_LAYER_MAIN = "dg_layer_main"
+    OUTPUT_DG_LAYER_KS = "dg_layer_ks"
+    OUTPUT_DG_LAYER_US = "dg_layer_us"
+    OUTPUT_DG_LAYER_MS = "dg_layer_ms"
+    OUTPUT_DG_LAYER_OS = "dg_layer_os"
+    OUTPUT_DG_LAYER_UEB = "dg_layer_ueb"
 
     # Additional parameters
     # Delete temporary files and fields
@@ -83,6 +91,21 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
                                                                     "Stand Output file with crown coverage fields",
                                                                     "GPKG files (*.gpkg)", ))
 
+            # --- Add additional output definitions, so that they can be used in model designer
+            # Crown coverage rasters outputs
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_MAIN,
+                                                   "Raster with the main degree of cover"))
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_KS,
+                                                   "Degree of cover of the 'no layer' [german abbr.: ks]"))
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_US,
+                                                   "Degree of cover of the lower layer [german abbr.: us]"))
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_MS,
+                                                   "Degree of cover of the medium layer [german abbr.: ms]"))
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_OS,
+                                                   "Degree of cover of the top layer [german abbr.: os]"))
+            self.addOutput(QgsProcessingOutputFile(self.OUTPUT_DG_LAYER_UEB,
+                                                   "Degree of cover of the remnants [german abbr.: ueb]"))
+
         # --- Advanced Parameters
 
         # Additional parameters
@@ -125,12 +148,12 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
                                del_tmp=params.del_tmp)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],
-                'dg_layer_ks': results["dg_layer_ks"],
-                'dg_layer_main': results["dg_layer_main"],
-                'dg_layer_ms': results["dg_layer_ms"],
-                'dg_layer_os': results["dg_layer_os"],
-                'dg_layer_ueb': results["dg_layer_ueb"],
-                'dg_layer_us': results["dg_layer_us"],
+                self.OUTPUT_DG_LAYER_MAIN: results["dg_layer_main"],
+                self.OUTPUT_DG_LAYER_KS: results["dg_layer_ks"],
+                self.OUTPUT_DG_LAYER_US: results["dg_layer_us"],
+                self.OUTPUT_DG_LAYER_MS: results["dg_layer_ms"],
+                self.OUTPUT_DG_LAYER_OS: results["dg_layer_os"],
+                self.OUTPUT_DG_LAYER_UEB: results["dg_layer_ueb"],
                 }
 
     def createInstance(self):
