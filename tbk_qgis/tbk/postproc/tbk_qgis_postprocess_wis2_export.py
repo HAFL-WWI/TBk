@@ -462,7 +462,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
 
                     # iterate over tree species fields p100 - p800
                     for pkey, pvalue in pX_tree_species_values.items():
-                        # check if a field for tree species are set, do nothing otherwise
+                        # check if a field for tree species is set, do nothing otherwise
                         if not fields_pX_tree_species[pkey] == "":
                             # if no tree species fields were set in the beginning, p410 is relying only on the default_tree_species_field
                             # this checks for that case and assigns 100-default_tree_species_field then
@@ -480,7 +480,8 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                 # attempt to read value, if not valid set to default (0 or NH/100 - NH)
                                 if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
                                     # read and assign anything other than NULL
-                                    pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
+                                    # round values, since WIS.2 only handles integer-values
+                                    pX_tree_species_values[pkey] = round(f[fields_pX_tree_species[pkey]])
                                 else:
                                     # fall back to default_tree_species_field
                                     if pkey == "p100":
@@ -522,6 +523,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         if sum_tree_species == 0:
                             feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
                             print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
+                            pX_tree_species_values["p100"] = 100
                         else:
                             # multiply all values by factor
                             pX_tree_species_values.update(
