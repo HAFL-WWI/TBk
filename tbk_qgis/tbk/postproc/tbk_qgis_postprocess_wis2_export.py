@@ -197,8 +197,14 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         feedback.pushInfo("====================================================================")
 
         # --- get input parameters
-        stands_layer = self.parameterAsVectorLayer(parameters, self.STANDS, context)
-        stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        stands_layer = self.parameterAsSource(parameters, self.STANDS, context)
+        try:
+            stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        except Exception as e:
+            print(f"Error getting layer-source (likely temporary layer or \"only selected features\" is selected): {e}."
+                  "\nSetting stands_layer_source to \"temp_layer\"")
+            stands_layer_source = "temp_layer"
+
         feedback.pushInfo(f"Using stands:\n {stands_layer_source}\n"
                           f"with fields:\n {stands_layer.fields().names()}\n")
 
