@@ -95,6 +95,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
     FIELD_P440 = "field_p440"
     FIELD_P800 = "field_p800"
 
+    EXPORT_DG_PER_STRATA = "export_dg_per_strata"
     DELETE_TMP = "delete_tmp"
     CREATE_WIS2_SUBFOLDER = "create_wis2_subfolder"
 
@@ -178,6 +179,9 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                                    "Other broadleaves (p800) proportion Field Name"),
                                                                optional=True))
 
+        self.addAdvancedParameter(QgsProcessingParameterBoolean(self.EXPORT_DG_PER_STRATA,
+                                                                self.tr("Also export DG per Strata attributes (DG_ks/us/ms/hs/ueb)."),
+                                                                defaultValue=True))
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.CREATE_WIS2_SUBFOLDER,
                                                                 self.tr("Create subfolder wis2_export."),
                                                                 defaultValue=True))
@@ -254,6 +258,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         delete_tmp = self.parameterAsBoolean(parameters, self.DELETE_TMP, context)
         tmp_joined_layer = ""
         create_wis2_subfolder = self.parameterAsBoolean(parameters, self.CREATE_WIS2_SUBFOLDER, context)
+        export_dg_per_strata = self.parameterAsBoolean(parameters, self.EXPORT_DG_PER_STRATA, context)
 
         # --- get/generate output parameters
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
@@ -410,7 +415,6 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                 '<dataroot xmlns:od="urn:schemas-microsoft-com:officedata" generated="' + currentDatetime + '">\n')
             xml_file.write('\n')
 
-            provider = stands_layer.dataProvider()
             # --- iterate over each stand and write attributes
             for f in stands_layer.getFeatures():
                 # print('load stand ' + str(f["ID"]))
@@ -438,6 +442,14 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         xml_file.write('\t<DG>' + str(1) + '</DG>\n')
                     else:
                         xml_file.write('\t<DG>' + str(f["DG"]) + '</DG>\n')
+
+                    if export_dg_per_strata:
+                        # add attributes for DG per strata
+                        xml_file.write('\t<DG_ks>' + str(f["DG_ks"]) + '</DG_ks>\n')
+                        xml_file.write('\t<DG_us>' + str(f["DG_us"]) + '</DG_us>\n')
+                        xml_file.write('\t<DG_ms>' + str(f["DG_ms"]) + '</DG_ms>\n')
+                        xml_file.write('\t<DG_os>' + str(f["DG_os"]) + '</DG_os>\n')
+                        xml_file.write('\t<DG_ueb>' + str(f["DG_ueb"]) + '</DG_ueb>\n')
 
                     # hdom: set hdom = 0/NULL to 1
                     if f["hdom"] == 0 or f["hdom"] == qgis.core.NULL:
