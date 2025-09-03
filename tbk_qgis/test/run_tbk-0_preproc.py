@@ -65,25 +65,42 @@ Processing.initialize()
 provider = TBkProvider()
 QgsApplication.processingRegistry().addProvider(provider)
 
-# Get versions of tools
 print("####------------------------####")
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 from processing.algs.gdal.GdalUtils import GdalUtils
 print(f"# QGIS Version: {Qgis.QGIS_VERSION}")
 print(f"# Python Version: {sys.version}")
-print(f"# GRASS Version: {Grass7Utils.installedVersion()}")
+from grassprovider.grass_utils import GrassUtils
 print(f"# GDAL Version: {GdalUtils.version()}")
 print("#==============================#\n")
 print("####  call TBk Algorithm    ####")
 print("#------------------------------#\n\n")
 
+import processing
 # Main call of the algorithm
-processing.run("TBk:TBk prepare VHM and MG", {
+processing.run("TBk:TBk prepare VHM (and MG)", {
     'vhm_input': f'{tbk_path}/data/basedata/vhm_ALS-FINTCH2021_HAFL_2012.tif',
     'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
     'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
     'output_root': f'{tbk_path}/data/tbk_test_output',
-    'vhm_detail': 'VHM_detail.tif', 'vhm_10m': 'VHM_10m.tif', 'vhm_150cm': 'VHM_150cm.tif', 'mg_10m': 'MG_10m.tif',
-    'mg_10m_binary': 'MG_10m_binary.tif', 'del_tmp': True, 'mask_vhm': True, 'vhm_convert_to_byte': True,
-    'vhm_reclassify': False, 'vMin': 0, 'vMax': 60, 'vNA': 255, '100': 100, 'reclassify_mg_values': True, 'min_lh': 1,
-    'max_lh': 50, 'min_nh': 50, 'max_nh': 100})
+    'vhm_detail':'VHM_detail.tif',
+    'vhm_10m':'VHM_10m.tif',
+    'vhm_150cm':'VHM_150cm.tif',
+    'mg_10m':'MG_10m.tif',
+    'mg_10m_binary':'MG_10m_binary.tif',
+    'align_method':0,
+    'del_tmp':True,
+    'mask_vhm':True,
+    'vhm_convert_to_byte':True,
+    'vhm_reclassify':False,
+    'vMin':0,
+    'vMax':60,
+    'vNA':255,
+    '100':100,
+    'reclassify_mg_values':True,
+    'min_lh':0,
+    'max_lh':50,
+    'min_nh':50,
+    'max_nh':100
+}
+)
