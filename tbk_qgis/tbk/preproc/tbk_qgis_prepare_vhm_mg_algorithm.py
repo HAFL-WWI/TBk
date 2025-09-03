@@ -400,6 +400,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         mg_10m_binary = os.path.join(output_root, mg_10m_binary)
 
         # tmp files
+        tmp_vhm_clipped = os.path.join(output_root, "tmp_vhm_clipped.vrt")
         tmp_vhm_byte = os.path.join(output_root, "vhm_byte.tif")
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
@@ -412,6 +413,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(mg_10m)
         self.deleteRasterIfExists(mg_10m_binary)
         # remove existing tmp rasters
+        self.deleteRasterIfExists(tmp_vhm_clipped)
         self.deleteRasterIfExists(tmp_vhm_byte)
         self.deleteRasterIfExists(tmp_vhm_cropped)
         self.deleteRasterIfExists(tmp_vhm_mask)
@@ -438,6 +440,30 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             xmax = math.ceil(ext.xMaximum() / res) * res
             ymin = math.floor(ext.yMinimum() / res) * res
             ymax = math.ceil(ext.yMaximum() / res) * res
+            # epsg = v.crs().authid()[5:]  # remove suffix 'EPSG:', but is the suffix always == 'EPSG:'?
+            epsg = v.crs().authid()
+            # ext = "{0},{1},{2},{3} [EPSG:{4}]".format(xmin, xmax, ymin, ymax, epsg)  # using epsg without suffix 'EPSG:'
+            ext = "{0},{1},{2},{3} [{4}]".format(xmin, xmax, ymin, ymax, epsg)
+            return(ext)
+
+        def get_aligned_extent_safely_including_150cm_and_10m(vector_layer, res):
+            v = QgsVectorLayer(vector_layer)
+            ext = v.extent()
+
+            xmin_150cm = math.floor((ext.xMinimum() - 1.5) / res) * res
+            xmax_150cm = math.ceil((ext.xMaximum() + 1.5) / res) * res
+            ymin_150cm = math.floor((ext.yMinimum() - 1.5) / res) * res
+            ymax_150cm = math.ceil((ext.yMaximum() + 1.5) / res) * res
+
+            xmin_10m = math.floor((ext.xMinimum() - 10) / res) * res
+            xmax_10m = math.ceil((ext.xMaximum() + 10) / res) * res
+            ymin_10m = math.floor((ext.yMinimum() - 10) / res) * res
+            ymax_10m = math.ceil((ext.yMaximum() + 10) / res) * res
+
+            xmin = min([xmin_150cm, xmin_10m])
+            xmax = max([xmax_150cm, xmax_10m])
+            ymin = min([ymin_150cm, ymin_10m])
+            ymax = max([ymax_150cm, ymax_10m])
             # epsg = v.crs().authid()[5:]  # remove suffix 'EPSG:', but is the suffix always == 'EPSG:'?
             epsg = v.crs().authid()
             # ext = "{0},{1},{2},{3} [EPSG:{4}]".format(xmin, xmax, ymin, ymax, epsg)  # using epsg without suffix 'EPSG:'
@@ -502,6 +528,33 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # print(extent_10m)
         # print("extent of mask aligned to 150cm:")
         # print(extent_150cm)
+
+        # get pixel-resolution of VHM input
+        param = {'INPUT': vhm_input, 'BAND': None}
+        vhm_input_properties = processing.run("native:rasterlayerproperties", param)
+        res_vhm_input = vhm_input_properties['PIXEL_HEIGHT']
+        # print("resolution of VHM input:")
+        # print(res_vhm_input)
+
+        # get extent to safely clipp VHM input including aligned extents of outputs VHM 10m and VHM 150m
+        extent_clipp = get_aligned_extent_safely_including_150cm_and_10m(mask, res = res_vhm_input)
+        # print("extent to safely clipp VHM input including aligned extents of outputs VHM 10m and VHM 150m")
+        # print(extent_clipp)
+
+        # clipp input VHM to relevant extent
+        feedback.pushInfo("clip VHM by mask extent...")
+        param = {
+            'INPUT': vhm_input,
+            'PROJWIN': extent_clipp,
+            'OVERCRS': False,
+            'NODATA': None,
+            'OPTIONS': '',
+            'DATA_TYPE': 0,
+            'EXTRA': '',
+            'OUTPUT': tmp_vhm_clipped
+        }
+        processing.run("gdal:cliprasterbyextent", param)
+        vhm_input = tmp_vhm_clipped
 
         if vhm_convert_to_byte:
             feedback.pushInfo("Checking vhm input raster...")
@@ -672,6 +725,11 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 os.remove(tmp_mg_aligned)
             if os.path.exists(tmp_mg_aligned + ".aux.xml"):
                 os.remove(tmp_mg_aligned + ".aux.xml")
+
+            if os.path.exists(tmp_vhm_clipped):
+                os.remove(tmp_vhm_clipped)
+            if os.path.exists(tmp_vhm_clipped + ".aux.xml"):
+                os.remove(tmp_vhm_clipped + ".aux.xml")
 
             if os.path.exists(vhm_detail + ".aux.xml"):
                 os.remove(vhm_detail + ".aux.xml")
