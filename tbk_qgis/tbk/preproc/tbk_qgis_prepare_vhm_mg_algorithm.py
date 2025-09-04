@@ -734,6 +734,12 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if os.path.exists(vhm_detail + ".aux.xml"):
                 os.remove(vhm_detail + ".aux.xml")
 
+            if os.path.exists(vhm_10m + ".aux.xml"):
+                os.remove(vhm_10m + ".aux.xml")
+
+            if os.path.exists(vhm_150cm + ".aux.xml"):
+                os.remove(vhm_150cm + ".aux.xml")
+
         # finished
         feedback.pushInfo("====================================================================")
         feedback.pushInfo("FINISHED")
