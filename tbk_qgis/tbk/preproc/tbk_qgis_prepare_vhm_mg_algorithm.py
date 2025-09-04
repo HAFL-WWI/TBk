@@ -479,7 +479,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # if align_method == 1 (to pixel of mg_input), but mg is not among inputs ...
         if align_method == 1 and mg_use == False:
-            feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput is not specified...")
+            feedback.pushInfo("Switch align_method from 1 to 0, because mg_input is not specified...")
             align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         # if align_method == 1 (to pixel of mg_input) and mg is among inputs ...
@@ -488,7 +488,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             mg_input_properties = processing.run("native:rasterlayerproperties", param)
             # ... but mg_input resolution != 10m x 10m ...
             if mg_input_properties['PIXEL_HEIGHT'] != 10.0 or mg_input_properties['PIXEL_WIDTH'] != 10.0:
-                feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput resolution is not 10m x 10m...")
+                feedback.pushInfo("Switch align_method from 1 to 0, because mg_input resolution is not 10m x 10m...")
                 align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         # print("reset of align_method: " + str(align_method))
@@ -799,7 +799,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <h3>Detailed input VHM (.tif)</h3>
 <p>VHM raster layer with high resolution (&le; 1.5m x 1.5m)</p>
 <h3>Forest mixture degree input (.tif)</h3>
-<p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / delicious share of (woody) vegetation</p>
+<p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / deciduous share of (woody) vegetation</p>
 <h3>Polygon mask to clip final result</h3>
 <p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter <b><i>Crop VHM to mask</i></b> is True / checked.</p>
 <h3>Output folder</h3>
@@ -827,7 +827,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
 Notes:
 1) No alignment is applied to <i>VHM detail</i>, as this layer is only a (partial) copy of the original VHM. 
-2) <b><i>Methods Align to origin</i></b> and <b><i>Align to mixture degree raster</i></b> return the same outputs, if <i>Forest Mixture Degree</i> (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for the <i>Forest Mixture Degree</i> (Mishunggrad) raster layer provided by WSL with EPSG:2056. 
+2) <b><i>Methods Align to origin</i></b> and <b><i>Align to mixture degree raster</i></b> return the same outputs, if <i>Forest Mixture Degree</i> (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for the <i>Forest Mixture Degree</i> (Mischungsgrad) raster layer provided by WSL with EPSG:2056. 
 3) Raster outputs generated with different masks and thus covering different areas, align with each other, if method chosen is either <b><i>Align to origin</i></b> or <b><i>Align to mixture degree raster</i></b>.
 4) Method <b><i>Random / driven by extent of masks</i></b> is a legacy allowing to prepare inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b> with the sole method in praxis until July 2024.</p>
 <h3>Delete temporary files</h3>
