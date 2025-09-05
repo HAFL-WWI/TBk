@@ -76,8 +76,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
 
-    OUTPUT = "OUTPUT"
-
     # input
     VHM_INPUT = "vhm_input"
     MG_INPUT = "mg_input"
@@ -391,7 +389,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 raise QgsProcessingException("mg_10m_binary must be TIFF file")
 
         ensure_dir(output_root)
-        working_root = output_root
 
         vhm_detail = os.path.join(output_root,vhm_detail)
         vhm_10m = os.path.join(output_root,vhm_10m)
@@ -747,7 +744,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                           str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
 
-        return {self.OUTPUT: working_root}
+        return {self.OUTPUT_ROOT: output_root}
 
     #--- Algorithm ID, Name
 
