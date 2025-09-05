@@ -103,7 +103,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     VNA = "vNA"
 
     # advanced params
-    MG_RESCALE_FACTOR = "100"
+    MG_RESCALE_FACTOR = "mg_rescale_factor"
     MG_RECLASSIFY_VALUES = "reclassify_mg_values"
     MIN_LH = "min_lh"
     MAX_LH = "max_lh"
