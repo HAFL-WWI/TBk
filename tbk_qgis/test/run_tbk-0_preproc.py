@@ -96,7 +96,7 @@ processing.run("TBk:TBk prepare VHM (and MG)", {
     'vMin':0,
     'vMax':60,
     'vNA':255,
-    '100':100,
+    'mg_rescale_factor': 100,
     'reclassify_mg_values':True,
     'min_lh':0,
     'max_lh':50,
