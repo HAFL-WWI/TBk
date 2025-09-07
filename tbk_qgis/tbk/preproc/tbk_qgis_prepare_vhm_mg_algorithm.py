@@ -122,13 +122,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 self.VHM_INPUT,
-                self.tr("Detailed input VHM (.tif)")
+                self.tr("Detailed input VHM (.tif or .vrt)")
             )
         )
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 self.MG_INPUT,
-                self.tr("Forest mixture degree input (.tif)"),
+                self.tr("Forest mixture degree input (.tif or .vrt)"),
                 optional=True
             )
         )
@@ -339,8 +339,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
-        if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff"):
-            raise QgsProcessingException("vhm_input must be a TIFF file")
+        if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff", ".vrt"):
+            raise QgsProcessingException("vhm_input must be a TIFF file or a VRT file")
 
         mg_input_layer = self.parameterAsRasterLayer(parameters, self.MG_INPUT, context)
         mg_input = None
@@ -348,8 +348,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         if mg_input_layer:
             mg_input = str(mg_input_layer.source())
             mg_use = True
-        if mg_use and mg_input and (not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff")):
-            raise QgsProcessingException("mg_input must be a TIFF file")
+        if mg_use and mg_input and (not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff", ".vrt")):
+            raise QgsProcessingException("mg_input must be a TIFF file or a VRT file")
 
         mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
 
@@ -793,9 +793,9 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Processes VHM (<i>Vegetation Height Model</i>) and optionally <i>Forest Mixture Degree</i> (coniferous raster) raw data to ready to use raster inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p></body></html></p>
 
 <h2>Input parameters</h2>
-<h3>Detailed input VHM (.tif)</h3>
+<h3>Detailed input VHM (.tif or .vrt)</h3>
 <p>VHM raster layer with high resolution (&le; 1.5m x 1.5m)</p>
-<h3>Forest mixture degree input (.tif)</h3>
+<h3>Forest mixture degree input (.tif or .vrt)</h3>
 <p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / deciduous share of (woody) vegetation</p>
 <h3>Polygon mask to clip final result</h3>
 <p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter <b><i>Crop VHM to mask</i></b> is True / checked.</p>
