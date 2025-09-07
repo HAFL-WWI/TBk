@@ -93,7 +93,6 @@ processing.run("TBk:Generate BK", {
     'forestSiteDefault': '',
     'forestSiteLayer': None,
     'forestSiteLayerField': '',
-    'useConiferousRasterForClassification': True,
     'logfile_name': 'tbk_processing.log',
     'description':'TBk dataset',
     'min_tol': 0.1,
