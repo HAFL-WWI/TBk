@@ -353,6 +353,15 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
 
+        crs_mask = QgsVectorLayer(mask).crs()
+        crs_vhm_input = QgsRasterLayer(vhm_input).crs()
+        if(crs_mask != crs_vhm_input):
+            raise QgsProcessingException("VHM input and polygon mask must have the same CRS")
+        if mg_use:
+            crs_mg_input = QgsRasterLayer(mg_input).crs()
+            if (crs_mask != crs_mg_input):
+                raise QgsProcessingException("Forest mixture degree input must have the same CRS as polygon mask and VHM input")
+
         # Folder for algo output
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
