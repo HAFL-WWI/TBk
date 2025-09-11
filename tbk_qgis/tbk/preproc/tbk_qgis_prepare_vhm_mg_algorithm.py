@@ -111,6 +111,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     MAX_LH = "max_lh"
     MIN_NH = "min_nh"
     MAX_NH = "max_nh"
+    MG_NA_replacement = "mg_NA_replacement"
+    MG_NA_replacement_value = "mg_NA_replacement_value"
 
     def initAlgorithm(self, config):
         """
@@ -330,7 +332,23 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean(
+            self.MG_NA_replacement,
+            self.tr("Replacement of forest mixture degree NoData"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
 
+        parameter = QgsProcessingParameterNumber(
+            self.MG_NA_replacement_value,
+            self.tr(
+                "Value for replacement of forest mixture degree NoData" +
+                "\ns. documentation"
+            ),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=0
+        )
+        self.addAdvancedParameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -362,6 +380,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
         max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
 
+        mg_NA_replacement = self.parameterAsBool(parameters, self.MG_NA_replacement, context)
+        mg_NA_replacement_value = self.parameterAsInt(parameters, self.MG_NA_replacement_value, context)
         # # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
         if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff", ".vrt"):
@@ -430,6 +450,10 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                     ")"
                 )
 
+        if mg_use and mg_NA_replacement:
+            if mg_NA_replacement_value < 0 or mg_NA_replacement_value > 100:
+                raise QgsProcessingException("Value for replacement of forest mixture degree NoData must be >= 0 and =< 100")
+
         ensure_dir(output_root)
 
         vhm_detail = os.path.join(output_root,vhm_detail)
@@ -445,6 +469,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
         tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.tif")
+        tmp_mg_na_replaced = os.path.join(output_root, "mg_na_replaced.tif")
 
         # remove existing rasters
         self.deleteRasterIfExists(vhm_detail)
@@ -459,6 +484,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(tmp_vhm_cropped)
         self.deleteRasterIfExists(tmp_vhm_mask)
         self.deleteRasterIfExists(tmp_mg_aligned)
+        self.deleteRasterIfExists(tmp_mg_na_replaced)
 
         #--- Process VHM
         start_time = time.time()
@@ -732,6 +758,19 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 }
                 processing.run("gdal:warpreproject", param)
 
+            if mg_NA_replacement:
+                feedback.pushInfo("replace forest-mixture-degree-NoData-values with " + str(mg_NA_replacement_value))
+                param = {
+                    'INPUT': tmp_mg_aligned,
+                    'BAND': 1,
+                    'FILL_VALUE': (mg_NA_replacement_value * mg_rescale_factor),
+                    # rescaling hasn't taken place yet --> multiplying with rescale factor required
+                    'CREATE_OPTIONS': None,
+                    'OUTPUT': tmp_mg_na_replaced
+                }
+                processing.run("native:fillnodata", param)
+                tmp_mg_aligned = tmp_mg_na_replaced
+
             if mg_rescale_factor != 1.0:
                 feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
                 param = {
@@ -788,6 +827,11 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 os.remove(tmp_vhm_na_replaced)
             if os.path.exists(tmp_vhm_na_replaced + ".aux.xml"):
                 os.remove(tmp_vhm_na_replaced + ".aux.xml")
+
+            if os.path.exists(tmp_mg_na_replaced):
+                os.remove(tmp_mg_na_replaced)
+            if os.path.exists(tmp_mg_na_replaced + ".aux.xml"):
+                os.remove(tmp_mg_na_replaced + ".aux.xml")
 
             if os.path.exists(vhm_detail + ".aux.xml"):
                 os.remove(vhm_detail + ".aux.xml")
@@ -918,6 +962,12 @@ Notes:
 <p>integer [%]: default 50%</p>
 <h3>Maximum Coniferous (Nadelholz) value</h3>
 <p>integer [%]: default 100%</p>
+<h3>Replacement of forest mixture degree NoData</h3>
+<p>Check box: default False.</p>
+<h3>Value for replacement of forest mixture degree NoData</h3>
+<p>integer [%]: default 0%</p>
+
+Note that the <i>Forest Mixture Degree</i> raster layer provided by WSL does not include NoData-pixels overlapping with the Swiss territory. However there might be cases of <i>Forest Mixture Degree</i> rasters with NoData-pixels within the area covered by a specific polygon mask. At the time <b><i>TBk prepare VHM (and MG)</i></b> sets by default inevitably any NoData-pixel of <i>Forest Mixture Degree</i> to 0 (= 100% deciduous). By checking <i>Replacement of forest mixture degree NoData</i> and setting <i>Value for replacement ... </i> to something else than zero a non-default replacement of NoData-pixel is feasible, where the max. is 100 (= 100% coniferous). Setting <i>Value for replacement ... </i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 1 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
 
 <h2>Outputs</h2>
 <p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed in the <b><i>Output folder</i></b> (s. above). File names of these outputs are defined vai the five corresponding advanced parameters (s. above).</p>
