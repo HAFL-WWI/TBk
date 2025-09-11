@@ -101,6 +101,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     VMIN = "vMin"
     VMAX = "vMax"
     VNA = "vNA"
+    VNA_replacement = "vNA_replacement"
+    VNA_replacement_value = "vNA_replacement_value"
 
     # advanced params
     MG_RESCALE_FACTOR = "mg_rescale_factor"
@@ -253,6 +255,27 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean(
+            self.VNA_replacement,
+            self.tr(
+                "Replacement of VHM NoData" +
+                "\nIf crop VHM to mask is applied, restricted to to area within mask"
+            ),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterNumber(
+            self.VNA_replacement_value,
+            self.tr(
+                "Value for replacement of VHM NoData" +
+                "\nmust be >= 0, and =< VHM NoData value"
+            ),
+            type=QgsProcessingParameterNumber.Integer,
+            defaultValue=0
+        )
+        self.addAdvancedParameter(parameter)
+
         # advanced params (WMG reclassify values)
         parameter = QgsProcessingParameterNumber(
             self.MG_RESCALE_FACTOR,
@@ -327,6 +350,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         vMin = self.parameterAsDouble(parameters, self.VMIN, context)
         vMax = self.parameterAsDouble(parameters, self.VMAX, context)
         vNA = self.parameterAsInt(parameters, self.VNA, context)
+        vNA_replacement = self.parameterAsBool(parameters, self.VNA_replacement, context)
+        vNA_replacement_value = self.parameterAsInt(parameters, self.VNA_replacement_value, context)
 
         # advanced params mg reclassify values
         mg_rescale_factor = self.parameterAsDouble(parameters, self.MG_RESCALE_FACTOR, context)
@@ -397,6 +422,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if not os.path.splitext(mg_10m_binary)[1].lower() in (".tif", ".tiff"):
                 raise QgsProcessingException("mg_10m_binary must be TIFF file")
 
+        if vNA_replacement:
+            if vNA_replacement_value < 0 or vNA_replacement_value > vNA:
+                raise QgsProcessingException(
+                    "Value for replacement of VHM NoData must be >= 0 and =< VHM NoData value (" +
+                    str(vNA) +
+                    ")"
+                )
+
         ensure_dir(output_root)
 
         vhm_detail = os.path.join(output_root,vhm_detail)
@@ -408,6 +441,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # tmp files
         tmp_vhm_clipped = os.path.join(output_root, "tmp_vhm_clipped.vrt")
         tmp_vhm_byte = os.path.join(output_root, "vhm_byte.tif")
+        tmp_vhm_na_replaced = os.path.join(output_root, "vhm_na_replaced.tif")
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
         tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.tif")
@@ -421,6 +455,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # remove existing tmp rasters
         self.deleteRasterIfExists(tmp_vhm_clipped)
         self.deleteRasterIfExists(tmp_vhm_byte)
+        self.deleteRasterIfExists(tmp_vhm_na_replaced)
         self.deleteRasterIfExists(tmp_vhm_cropped)
         self.deleteRasterIfExists(tmp_vhm_mask)
         self.deleteRasterIfExists(tmp_mg_aligned)
@@ -590,6 +625,18 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 processing.run("gdal:warpreproject", param)
                 vhm_input = tmp_vhm_byte
 
+        if vNA_replacement:
+            feedback.pushInfo("replace VHM-NoData-values with " + str(vNA_replacement_value))
+            param = {
+                'INPUT': vhm_input,
+                'BAND': 1,
+                'FILL_VALUE': vNA_replacement_value,
+                'CREATE_OPTIONS': None,
+                'OUTPUT': tmp_vhm_na_replaced
+            }
+            processing.run("native:fillnodata", param)
+            vhm_input = tmp_vhm_na_replaced
+
         if mask_vhm:
             feedback.pushInfo("mask vhm...")
             param = {
@@ -737,6 +784,11 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if os.path.exists(tmp_vhm_clipped + ".aux.xml"):
                 os.remove(tmp_vhm_clipped + ".aux.xml")
 
+            if os.path.exists(tmp_vhm_na_replaced):
+                os.remove(tmp_vhm_na_replaced)
+            if os.path.exists(tmp_vhm_na_replaced + ".aux.xml"):
+                os.remove(tmp_vhm_na_replaced + ".aux.xml")
+
             if os.path.exists(vhm_detail + ".aux.xml"):
                 os.remove(vhm_detail + ".aux.xml")
 
@@ -850,6 +902,10 @@ Notes:
 <p>float [m]: default 60m</p>
 <h3>VHM NoData value</h3>
 <p>integer: default 255</p>
+<h3>Replacement of VHM NoData</h3>
+<p>Check box: default False.</p>
+<h3>Value for replacement of VHM NoData</h3>
+<p>integer: default 0</p>
 <h3>Rescale Forest mixture degree values ...</h3>
 <p>integer: default 100</p>
 <h3>Create Binary mixture degree layer ...</h3>
