@@ -269,7 +269,7 @@ def merge_similar_neighbours(working_root, min_area_m2, min_hdom_diff_rel, del_t
         print("No stands to merge")
 
         # drop 'fid_input' (unique identifier of input features / simplified stands) finally save layer
-        param = {'INPUT': simplified_layer, 'COLUMN': ['fid_input'], 'OUTPUT': shape_out_path}
+        param = {'INPUT': simplified_layer, 'COLUMN': ['fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
 
         # add column merged = 0 (meaning not dissolved geometry) to all simplified stands ...
