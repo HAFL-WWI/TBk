@@ -102,7 +102,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     VMAX = "vMax"
     VNA = "vNA"
     VNA_replacement = "vNA_replacement"
-    VNA_replacement_value = "vNA_replacement_value"
 
     # advanced params
     MG_RESCALE_FACTOR = "mg_rescale_factor"
@@ -260,21 +259,10 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         parameter = QgsProcessingParameterBoolean(
             self.VNA_replacement,
             self.tr(
-                "Replacement of VHM NoData" +
+                "Replacement of VHM NoData with 0" +
                 "\nIf crop VHM to mask is applied, restricted to to area within mask"
             ),
             defaultValue=False
-        )
-        self.addAdvancedParameter(parameter)
-
-        parameter = QgsProcessingParameterNumber(
-            self.VNA_replacement_value,
-            self.tr(
-                "Value for replacement of VHM NoData" +
-                "\nmust be >= 0, and =< VHM NoData value"
-            ),
-            type=QgsProcessingParameterNumber.Integer,
-            defaultValue=0
         )
         self.addAdvancedParameter(parameter)
 
@@ -369,7 +357,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         vMax = self.parameterAsDouble(parameters, self.VMAX, context)
         vNA = self.parameterAsInt(parameters, self.VNA, context)
         vNA_replacement = self.parameterAsBool(parameters, self.VNA_replacement, context)
-        vNA_replacement_value = self.parameterAsInt(parameters, self.VNA_replacement_value, context)
 
         # advanced params mg reclassify values
         mg_rescale_factor = self.parameterAsDouble(parameters, self.MG_RESCALE_FACTOR, context)
@@ -441,14 +428,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 raise QgsProcessingException("no MG binary output file name specified")
             if not os.path.splitext(mg_10m_binary)[1].lower() in (".tif", ".tiff"):
                 raise QgsProcessingException("mg_10m_binary must be TIFF file")
-
-        if vNA_replacement:
-            if vNA_replacement_value < 0 or vNA_replacement_value > vNA:
-                raise QgsProcessingException(
-                    "Value for replacement of VHM NoData must be >= 0 and =< VHM NoData value (" +
-                    str(vNA) +
-                    ")"
-                )
 
         if mg_use and mg_NA_replacement:
             if mg_NA_replacement_value < 0 or mg_NA_replacement_value > 100:
@@ -652,11 +631,11 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 vhm_input = tmp_vhm_byte
 
         if vNA_replacement:
-            feedback.pushInfo("replace VHM-NoData-values with " + str(vNA_replacement_value))
+            feedback.pushInfo("replace VHM-NoData-values with 0")
             param = {
                 'INPUT': vhm_input,
                 'BAND': 1,
-                'FILL_VALUE': vNA_replacement_value,
+                'FILL_VALUE': 0,
                 'CREATE_OPTIONS': None,
                 'OUTPUT': tmp_vhm_na_replaced
             }
