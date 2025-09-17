@@ -792,7 +792,22 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 processing.run("gdal:rastercalculator", param)
             else:
                 feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
-                copy_raster_tiff(tmp_mg_aligned, mg_10m)
+                param = {
+                    'INPUT': tmp_mg_aligned,
+                    'SOURCE_CRS': None,
+                    'TARGET_CRS': None,
+                    'RESAMPLING': 0,  # nearest neighbour
+                    'NODATA': vNA,
+                    'TARGET_RESOLUTION': None,
+                    'OPTIONS': '',
+                    'DATA_TYPE': 1, # byte
+                    'TARGET_EXTENT': None,
+                    'TARGET_EXTENT_CRS': None,
+                    'MULTITHREADING': True,
+                    'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES',
+                    'OUTPUT': mg_10m
+                }
+                processing.run("gdal:warpreproject", param)
 
             if mg_reclassify_values:
                 feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")
