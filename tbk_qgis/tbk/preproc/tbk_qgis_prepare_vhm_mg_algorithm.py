@@ -447,7 +447,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         tmp_vhm_na_replaced = os.path.join(output_root, "vhm_na_replaced.tif")
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
-        tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.tif")
+        tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.vrt")
         tmp_mg_na_replaced = os.path.join(output_root, "mg_na_replaced.tif")
 
         # remove existing rasters
