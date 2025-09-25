@@ -57,7 +57,14 @@ class ClassificationHelper:
         return dataList[:count]
 
     ################################################
-    # getWindowSize
+    """ getWindowSize
+    The window is calculated as the 
+    next uneven rounded to integer square-root of the value (at minimum 3)
+    e.g. 49: sqrt() [-> 7]
+    e.g. 37: rounded(sqrt(6.)) = 6 [-> 7]
+    e.g. 32: rounded(sqrt(5.)) = 6 [-> 5]
+    e.g. 4: sqrt() -> 2 < 3 [-> 3] 
+    """
     @staticmethod
     def getWindowSize(value):
         if value < 0:
