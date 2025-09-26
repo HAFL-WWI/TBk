@@ -437,14 +437,6 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         xml_file.write('\t<DG>' + str(f["DG"]) + '</DG>\n')
 
                     if export_dg_per_strata:
-                        # add attributes for DG per strata
-                        xml_file.write('\t<DG_ks>' + str(f["DG_ks"]) + '</DG_ks>\n')
-                        xml_file.write('\t<DG_us>' + str(f["DG_us"]) + '</DG_us>\n')
-                        xml_file.write('\t<DG_ms>' + str(f["DG_ms"]) + '</DG_ms>\n')
-                        xml_file.write('\t<DG_os>' + str(f["DG_os"]) + '</DG_os>\n')
-                        xml_file.write('\t<DG_ueb>' + str(f["DG_ueb"]) + '</DG_ueb>\n')
-
-                    if export_dg_per_strata:
                         # list of fields to sum
                         dg_fields = ["DG_ks", "DG_us", "DG_ms", "DG_os", "DG_ueb"]
 
