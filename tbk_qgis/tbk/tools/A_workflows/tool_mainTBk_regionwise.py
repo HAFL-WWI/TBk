@@ -212,6 +212,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         featureLimit=1,
                         geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
                     ),
+                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': vhm_10m_clipped
                 })
 
@@ -225,6 +226,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         featureLimit=1,
                         geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
                     ),
+                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': mg_10m_clipped
                 })
 
