@@ -176,7 +176,16 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             regions_stands_simplified2 = []
 
         region_ID_prefix = []
-        for feature in perimeter_layer.getFeatures():
+
+        print(f"\n--------------------------------")
+        print(f"--- Sorting with region attribute ---")
+        print(f"--------------------------------")
+
+        # create list and sort after attribute region
+        features = list(perimeter_layer.getFeatures())
+        features_sorted = sorted(features, key=lambda f: f['region'])
+
+        for feature in features_sorted : # perimeter_layer.getFeatures():
             # --- Create folders for current feature
             region_name = feature["region"]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, str(region_name))
