@@ -55,7 +55,7 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
     tmp_simplified_error = "tmp_simplified_error.gpkg"
 
     highest_raster_in = "hmax.tif"
-    highest_point_out = "stands_highest_tree_tmp.gpkg"
+    highest_point_out = "stands_highest_tree.gpkg"
 
     ########################################
     # --- Vectorize highest trees
@@ -66,7 +66,7 @@ def post_process(working_root, shape_in, shape_out, tmp_output_folder, min_area,
               'OUTPUT': 'TEMPORARY_OUTPUT'}
     algoOutput = processing.run("native:pixelstopoints", params)
 
-    highest_point_path = os.path.join(tmp_output_folder, highest_point_out)
+    highest_point_path = os.path.join(working_root, highest_point_out)
     params = {'INPUT': algoOutput["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
               'OUTPUT': highest_point_path}
     algoOutput = processing.run("native:extractbyattribute", params)
