@@ -196,20 +196,21 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             print(f"--------------------------------")
             print(f"to {region_base_data_dir}")
 
-            # --- Create buffered perimeter feature layer
-            buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}", "buffered_mask",
-                                                    "memory")
-            buffered_feature = QgsFeature()
-            buffered_feature.setGeometry(feature.geometry().buffer(10, 5))
-            buffered_feature_layer.dataProvider().addFeature(buffered_feature)
-            buffered_feature_layer.updateExtents()
-            # Add the buffered layer to the map registry (otherwise it isn't found)
-            QgsProject.instance().addMapLayer(buffered_feature_layer)
-
             # Construct output file path for the clipped rasters
             vhm_10m_clipped = os.path.join(region_base_data_dir, 'VHM_10m.tif')
             mg_10m_clipped = os.path.join(region_base_data_dir, 'MG_10m.tif')
             print(f"Clipping VHM10m / Coniferous raster with buffered perimeter")
+
+            if overwrite or not os.path.exists(vhm_10m_clipped) or not os.path.exists(mg_10m_clipped):
+                # --- Create buffered perimeter feature layer
+                buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}", "buffered_mask",
+                                                        "memory")
+                buffered_feature = QgsFeature()
+                buffered_feature.setGeometry(feature.geometry().buffer(10, 5))
+                buffered_feature_layer.dataProvider().addFeature(buffered_feature)
+                buffered_feature_layer.updateExtents()
+                # Add the buffered layer to the map registry (otherwise it isn't found)
+                QgsProject.instance().addMapLayer(buffered_feature_layer)
 
             if overwrite or not os.path.exists(vhm_10m_clipped):
                 # Clip VHM with buffered mask
@@ -239,9 +240,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     'OUTPUT': mg_10m_clipped
                 })
 
-            # --- Remove buffered layer from registry and delete it
-            QgsProject.instance().removeMapLayer(buffered_feature_layer.id())
-            buffered_feature_layer = None  # Ensures layer is dereferenced
+            if overwrite or not os.path.exists(vhm_10m_clipped) or not os.path.exists(mg_10m_clipped):
+                # --- Remove buffered layer from registry and delete it (if it was created)
+                QgsProject.instance().removeMapLayer(buffered_feature_layer.id())
+                buffered_feature_layer = None  # Ensures layer is dereferenced
 
             # Construct the output path for the vector file (GeoPackage)
             output_vector = os.path.join(region_base_data_dir, f'perimeter_{region_name}.gpkg')
