@@ -43,6 +43,7 @@ from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_mg_algorithm import TBkPrepareVhm
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
+from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_ddom_SD_estimate import TBkDdomSDEstimate
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_OSChange import TBkPostprocessOSChange
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
@@ -80,6 +81,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessLocalDensity())
         self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
+        self.addAlgorithm(TBkDdomSDEstimate())
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: legacy]     grpName: Y LEGACY
