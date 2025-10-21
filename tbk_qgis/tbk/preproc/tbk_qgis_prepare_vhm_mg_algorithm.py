@@ -442,7 +442,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         mg_10m_binary = os.path.join(output_root, mg_10m_binary)
 
         # tmp files
-        tmp_vhm_clipped = os.path.join(output_root, "vhm_clipped.vrt")
+        tmp_vhm_clipped = os.path.join(output_root, "vhm_clipped.tif")
         tmp_vhm_byte = os.path.join(output_root, "vhm_byte.tif")
         tmp_vhm_na_replaced = os.path.join(output_root, "vhm_na_replaced.tif")
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
