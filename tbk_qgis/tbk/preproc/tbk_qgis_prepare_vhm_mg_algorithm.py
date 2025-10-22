@@ -599,6 +599,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         if vhm_convert_to_byte:
             vhm_input_raster = gdal.Open(vhm_input) # access original / unclipped VHM-input
+            vhm_input_raster_data_type = vhm_input_raster.GetRasterBand(1).DataType
 
         # clipp input VHM to relevant extent
         if clip_vhm:
@@ -619,10 +620,10 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         if vhm_convert_to_byte:
             # write message based on above accessed original / unclipped VHM-input
             feedback.pushInfo("Checking vhm input raster...")
-            feedback.pushInfo(f"DataType Code: {vhm_input_raster.GetRasterBand(1).DataType}  "
+            feedback.pushInfo(f"DataType Code: {vhm_input_raster_data_type}  "
                               f"(1: Byte, 3: Int16, 6: Float32)")
 
-            if vhm_input_raster.GetRasterBand(1).DataType == 1:
+            if vhm_input_raster_data_type == 1:
                 feedback.pushInfo("vhm raster is already byte, not converting...")
             else:
                 feedback.pushInfo("convert vhm raster to byte...")
