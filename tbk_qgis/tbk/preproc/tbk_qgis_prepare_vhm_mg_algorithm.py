@@ -448,6 +448,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
         tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.vrt")
+        tmp_mg_aligned_ = tmp_mg_aligned
         tmp_mg_na_replaced = os.path.join(output_root, "mg_na_replaced.tif")
 
         # remove existing rasters
@@ -810,10 +811,10 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if os.path.exists(tmp_vhm_mask):
                 os.remove(tmp_vhm_mask)
 
-            if os.path.exists(tmp_mg_aligned):
-                os.remove(tmp_mg_aligned)
-            if os.path.exists(tmp_mg_aligned + ".aux.xml"):
-                os.remove(tmp_mg_aligned + ".aux.xml")
+            if os.path.exists(tmp_mg_aligned_):
+                os.remove(tmp_mg_aligned_)
+            if os.path.exists(tmp_mg_aligned_ + ".aux.xml"):
+                os.remove(tmp_mg_aligned_ + ".aux.xml")
 
             if os.path.exists(tmp_vhm_clipped):
                 os.remove(tmp_vhm_clipped)
