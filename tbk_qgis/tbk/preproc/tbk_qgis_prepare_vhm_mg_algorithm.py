@@ -95,6 +95,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     DEL_TMP = "del_tmp"
 
     # advanced params
+    CLIP_VHM = "clip_vhm"
     MASK_VHM = "mask_vhm"
     VHM_RECLASSIFY = "vhm_reclassify"
     VHM_CONVERT_TO_BYTE = "vhm_convert_to_byte"
@@ -211,6 +212,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         # advanced params (VHM)
+        parameter = QgsProcessingParameterBoolean(
+            self.CLIP_VHM,
+            self.tr("Clip VHM by extent of mask"),
+            defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterBoolean(
             self.MASK_VHM,
             self.tr("Crop VHM to mask"),
@@ -350,6 +358,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # advanced params
         # vhm range
+        clip_vhm = self.parameterAsBool(parameters, self.CLIP_VHM, context)
         mask_vhm = self.parameterAsBool(parameters, self.MASK_VHM, context)
         vhm_convert_to_byte = self.parameterAsBool(parameters, self.VHM_CONVERT_TO_BYTE, context)
         vhm_reclassify = self.parameterAsBool(parameters, self.VHM_RECLASSIFY, context)
@@ -592,19 +601,20 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             vhm_input_raster = gdal.Open(vhm_input) # access original / unclipped VHM-input
 
         # clipp input VHM to relevant extent
-        feedback.pushInfo("clip VHM by mask extent...")
-        param = {
-            'INPUT': vhm_input,
-            'PROJWIN': extent_clipp,
-            'OVERCRS': False,
-            'NODATA': None,
-            'OPTIONS': '',
-            'DATA_TYPE': 0,
-            'EXTRA': '',
-            'OUTPUT': tmp_vhm_clipped
-        }
-        processing.run("gdal:cliprasterbyextent", param)
-        vhm_input = tmp_vhm_clipped
+        if clip_vhm:
+            feedback.pushInfo("clip VHM by mask extent...")
+            param = {
+                'INPUT': vhm_input,
+                'PROJWIN': extent_clipp,
+                'OVERCRS': False,
+                'NODATA': None,
+                'OPTIONS': '',
+                'DATA_TYPE': 0,
+                'EXTRA': '',
+                'OUTPUT': tmp_vhm_clipped
+            }
+            processing.run("gdal:cliprasterbyextent", param)
+            vhm_input = tmp_vhm_clipped
 
         if vhm_convert_to_byte:
             # write message based on above accessed original / unclipped VHM-input
@@ -932,6 +942,8 @@ Notes:
 4) Method <b><i>Random / driven by extent of masks</i></b> is a legacy allowing to prepare inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b> with the sole method in praxis until July 2024.</p>
 <h3>Delete temporary files</h3>
 <p>Check box: default True.</p>
+<h3>Clip VHM by extent of mask</h3>
+<p>Check box: default True. Note that clipping by the extent of the mask lowers overall preprocessing run time, if extent of the mask is significantly smaller than extent of the VHM-input. If the VHM-input and the mask have about the same extent clipping may increase overall preprocessing run time.</p>
 <h3>Crop VHM to mask</h3>
 <p>Check box: default True.</p>
 <h3>Convert VHM to BYTE datatype (...)</h3>
