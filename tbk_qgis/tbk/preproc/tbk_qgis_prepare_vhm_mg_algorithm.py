@@ -587,6 +587,9 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # print("extent to safely clipp VHM input including aligned extents of outputs VHM 10m and VHM 150m")
         # print(extent_clipp)
 
+        if vhm_convert_to_byte:
+            vhm_input_raster = gdal.Open(vhm_input) # access original / unclipped VHM-input
+
         # clipp input VHM to relevant extent
         feedback.pushInfo("clip VHM by mask extent...")
         param = {
@@ -603,8 +606,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         vhm_input = tmp_vhm_clipped
 
         if vhm_convert_to_byte:
+            # write message based on above accessed original / unclipped VHM-input
             feedback.pushInfo("Checking vhm input raster...")
-            vhm_input_raster = gdal.Open(vhm_input)
             feedback.pushInfo(f"DataType Code: {vhm_input_raster.GetRasterBand(1).DataType}  "
                               f"(1: Byte, 3: Int16, 6: Float32)")
 
