@@ -90,6 +90,7 @@ processing.run("TBk:TBk prepare VHM (and MG)", {
     'mg_10m_binary':'MG_10m_binary.tif',
     'align_method':0,
     'del_tmp':True,
+    'clip_vhm': True,
     'mask_vhm':True,
     'vhm_convert_to_byte':True,
     'vhm_reclassify':False,
