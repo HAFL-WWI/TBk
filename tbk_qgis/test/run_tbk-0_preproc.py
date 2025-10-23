@@ -83,6 +83,8 @@ processing.run("TBk:TBk prepare VHM (and MG)", {
     'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
     'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
     'output_root': f'{tbk_path}/data/tbk_test_output',
+    'save_in_output_subfolder': False,
+    'output_subfolder': 'base_data_preprocessed',
     'vhm_detail':'VHM_detail.tif',
     'vhm_10m':'VHM_10m.tif',
     'vhm_150cm':'VHM_150cm.tif',
