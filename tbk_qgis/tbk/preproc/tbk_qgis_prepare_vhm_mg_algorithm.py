@@ -82,6 +82,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     MASK = "mask"
 
     # output
+    SAVE_IN_OUTPUT_SUBFOLDER = "save_in_output_subfolder"
+    OUTPUT_SUBFOLDER = "output_subfolder"
     VHM_DETAIL = "vhm_detail"
     VHM_10M = "vhm_10m"
     VHM_150CM = "vhm_150cm"
@@ -150,6 +152,20 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # --- Advanced Parameters (Tool UI) ---
 
         ## output
+        parameter = QgsProcessingParameterBoolean(
+            self.SAVE_IN_OUTPUT_SUBFOLDER,
+            self.tr("Save preprocessing outputs in subfolder within output folder"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterString(
+            self.OUTPUT_SUBFOLDER,
+            self.tr("Name of subfolder for outputs"),
+            defaultValue="base_data_preprocessed"
+        )
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterString(
             self.VHM_DETAIL,
             self.tr("VHM detail output name (.tif)"),
@@ -407,6 +423,9 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
         # output
+        save_in_output_subfolder = self.parameterAsBool(parameters, self.SAVE_IN_OUTPUT_SUBFOLDER, context)
+        output_subfolder = str(self.parameterAsString(parameters, self.OUTPUT_SUBFOLDER, context))
+
         vhm_detail = str(self.parameterAsString(parameters, self.VHM_DETAIL, context))
         if (not vhm_detail) or vhm_detail == "":
             raise QgsProcessingException("no VHM detail file name specified")
@@ -441,6 +460,9 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         if mg_use and mg_NA_replacement:
             if mg_NA_replacement_value < 0 or mg_NA_replacement_value > 100:
                 raise QgsProcessingException("Value for replacement of forest mixture degree NoData must be >= 0 and =< 100")
+
+        if save_in_output_subfolder:
+            output_root = os.path.join(output_root, output_subfolder)
 
         ensure_dir(output_root)
 
@@ -917,6 +939,10 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <p>Path to folder, where output layers are gathered. Ideally in this very folder the later by <b><i>TBk</i></b>'s main algorithm <b><i>Generate BK</i></b> produced output folder is saved.</p>
 
 <h2>Advanced parameters</h2>
+<h3>Save preprocessing outputs in subfolder within output folder</h3>
+<p>Check box: default False.</p>
+<h3>Name of subfolder for outputs</h3>
+<p>string / subfolder name: default <i>base_data_preprocessed</i></p>
 <h3>VHM detail output name (.tif)</h3>
 <p>string / filename: default <i>VHM_detail.tif</i></p>
 <h3>VHM 10m output name (.tif)</h3>
@@ -981,7 +1007,7 @@ Notes:
 Note that if <i>Rescale Forest mixture values</i> is set to anything but 1 (no rescaling), <b><i>TBk prepare VHM (and MG)</i></b> replaces by default inevitably any NoData-pixels of <i>Forest Mixture Degree</i> with 0 (= 100% deciduous). If <i>Rescale Forest mixture values</i> is set to 1, NoData-pixels are preserved by default. By checking <i>Replacement of forest mixture degree NoData</i> and setting a numeric value as <i>Value for replacement</i> (default 0 = 100% deciduous) a non-default replacement of NoData-pixel is feasible, where the max. is 100 (= 100% coniferous). Setting <i>Value for replacement</i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 100 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
 
 <h2>Outputs</h2>
-<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed in the <b><i>Output folder</i></b> (s. above). File names of these outputs are defined vai the five corresponding advanced parameters (s. above).</p>
+<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed either directly in the <b><i>Output folder</i></b> (s. above) or if <b><i>Save preprocessing outputs in subfolder</i></b> (s. advanced parameters) is checked in a subfolder (default <i>base_data_preprocessed</i>) within  the <b><i>Output folder</i></b>. File names of these outputs are defined via the five corresponding advanced parameters (s. above).</p>
 
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
