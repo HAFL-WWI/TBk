@@ -33,7 +33,7 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -54,7 +54,7 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             QgsProcessingParameterRasterDestination('Diff_hdom_vhm', 'diff_hdom_vhm', createByDefault=True,
                                                     defaultValue=''))
         self.addParameter(
-            QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.TypeVectorPoint,
+            QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.SourceType.TypeVectorPoint,
                                               createByDefault=True, defaultValue=None))
 
     def processAlgorithm(self, parameters, context, model_feedback):

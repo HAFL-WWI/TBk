@@ -41,7 +41,7 @@ from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_processing_algorithm_tools
 class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     # Constants used to refer to parameters and outputs. They will be
@@ -95,7 +95,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             QgsProcessingParameterFile(
                 self.PATH_TBk_INPUT,
                 self.tr("Folder with TBk results"),
-                behavior=QgsProcessingParameterFile.Folder,
+                behavior=QgsProcessingParameterFile.Behavior.Folder,
                 fileFilter='All Folders (*.*)',
                 defaultValue=None
             )
@@ -173,7 +173,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         parameter = QgsProcessingParameterNumber(
             self.MIN_SIZE_CLUMP,
             self.tr("Minimum size for 'clumps' of local densities (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=1200
         )
         self.addAdvancedParameter(parameter)
@@ -182,7 +182,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         parameter = QgsProcessingParameterNumber(
             self.MIN_SIZE_STAND,
             self.tr("Minimum size for stands to apply calculation of local densities (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=1200
         )
         self.addAdvancedParameter(parameter)
@@ -191,7 +191,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         parameter = QgsProcessingParameterNumber(
             self.HOLES_THRESH,
             self.tr("Threshold for minimal holes within local density polygons (m^2)"),
-            type=QgsProcessingParameterNumber.Integer,
+            type=QgsProcessingParameterNumber.Type.Integer,
             defaultValue=400
         )
         self.addAdvancedParameter(parameter)
@@ -214,7 +214,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                 "Buffer distance of buffer smoothing (m)."
                 "\nIf set to 0, no buffer smoothing is applied."
             ),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=7
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 2}})
@@ -235,7 +235,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                 "Grid cell size for grouping stands by their x_min & y_min overlapping (km)."
                 "\n(used for iterative intersection of stands and local densities)"
             ),
-            type=QgsProcessingParameterNumber.Double,
+            type=QgsProcessingParameterNumber.Type.Double,
             defaultValue=3
         )
         parameter.setMetadata({'widget_wrapper': {'decimals': 3}})
@@ -518,7 +518,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             focal_in_use = focal_dg_layers[str(cl["size"])]
 
             # stats of used focal layer
-            focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.All)
+            focal_stats = focal_in_use.dataProvider().bandStatistics(1, QgsRasterBandStats.Stats.All)
             focal_min = focal_stats.minimumValue
             focal_max = focal_stats.maximumValue
             # if range of density class does not overlap with range of values of focal layer continue with next class

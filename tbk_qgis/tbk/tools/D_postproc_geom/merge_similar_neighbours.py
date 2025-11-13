@@ -29,8 +29,8 @@ import subprocess
 import sys
 
 from qgis import core
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtWidgets import *
+from qgis.PyQt.QtCore import QVariant
 from qgis.utils import iface
 from qgis.core import QgsProject
 import processing
@@ -222,7 +222,7 @@ def merge_similar_neighbours(working_root, shape_in_path, shape_out_path, min_ar
             stands_i = algoOutput["OUTPUT"]
 
             # save original fids of stands, which will be merged below, in list
-            l_fid_merged[i] = stands_i.aggregate(QgsAggregateCalculator.ArrayAggregate, "fid")[0]
+            l_fid_merged[i] = stands_i.aggregate(QgsAggregateCalculator.Aggregate.ArrayAggregate, "fid")[0]
 
             # sort selected stands by area (largest 1st) --> 1st feature's attributes are kept when dissolved
             param = {'INPUT': stands_i, 'EXPRESSION': '$area', 'ASCENDING': False, 'NULLS_FIRST': False,

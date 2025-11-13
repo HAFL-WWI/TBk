@@ -72,12 +72,12 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
             self.addParameter(QgsProcessingParameterFile(self.WORKING_ROOT,
                                                          "Working root folder. This folder must contain the outputs "
                                                          "from previous steps.",
-                                                         behavior=QgsProcessingParameterFile.Folder))
+                                                         behavior=QgsProcessingParameterFile.Behavior.Folder))
 
         # Input stand map to be processed
         self.addParameter(
             QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
-                                                [QgsProcessing.TypeVectorPolygon],
+                                                [QgsProcessing.SourceType.TypeVectorPolygon],
                                                      optional=True))
 
         # Output
@@ -93,11 +93,11 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.SIMPLIFICATION_TOLERANCE, "Simplification tolerance [m]",
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=8)
+                                                 type=QgsProcessingParameterNumber.Type.Double, defaultValue=8)
         self._add_advanced_parameter(parameter)
 
         parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, "Min. area to eliminate small stands",
-                                                 type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
+                                                 type=QgsProcessingParameterNumber.Type.Integer, defaultValue=1000)
         self._add_advanced_parameter(parameter)
 
         # Additional parameters

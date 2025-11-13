@@ -33,7 +33,7 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-from PyQt5.QtCore import QCoreApplication
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -51,7 +51,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
             QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
 
         self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
-                                                            type=QgsProcessing.TypeVectorAnyGeometry,
+                                                            type=QgsProcessing.SourceType.TypeVectorAnyGeometry,
                                                             createByDefault=True, supportsAppend=True,
                                                             defaultValue=None))
 

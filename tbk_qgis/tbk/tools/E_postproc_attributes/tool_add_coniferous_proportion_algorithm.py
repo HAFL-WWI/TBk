@@ -62,7 +62,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
             self.addParameter(QgsProcessingParameterFile(self.RESULT_DIR,
                                                          "Directory containing all TBk output folders and files. This "
                                                          "folder must contain the previous generated data",
-                                                         behavior=QgsProcessingParameterFile.Folder))
+                                                         behavior=QgsProcessingParameterFile.Behavior.Folder))
 
         # --- Advanced Parameters
 

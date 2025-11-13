@@ -53,7 +53,7 @@ def save_feature_dict (feature_dict, shapefile, shp_out_path):
     writer = QgsVectorFileWriter.create(
         shp_out_path,
         shapefile.fields(),
-        QgsWkbTypes.Polygon,
+        QgsWkbTypes.Type.Polygon,
         shapefile.crs(),
         shapefile.transformContext(),
         save_options

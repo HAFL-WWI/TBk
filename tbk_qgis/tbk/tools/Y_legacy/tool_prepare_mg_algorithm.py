@@ -58,7 +58,7 @@ class TBkPrepareMgAlgorithm(TBkProcessingAlgorithmToolY):
     """
 
     def addAdvancedParameter(self, parameter):
-        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.Flag.FlagAdvanced)
         return self.addParameter(parameter)
 
     def deleteRasterIfExists (self, raster_path):
@@ -120,16 +120,16 @@ class TBkPrepareMgAlgorithm(TBkProcessingAlgorithmToolY):
 
 
         # reclassify values
-        parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Laubholz value"), type=QgsProcessingParameterNumber.Integer, defaultValue=1)
+        parameter = QgsProcessingParameterNumber(self.MIN_LH, self.tr("Minimum Laubholz value"), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=1)
         self.addParameter(parameter)  
 
-        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Laubholz value"), type=QgsProcessingParameterNumber.Integer, defaultValue=5000)
+        parameter = QgsProcessingParameterNumber(self.MAX_LH, self.tr("Maximum Laubholz value"), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=5000)
         self.addParameter(parameter)  
 
-        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Nadelholz value"), type=QgsProcessingParameterNumber.Integer, defaultValue=5000)
+        parameter = QgsProcessingParameterNumber(self.MIN_NH, self.tr("Minimum Nadelholz value"), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=5000)
         self.addParameter(parameter)  
 
-        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Nadelholz value"), type=QgsProcessingParameterNumber.Integer, defaultValue=10000)
+        parameter = QgsProcessingParameterNumber(self.MAX_NH, self.tr("Maximum Nadelholz value"), type=QgsProcessingParameterNumber.Type.Integer, defaultValue=10000)
         self.addParameter(parameter) 
 
         # advanced params

@@ -220,7 +220,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         buffered_feature_layer.source(),
                         selectedFeaturesOnly=False,
                         featureLimit=1,
-                        geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
+                        geometryCheck=QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid
                     ),
                     'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': vhm_10m_clipped
@@ -234,7 +234,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         buffered_feature_layer.source(),
                         selectedFeaturesOnly=False,
                         featureLimit=1,
-                        geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
+                        geometryCheck=QgsFeatureRequest.InvalidGeometryCheck.GeometryAbortOnInvalid
                     ),
                     'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': mg_10m_clipped
@@ -270,7 +270,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 )
 
                 # Check for errors
-                if error != QgsVectorFileWriter.NoError:
+                if error != QgsVectorFileWriter.WriterError.NoError:
                     print(f"Error while saving {output_vector}: {error}")
                 else:
                     print(f"Successfully saved {region_name} perimeter to {output_vector}")
@@ -580,11 +580,11 @@ from qgis.PyQt.QtCore import QVariant
 
 import os
 from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 
 import os
 from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
-from PyQt5.QtCore import QVariant
+from qgis.PyQt.QtCore import QVariant
 
 
 def finalize_TBk(input_layer, output_layer):
@@ -707,7 +707,7 @@ def merge_layers_with_composite_id(vector_paths, region_ids, output_path):
     )
 
     # Check for errors during the write operation
-    if error == QgsVectorFileWriter.NoError:
+    if error == QgsVectorFileWriter.WriterError.NoError:
         print(f"Successfully saved merged layer to {output_path}")
     else:
         print(f"Error: Could not save merged layer to {output_path}. Error code: {error}")
