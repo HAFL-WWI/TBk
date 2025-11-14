@@ -113,7 +113,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     MAX_LH = "max_lh"
     MIN_NH = "min_nh"
     MAX_NH = "max_nh"
-    MG_NA_replacement = "mg_NA_replacement"
     MG_NA_replacement_value = "mg_NA_replacement_value"
 
     def initAlgorithm(self, config):
@@ -344,13 +343,6 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
-        parameter = QgsProcessingParameterBoolean(
-            self.MG_NA_replacement,
-            self.tr("Replacement of forest mixture degree NoData"),
-            defaultValue=False
-        )
-        self.addAdvancedParameter(parameter)
-
         parameter = QgsProcessingParameterNumber(
             self.MG_NA_replacement_value,
             self.tr(
@@ -358,7 +350,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 "\ns. documentation"
             ),
             type=QgsProcessingParameterNumber.Integer,
-            defaultValue=0
+            optional=True
         )
         self.addAdvancedParameter(parameter)
 
@@ -392,8 +384,12 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
         max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
 
-        mg_NA_replacement = self.parameterAsBool(parameters, self.MG_NA_replacement, context)
         mg_NA_replacement_value = self.parameterAsInt(parameters, self.MG_NA_replacement_value, context)
+        if mg_NA_replacement_value:
+            mg_NA_replacement = True
+        else:
+            mg_NA_replacement = False
+
         # # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
         if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff", ".vrt"):
@@ -999,12 +995,10 @@ Notes:
 <p>integer [%]: default 50%</p>
 <h3>Maximum Coniferous (Nadelholz) value</h3>
 <p>integer [%]: default 100%</p>
-<h3>Replacement of forest mixture degree NoData</h3>
-<p>Check box: default False.</p>
 <h3>Value for replacement of forest mixture degree NoData</h3>
-<p>integer [%]: default 0%</p>
+<p>integer [%]: optional</p>
 
-Note that if <i>Rescale Forest mixture values</i> is set to anything but 1 (no rescaling), <b><i>TBk prepare VHM (and MG)</i></b> replaces by default inevitably any NoData-pixels of <i>Forest Mixture Degree</i> with 0 (= 100% deciduous). If <i>Rescale Forest mixture values</i> is set to 1, NoData-pixels are preserved by default. By checking <i>Replacement of forest mixture degree NoData</i> and setting a numeric value as <i>Value for replacement</i> (default 0 = 100% deciduous) a non-default replacement of NoData-pixel is feasible, where the max. is 100 (= 100% coniferous). Setting <i>Value for replacement</i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 100 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
+Note that if <i>Rescale Forest mixture values</i> is set to anything but 1 (no rescaling), <b><i>TBk prepare VHM (and MG)</i></b> replaces by default inevitably any NoData-pixels of <i>Forest Mixture Degree</i> with 0 (= 100% deciduous). If <i>Rescale Forest mixture values</i> is set to 1, NoData-pixels are preserved by default. By setting optionally a numeric value as <i>Value for replacement of forest mixture degree NoData</i> a non-default replacement of NoData-pixel is feasible, where the min. is 0 (= 100% deciduous) and the max. is 100 (= 100% coniferous). Setting <i>Value for replacement</i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 100 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
 
 <h2>Outputs</h2>
 <p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed either directly in the <b><i>Output folder</i></b> (s. above) or if <b><i>Save preprocessing outputs in subfolder</i></b> (s. advanced parameters) is checked in a subfolder (default <i>base_data_preprocessed</i>) within  the <b><i>Output folder</i></b>. File names of these outputs are defined via the five corresponding advanced parameters (s. above).</p>
