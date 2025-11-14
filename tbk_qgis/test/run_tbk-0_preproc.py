@@ -106,7 +106,6 @@ processing.run("TBk:TBk prepare VHM (and MG)", {
     'max_lh':50,
     'min_nh':50,
     'max_nh':100,
-    'mg_NA_replacement': False,
-    'mg_NA_replacement_value': 0
+    'mg_NA_replacement_value': None
 }
 )
