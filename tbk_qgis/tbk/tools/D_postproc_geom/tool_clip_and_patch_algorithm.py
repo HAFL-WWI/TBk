@@ -139,8 +139,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         gaps_results = eliminate_gaps(clip_results["stands_clipped"], params.stands_clipped_no_gaps, tmp_output_folder,
                                       params.perimeter, del_tmp=params.del_tmp)
 
-        return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"],
-                self.OUTPUT_STANDS_HIGHEST_TREE_CLIPPED: clip_results["stands_highest_tree_clipped"], }
+        return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"] }
 
     def createInstance(self):
         """
