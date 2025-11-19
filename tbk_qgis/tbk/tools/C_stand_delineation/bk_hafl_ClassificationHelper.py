@@ -148,24 +148,21 @@ class ClassificationHelper:
     ################################################
     # Add hmax effective and 80th percentile (zonal stats)
     @staticmethod
-    def add_vhm_stats(vector_file_path, vhm):
+    def add_vhm_stats(vector_file_path, vector_stat_file_path, vhm):
         # get max VHM value and 80 percentile per polygon
-        vectorfile_path_stat_path = vector_file_path.replace(".gpkg", "_stat.gpkg")
         param = {'map': vector_file_path, 'raster': vhm, 'column_prefix': 'rs', 'method': [2, 12], 'percentile': 80,
-                 'output': vectorfile_path_stat_path, 'GRASS_REGION_PARAMETER': None,
+                 'output': vector_stat_file_path, 'GRASS_REGION_PARAMETER': None,
                  'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1,
                  'GRASS_MIN_AREA_PARAMETER': 0.0001, 'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '',
                  'GRASS_VECTOR_LCO': '', 'GRASS_VECTOR_EXPORT_NOCAT': False}
         algoOutput = processing.run("grass7:v.rast.stats", param)
 
-        statLayer = QgsVectorLayer(vectorfile_path_stat_path, 'stats', 'ogr')
+        statLayer = QgsVectorLayer(vector_stat_file_path, 'stats', 'ogr')
         stats = {}
         counter = 0
         for feature in statLayer.getFeatures():
             stats[feature["OBJECTID"]] = {"max": feature["rs_maximum"], "percentile_80": feature["rs_percentile_80"]}
             counter += 1
-
-        # print(stats)
 
         # open stand polygon file
         dataSource = gdal.OpenEx(vector_file_path, 1)
@@ -199,7 +196,6 @@ class ClassificationHelper:
             dataSource.Close()
         except:
             print(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
-        # delete_geopackage(vectorfile_path_stat_path)
 
     ################################################
     # get hmax by stand ID

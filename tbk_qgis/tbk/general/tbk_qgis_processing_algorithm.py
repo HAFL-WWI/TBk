@@ -39,12 +39,12 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
                 # config_file values)
                 parameters.update(config)
 
-                feedback.pushInfo(f'Read config file: ')
-                feedback.pushInfo(f'Parameters overwritten through provided config file:')
+                feedback.pushInfo('Read config file: ')
+                feedback.pushInfo('Parameters overwritten through provided config file:')
                 feedback.pushInfo(f'{list(config_changed.keys())}')
-                feedback.pushInfo(f'Parameters not contained in config file (using values from tool-dialog/defaults):')
+                feedback.pushInfo('Parameters not contained in config file (using values from tool-dialog/defaults):')
                 feedback.pushInfo(f'{list(config_removed.keys())}')
-                feedback.pushInfo(f'Unused config file parameters:')
+                feedback.pushInfo('Unused config file parameters:')
                 feedback.pushInfo(f'{list(config_added.keys())}')
             except FileNotFoundError:
                 raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")

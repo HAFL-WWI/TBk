@@ -36,9 +36,6 @@
  ***************************************************************************/
 """
 
-
-# Import arcpy module
-
 import processing
 from datetime import timedelta
 import time
@@ -46,46 +43,44 @@ import time
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
-def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=True):
+def calculate_dg(working_root,
+                 stands_dg,
+                 tmp_output_folder,
+                 dg_dir,
+                 vhm,
+                 del_tmp=True):
     print("--------------------------------------------")
     print("START DG calculation...")
 
-    # TBk folder path
-    workspace = working_root
-    scratchWorkspace = tmp_output_folder
-
-    # Use half of the cores on the machine.
-    # arcpy.env.parallelProcessingFactor = "50%"
-
-    # TBk shapefile
-    stands_file = os.path.join(working_root, "stands_clipped.gpkg")
-
     # Create dg layer output directory
-    dg_layers_dir = os.path.join(tbk_result_dir, "dg_layers")
-    if not os.path.exists(dg_layers_dir):
-        os.makedirs(dg_layers_dir)
+    if not os.path.exists(dg_dir):
+        os.makedirs(dg_dir)
 
-    # Create tmp output directory if none is provided
-    if tmp_output_folder is None:
-        tmp_output_folder = os.path.join(dg_layers_dir, "tmp")
-        if not os.path.exists(tmp_output_folder):
-            os.makedirs(tmp_output_folder)
+    # DG file names
+    dg_file_names = {
+        "ks": "dg_layer_ks.tif",
+        "us": "dg_layer_us.tif",
+        "ms": "dg_layer_ms.tif",
+        "os": "dg_layer_os.tif",
+        "ueb": "dg_layer_ueb.tif",
+        "main": "dg_layer.tif"
+    }
 
-    # DG layers
-    dg_ks_classified = os.path.join(dg_layers_dir, "dg_layer_ks.tif")
-    dg_us_classified = os.path.join(dg_layers_dir, "dg_layer_us.tif")
-    dg_ms_classified = os.path.join(dg_layers_dir, "dg_layer_ms.tif")
-    dg_os_classified = os.path.join(dg_layers_dir, "dg_layer_os.tif")
-    dg_ueb_classified = os.path.join(dg_layers_dir, "dg_layer_ueb.tif")
-    dg_classified = os.path.join(dg_layers_dir, "dg_layer.tif")
+    # Dictionary containing the path to the crown coverage files
+    dg_files = {key: os.path.join(dg_dir, filename) for key, filename in dg_file_names.items()}
 
-    # tmp files
-    tmp_lim_ks = os.path.join(tmp_output_folder, "dg_ks_max.tif")
-    tmp_lim_us = os.path.join(tmp_output_folder, "dg_us_min.tif")
-    tmp_lim_ms = os.path.join(tmp_output_folder, "dg_ms_min.tif")
-    tmp_lim_os = os.path.join(tmp_output_folder, "dg_lim_os.tif")
-    tmp_lim_ueb = os.path.join(tmp_output_folder, "dg_lim_ueb.tif")
-    tmp_lim_dg = os.path.join(tmp_output_folder, "dg_lim_dg.tif")
+    # Temporary files
+    tmp_files_names = {
+        "ks_max": "dg_ks_max.tif",
+        "us_min": "dg_us_min.tif",
+        "ms_min": "dg_ms_min.tif",
+        "lim_os": "dg_lim_os.tif",
+        "lim_ueb": "dg_lim_ueb.tif",
+        "lim_dg": "dg_lim_dg.tif"
+    }
+
+    # Dictionary containing the path to temp files
+    tmp_files = {key: os.path.join(tmp_output_folder, filename) for key, filename in tmp_files_names.items()}
 
     # Layer threshold values (based on NFI definition, www.lfi.ch)
     max_height_ks = 1.0
@@ -96,7 +91,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     ########################################################################
 
-    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_dg, "stands", "ogr")
 
     # Add DG limits fields per stand
     with edit(stands_layer):
@@ -128,15 +123,15 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
 
     # create a list (for iteration) with dg-classes to be calculated
     # assign: 1. a column_prefix, 2. a limit (dg_lim_field),
-    # 3. - 5. the necessary raster layers (dg_tmp_file_B and C as well as dg_layer_file)
+    # 3. - 5. the necessary raster layers (dg_tmp_file_b and C as well as dg_layer_file)
     # and 6. the raster calculator formula for each dg-type
     field_file_pairs = [
-        ['dg_ueb_', 'dg_ueb_min', tmp_lim_ueb, None, dg_ueb_classified, '((A>B) & True)*1'],
-        ['dg_os_', 'dg_os_min', tmp_lim_os, tmp_lim_ueb, dg_os_classified, '((A>B) & (A<=C))*1'],
-        ['dg_ms_', 'dg_ms_min', tmp_lim_ms, tmp_lim_os, dg_ms_classified, '((A>B) & (A<=C))*1'],
-        ['dg_us_', 'dg_us_min', tmp_lim_us, tmp_lim_ms, dg_us_classified, '((A>=B) & (A<=C))*1'],
-        ['dg_ks_', 'dg_ks_max', tmp_lim_ks, tmp_lim_us, dg_ks_classified, '((A<B) & True)*1'],
-        ['dg_', 'dg_min', tmp_lim_dg, tmp_lim_ks, dg_classified, '((A>B) & True)*1']
+        ['dg_ueb_', 'dg_ueb_min', tmp_files['lim_ueb'], None, dg_files["ueb"], '((A>B) & True)*1'],
+        ['dg_os_', 'dg_os_min', tmp_files['lim_os'], tmp_files['lim_ueb'], dg_files["os"], '((A>B) & (A<=C))*1'],
+        ['dg_ms_', 'dg_ms_min', tmp_files['ms_min'], tmp_files['lim_os'], dg_files["ms"], '((A>B) & (A<=C))*1'],
+        ['dg_us_', 'dg_us_min', tmp_files['us_min'], tmp_files['ms_min'], dg_files["us"], '((A>=B) & (A<=C))*1'],
+        ['dg_ks_', 'dg_ks_max', tmp_files['ks_max'], tmp_files['us_min'], dg_files["ks"], '((A<B) & True)*1'],
+        ['dg_', 'dg_min', tmp_files['lim_dg'], tmp_files['ks_max'], dg_files["main"], '((A>B) & True)*1']
     ]
 
     # Produce final "1" / "0" raster for each layer
@@ -145,48 +140,48 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     print("classify stand layers...")
     for column_prefix, \
             dg_lim_field, \
-            dg_tmp_file_B, \
-            dg_tmp_file_C, \
+            dg_tmp_file_b, \
+            dg_tmp_file_c, \
             dg_layer_file, \
             formula \
             in field_file_pairs:
         start_time = time.time()
-        # print(dg_lim_field, "->", dg_tmp_file_B, "->", dg_layer_file)
+        # print(dg_lim_field, "->", dg_tmp_file_b, "->", dg_layer_file)
         if (column_prefix == 'dg_'):
             # DG Layer can be created by using OS and UEB (need to be present)
             processing.run("gdal:rastercalculator", {
-                'INPUT_A': dg_os_classified,
+                'INPUT_A': dg_files["os"],
                 'BAND_A': 1,
-                'INPUT_B': dg_ueb_classified,
+                'INPUT_B': dg_files["ueb"],
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
                 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
                 'OUTPUT': dg_layer_file})
         else:
             # create an empty DG layer based on vhm extents for each layer
-            create_empty_copy(vhm, dg_tmp_file_B)
+            create_empty_copy(vhm, dg_tmp_file_b)
             # burn vector value into raster
             processing.run("gdal:rasterize_over", {
-                'INPUT': stands_file,
-                'INPUT_RASTER': dg_tmp_file_B,
+                'INPUT': stands_dg,
+                'INPUT_RASTER': dg_tmp_file_b,
                 'FIELD': dg_lim_field,
                 'ADD': False, 'EXTRA': ''})
             # classify raster
             processing.run("gdal:rastercalculator", {
                 'INPUT_A': vhm, 'BAND_A': 1,
-                'INPUT_B': dg_tmp_file_B, 'BAND_B': 1,
-                'INPUT_C': dg_tmp_file_C, 'BAND_C': 1,
+                'INPUT_B': dg_tmp_file_b, 'BAND_B': 1,
+                'INPUT_C': dg_tmp_file_c, 'BAND_C': 1,
                 'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '', 'OUTPUT': dg_layer_file})
 
         # clean up temp files as soon as possible
         if del_tmp:
-            if dg_tmp_file_C is not None:
-                if os.path.exists(dg_tmp_file_C):
-                    delete_raster(dg_tmp_file_C)
-                if os.path.exists(dg_tmp_file_C + ".aux.xml"):
-                    os.remove(dg_tmp_file_C + ".aux.xml")
+            if dg_tmp_file_c is not None:
+                if os.path.exists(dg_tmp_file_c):
+                    delete_raster(dg_tmp_file_c)
+                if os.path.exists(dg_tmp_file_c + ".aux.xml"):
+                    os.remove(dg_tmp_file_c + ".aux.xml")
 
         end_time = time.time()
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
@@ -199,7 +194,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
         # using the "old" zonalstatistics algorithm (not zonalstatisticsfb), that appends fields to input layer
         # for more info, read https://github.com/qgis/QGIS/issues/40356
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
-                 'INPUT_VECTOR': stands_file,
+                 'INPUT_VECTOR': stands_dg,
                  'COLUMN_PREFIX': column_prefix, 'STATS': [2]}
         processing.run("qgis:zonalstatistics", param)
 
@@ -207,7 +202,7 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
         print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # re-read the input, as it was modified by zonal statistics
-    stands_layer = QgsVectorLayer(stands_file, "stands", "ogr")
+    stands_layer = QgsVectorLayer(stands_dg, "stands", "ogr")
     with edit(stands_layer):
         # Add DG fields
         provider = stands_layer.dataProvider()
@@ -234,10 +229,18 @@ def calculate_dg(working_root, tmp_output_folder, tbk_result_dir, vhm, del_tmp=T
     # Delete temporary fields
     if del_tmp:
         delete_fields(stands_layer,
-                      ["dg_ks_max", "dg_us_min", "dg_ms_min", "dg_os_min", "dg_ueb_min", "dg_min", "dissolve",
-                       "dg_ks_mean", "dg_us_mean", "dg_ms_mean", "dg_os_mean", "dg_ueb_mean", "dg_mean",
-                       'dg_ks_count', 'dg_ks_sum', 'dg_us_count', 'dg_us_sum', 'dg_ms_count', 'dg_ms_sum', 'dg_os_count',
-                       'dg_os_sum', 'dg_ueb_count', 'dg_ueb_sum', 'dg_count', 'dg_sum',
-                       ])
+                      ["dg_ks_max", 'dg_ks_count', "dg_ks_mean", 'dg_ks_sum',
+                       "dg_us_min", "dg_us_mean", 'dg_us_count', 'dg_us_sum',
+                       "dg_ms_min", "dg_ms_mean", 'dg_ms_count', 'dg_ms_sum',
+                       "dg_os_min", "dg_os_mean", 'dg_os_count', 'dg_os_sum',
+                       "dg_ueb_min", "dg_ueb_mean", 'dg_ueb_count', 'dg_ueb_sum',
+                       "dg_min", "dg_mean", 'dg_count', 'dg_sum',
+                       "dissolve",])
 
     print("DONE!")
+
+    # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
+    results = {f"dg_layer_{key}": value for key, value in dg_files.items()}
+    results["stands_dg"] = stands_dg
+
+    return results

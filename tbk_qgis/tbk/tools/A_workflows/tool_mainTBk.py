@@ -560,7 +560,7 @@ class TBkAlgorithm(TBkProcessingAlgorithmToolA):
         # run clip function
         clip_to_perimeter(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
         # run gaps function
-        eliminate_gaps(working_root, tmp_output_folder, perimeter, del_tmp=del_tmp)
+        eliminate_gaps(tmp_output_folder, perimeter, del_tmp=del_tmp)
         log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
         log.info("   --- 65%" + " | estimated remaining time: %s (h:min:sec)\n" % str(
             timedelta(seconds=((time.time() - start_time) * 100 / 65 - (time.time() - start_time)))))

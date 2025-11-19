@@ -37,6 +37,7 @@ from qgis.core import *
 import os
 import sys
 import logging
+import processing
 
 from osgeo import ogr
 from osgeo import gdal
@@ -141,6 +142,14 @@ def copy_raster_tiff(in_raster, out_raster):
     in_ds = None
     out_ds = None
 
+# Function to copy a vector file elsewhere
+def copy_vector_file(input_path: str, output_path: str, context: QgsProcessingContext, feedback: QgsProcessingFeedback, is_child_algorithm=True) -> str:
+    return processing.run("native:savefeatures",
+                          {'INPUT': input_path, 'OUTPUT': output_path},
+                          context=context,
+                          feedback=feedback,
+                          is_child_algorithm=is_child_algorithm
+                          )['OUTPUT']
 
 # Function to create and empty copy of a GeoTIFF raster
 def create_empty_copy(input_raster, output_raster):
