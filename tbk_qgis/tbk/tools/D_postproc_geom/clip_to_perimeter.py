@@ -46,15 +46,7 @@ def clip_to_perimeter(working_root,
         'OUTPUT': tmp_stands_clipped_path
     })
 
-    # Clip highest trees
-    highest_point_clip_path = os.path.join(working_root, "stands_highest_tree_clipped.gpkg")
-    clip_vector_layer(tmp_stands_highest_tree, perimeter, highest_point_clip_path)
-
-    if del_tmp:
-        delete_geopackage(tmp_stands_highest_tree)
-
-    return {"stands_clipped": tmp_stands_clipped_path,
-            "stands_highest_tree_clipped": highest_point_clip_path, }
+    return {"stands_clipped": tmp_stands_clipped_path}
 
 
 def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT') -> QgsVectorLayer | str:
