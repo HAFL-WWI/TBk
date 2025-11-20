@@ -53,6 +53,7 @@ from tbk_qgis.tbk.tools.G_utility.tool_postprocess_hdomDiff import TBkPostproces
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_extract_perimeter import TBkPostprocessExtractPerimeter
 from tbk_qgis.tbk.tools.G_utility.tool_optimized_spatial_join import OptimizedSpatialJoin
+from tbk_qgis.tbk.tools.G_utility.tbk_qgis_postprocess_ddom_SD_estimate import TBkDdomSDEstimate
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_all_algorithm import TBkPrepareAlgorithm
@@ -77,7 +78,7 @@ class TBkProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        # [grpID: Y_legacy]      grpName: 0 Preprocessing
+        # [grpID: preproc]      grpName: 0 Preprocessing
         self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkStandDelineationAlgorithm())
@@ -99,6 +100,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessLocalDensity())
         self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
+        self.addAlgorithm(TBkDdomSDEstimate())
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: legacy]     grpName: Y LEGACY
@@ -123,7 +125,7 @@ class TBkProvider(QgsProcessingProvider):
         This string should be short (e.g. "Lastools") and localised.
         """
         # return self.tr('TBk')
-        return self.tr('TBk for QGIS 3.34')
+        return self.tr('TBk for QGIS 3.40')
 
     def icon(self):
         """
@@ -144,4 +146,4 @@ class TBkProvider(QgsProcessingProvider):
         (version 2.2.1)". This string should be localised. The default
         implementation returns the same string as name() [return self.name()].
         """
-        return 'TBk: Toolkit Bestandeskarte v0.3.1'
+        return 'TBk: Toolkit Bestandeskarte v0.4.1'

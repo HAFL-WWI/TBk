@@ -73,6 +73,10 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
     FIELD_P440 = "field_p440"
     FIELD_P800 = "field_p800"
 
+    FIELD_DIV_ID = "field_div_id"
+
+    EXPORT_DG_PER_STRATA = "export_dg_per_strata"
+    VERBOSE = "verbose"
     DELETE_TMP = "delete_tmp"
     CREATE_WIS2_SUBFOLDER = "create_wis2_subfolder"
 
@@ -155,7 +159,16 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                                                self.tr(
                                                                    "Other broadleaves (p800) proportion Field Name"),
                                                                optional=True))
+        self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_DIV_ID,
+                                                               self.tr("Field from which the forest region ID is read"),
+                                                               optional=True, defaultValue="div_id"))
 
+        self.addAdvancedParameter(QgsProcessingParameterBoolean(self.EXPORT_DG_PER_STRATA,
+                                                                self.tr("Also export DG per Strata attributes (DG_ks/us/ms/hs/ueb)."),
+                                                                defaultValue=True))
+        self.addAdvancedParameter(QgsProcessingParameterBoolean(self.VERBOSE,
+                                                                self.tr("Show warnings if stand attributes are modified during export."),
+                                                                defaultValue=False))
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.CREATE_WIS2_SUBFOLDER,
                                                                 self.tr("Create subfolder wis2_export."),
                                                                 defaultValue=True))
@@ -175,8 +188,14 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
         feedback.pushInfo("====================================================================")
 
         # --- get input parameters
-        stands_layer = self.parameterAsVectorLayer(parameters, self.STANDS, context)
-        stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        stands_layer = self.parameterAsSource(parameters, self.STANDS, context)
+        try:
+            stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        except Exception as e:
+            print(f"Error getting layer-source (likely temporary layer or \"only selected features\" is selected): {e}."
+                  "\nSetting stands_layer_source to \"temp_layer\"")
+            stands_layer_source = "temp_layer"
+
         feedback.pushInfo(f"Using stands:\n {stands_layer_source}\n"
                           f"with fields:\n {stands_layer.fields().names()}\n")
 
@@ -185,30 +204,6 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
         default_site_category = str(self.parameterAsString(parameters, self.DEFAULT_SITE_CATEOGRY, context))
         field_forest_site_category = str(self.parameterAsString(parameters, self.FIELD_FOREST_SITE_CATEGORY, context))
         default_tree_species_field = str(self.parameterAsString(parameters, self.DEFAULT_TREE_SPECIES_FIELD, context))
-        field_p100 = str(self.parameterAsString(parameters, self.FIELD_P100, context))
-        field_p410 = str(self.parameterAsString(parameters, self.FIELD_P410, context))
-
-        field_p120 = str(self.parameterAsString(parameters, self.FIELD_P120, context))
-        field_p140 = str(self.parameterAsString(parameters, self.FIELD_P140, context))
-        field_p160 = str(self.parameterAsString(parameters, self.FIELD_P160, context))
-        field_p390 = str(self.parameterAsString(parameters, self.FIELD_P390, context))
-        field_p420 = str(self.parameterAsString(parameters, self.FIELD_P420, context))
-        field_p430 = str(self.parameterAsString(parameters, self.FIELD_P430, context))
-        field_p440 = str(self.parameterAsString(parameters, self.FIELD_P440, context))
-        field_p800 = str(self.parameterAsString(parameters, self.FIELD_P800, context))
-
-        fields_tree_species = [
-            str(self.parameterAsString(parameters, self.FIELD_P100, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P120, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P140, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P160, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P390, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P410, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P420, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P430, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P440, context)),
-            str(self.parameterAsString(parameters, self.FIELD_P800, context))
-        ]
 
         fields_pX_tree_species = {
             "p100": str(self.parameterAsString(parameters, self.FIELD_P100, context)),
@@ -223,9 +218,13 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
             "p800": str(self.parameterAsString(parameters, self.FIELD_P800, context))
         }
 
+        field_div_id = str(self.parameterAsString(parameters, self.FIELD_DIV_ID, context))
+
         delete_tmp = self.parameterAsBoolean(parameters, self.DELETE_TMP, context)
         tmp_joined_layer = ""
         create_wis2_subfolder = self.parameterAsBoolean(parameters, self.CREATE_WIS2_SUBFOLDER, context)
+        export_dg_per_strata = self.parameterAsBoolean(parameters, self.EXPORT_DG_PER_STRATA, context)
+        verbose = self.parameterAsBoolean(parameters, self.VERBOSE, context)
 
         # --- get/generate output parameters
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
@@ -324,6 +323,11 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                 field_forest_site_category = "siteCategory_" + field_forest_site_category
 
         # ------- MAIN PROCESSING -------#
+        # check if provided div_id field is found
+        if stands_layer.fields().indexFromName(field_div_id) == -1:
+            print(f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
+            feedback.pushWarning(f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
+            field_div_id = "div_id"
 
         # --- set tree species fields
         print("Tree Species Fields")
@@ -374,7 +378,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
         # --- open XML
         print(f"\nExport to XML file:\n {output_xml}\n")
         feedback.pushInfo(f"\nExport to XML file:\n {output_xml}\n")
-        i = 0
+        stand_count = 0
         with open(output_xml, 'a') as xml_file:
 
             xml_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
@@ -382,7 +386,6 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                 '<dataroot xmlns:od="urn:schemas-microsoft-com:officedata" generated="' + currentDatetime + '">\n')
             xml_file.write('\n')
 
-            provider = stands_layer.dataProvider()
             # --- iterate over each stand and write attributes
             for f in stands_layer.getFeatures():
                 # print('load stand ' + str(f["ID"]))
@@ -394,7 +397,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                     feedback.pushInfo('skip stand ' + str(f["ID"]) + ': area is NULL')
                 else:
                     # main processing of valid stand
-                    i = i + 1  # count outputs
+                    stand_count = stand_count + 1  # count outputs
                     # print('processing stand ' + str(f["ID"]))
                     # feedback.pushInfo('processing stand ' + str(f["ID"]))
 
@@ -410,6 +413,62 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                         xml_file.write('\t<DG>' + str(1) + '</DG>\n')
                     else:
                         xml_file.write('\t<DG>' + str(f["DG"]) + '</DG>\n')
+
+                    if export_dg_per_strata:
+                        # list of fields to sum
+                        dg_fields = ["DG_ks", "DG_us", "DG_ms", "DG_os", "DG_ueb"]
+
+                        # collect values safely (use 0 if field is missing or NULL)
+                        dg_values = []
+                        for field in dg_fields:
+                            if field in f.fields().names() and f[field] is not None:
+                                dg_values.append(f[field])
+                            else:
+                                dg_values.append(0)
+
+                        total = sum(dg_values)
+
+                        # check if sum is already 100 (allow small rounding tolerance)
+                        if total == 100:
+                            # already sums to 100 → just convert to integers
+                            normalized_values = [int(v) for v in dg_values]
+                        elif total == 0:
+                            # all zeros → distribute equally
+                            equal_value = 100 // len(dg_values)
+                            normalized_values = [equal_value] * len(dg_values)
+                            # adjust for any remainder
+                            remainder = 100 - sum(normalized_values)
+                            for i in range(remainder):
+                                normalized_values[i] += 1
+                            if verbose:
+                                feedback.pushWarning(
+                                    f" > stand {str(f['ID'])}: dg per strata sum up to 0%: apply equal distribution: {normalized_values}")
+                                print(
+                                    f" > stand {str(f['ID'])}: dg per strata sum up to 0%: apply equal distribution: {normalized_values}")
+                        else:
+                            if verbose:
+                                feedback.pushWarning(
+                                    f" > stand {str(f['ID'])}: dg per strata sum up to {total}%: {dg_values}")
+                                print(f" > stand {str(f['ID'])}: dg per strata sum up to {total}%: {dg_values}")
+                            # normalize proportionally
+                            scaled = [v * 100 / total for v in dg_values]
+                            # convert to integers while preserving sum = 100
+                            floored = [int(v) for v in scaled]
+                            remainder = 100 - sum(floored)
+                            # distribute remainder starting from the largest fractional parts
+                            fractions = [v - int(v) for v in scaled]
+                            for i in sorted(range(len(fractions)), key=lambda x: fractions[x], reverse=True)[
+                                     :remainder]:
+                                floored[i] += 1
+                            normalized_values = floored
+                            if verbose:
+                                feedback.pushWarning(f" >       {str(f['ID'])}: normalized to: {normalized_values}")
+                                print(f" >       {str(f['ID'])}: normalized to: {normalized_values}")
+
+
+                        # write values to XML
+                        for field, value in zip(dg_fields, normalized_values):
+                            xml_file.write(f'\t<{field}>{value}</{field}>\n')
 
                     # hdom: set hdom = 0/NULL to 1
                     if f["hdom"] == 0 or f["hdom"] == qgis.core.NULL:
@@ -440,7 +499,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
 
                     # iterate over tree species fields p100 - p800
                     for pkey, pvalue in pX_tree_species_values.items():
-                        # check if a field for tree species are set, do nothing otherwise
+                        # check if a field for tree species is set, do nothing otherwise
                         if not fields_pX_tree_species[pkey] == "":
                             # if no tree species fields were set in the beginning, p410 is relying only on the default_tree_species_field
                             # this checks for that case and assigns 100-default_tree_species_field then
@@ -458,7 +517,8 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                 # attempt to read value, if not valid set to default (0 or NH/100 - NH)
                                 if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
                                     # read and assign anything other than NULL
-                                    pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
+                                    # round values, since WIS.2 only handles integer-values
+                                    pX_tree_species_values[pkey] = round(f[fields_pX_tree_species[pkey]])
                                 else:
                                     # fall back to default_tree_species_field
                                     if pkey == "p100":
@@ -484,7 +544,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                                     else:
                                         tree_species_null_flag = True
 
-                    if tree_species_null_flag:
+                    if verbose and tree_species_null_flag:
                         feedback.pushWarning(
                             f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
                         print(f" > stand {str(f['ID'])}: tree species contained NULL values; these were set to 0")
@@ -492,33 +552,38 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                     # check whether tree species proportions add up to 100, otherwise scale up:
                     sum_tree_species = sum(pX_tree_species_values.values())
                     if not (sum_tree_species == 100):
-                        feedback.pushWarning(
-                            f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
-                        print(
-                            f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
+                        if verbose:
+                            feedback.pushWarning(
+                                f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
+                            print(
+                                f" > stand {str(f['ID'])}: tree species proportions add up to {sum_tree_species}%: {pX_tree_species_values.values()}")
 
                         if sum_tree_species == 0:
-                            feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
-                            print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
+                            if verbose:
+                                feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
+                                print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
+                            pX_tree_species_values["p100"] = 100
                         else:
                             # multiply all values by factor
                             pX_tree_species_values.update(
                                 (pkey, round(pX_tree_species_values[pkey] * (100 / sum_tree_species))) for pkey in
                                 pX_tree_species_values)
-                            feedback.pushWarning(
-                                f" >\t: updated by factor x{100 / sum_tree_species}: {pX_tree_species_values.values()}")
-                            print(
-                                f" >\t\t updated by factor x{100 / sum_tree_species}: {pX_tree_species_values.values()}")
+                            if verbose:
+                                feedback.pushWarning(
+                                    f" >\t: updated by factor x{100 / sum_tree_species}: {pX_tree_species_values.values()}")
+                                print(
+                                    f" >\t\t updated by factor x{100 / sum_tree_species}: {pX_tree_species_values.values()}")
 
                             # make sure it is now 100 by subtraction / addition
                             sum_tree_species = sum(pX_tree_species_values.values())
                             if not (sum_tree_species == 100):
                                 for pkey, pvalue in pX_tree_species_values.items():
                                     if pvalue > 0:
-                                        feedback.pushWarning(
-                                            f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
-                                        print(
-                                            f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
+                                        if verbose:
+                                            feedback.pushWarning(
+                                                f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
+                                            print(
+                                                f" >\t\t rounding caused deviation, adjusting first non-zero value {pkey} by {(sum_tree_species - 100)} to result to 100")
                                         pX_tree_species_values[pkey] = pX_tree_species_values[pkey] - (
                                                 sum_tree_species - 100)
                                         break
@@ -536,21 +601,33 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                             xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                         elif f[(field_forest_site_category)] == qgis.core.NULL or \
                                 f[(field_forest_site_category)] == 0:
-                            feedback.pushWarning(
-                                f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
-                            print(
-                                f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
+                            if verbose:
+                                feedback.pushWarning(
+                                    f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
+                                print(
+                                    f" > stand {str(f['ID'])}: siteCategory is NULL or 0; will be set to default ({default_site_category})")
                             xml_file.write('\t<siteCategory>' + default_site_category + '</siteCategory>\n')
                         else:
                             xml_file.write(
                                 '\t<siteCategory>' + str(f[(field_forest_site_category)]) + '</siteCategory>\n')
 
+                    # try to read div_id from table, otherwise assign 1 as default
+                    if field_div_id in f.fields().names():
+                        value = f[field_div_id]
+                        if value is not None and not qgis.core.NULL:
+                            xml_file.write(f'\t<div_id>{value}</div_id>\n')
+                        else:
+                            xml_file.write('\t<div_id>1</div_id>\n')
+                    else:
+                        # field does not exist at all → use default
+                        xml_file.write('\t<div_id>1</div_id>\n')
+
                     xml_file.write('</Stand>\n\n')
             # --- close data tag
             xml_file.write('</dataroot>')
 
-        print(f"\nExported {i} stands")
-        feedback.pushInfo(f"\nExported {i} stands")
+        print(f"\nExported {stand_count} stands")
+        feedback.pushInfo(f"\nExported {stand_count} stands")
 
         # ------- WRAPUP -------#
         # TODO this doesn't work since the file isn't closed
