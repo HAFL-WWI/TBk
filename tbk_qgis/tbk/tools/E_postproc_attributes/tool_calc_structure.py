@@ -1,4 +1,6 @@
 # todo
+# this is deprecated, the attribute "struktur" is replaced with the Dauerwald-Überführungsphase
+
 import logging
 import os
 

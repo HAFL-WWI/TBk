@@ -13,18 +13,18 @@ from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
-from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
-from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm import \
+from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import \
     TBkMergeSimilarNeighboursAlgorithm
-from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algorithm import \
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch import TBkClipToPerimeterAndEliminateGapsAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import \
     TBkCalculateCrownCoverageAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import \
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes_algorithm import TBkAppendStandAttributesAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import \
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import \
     TBkUpdateStandAttributesAlgorithm
-from tbk_qgis.tbk.tools.G_utility.tool_postprocess_merge_stand_maps import TBkPostprocessMergeStandMaps
+from tbk_qgis.tbk.tools.G_utility.tool_merge_stand_maps import TBkPostprocessMergeStandMaps
 
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 

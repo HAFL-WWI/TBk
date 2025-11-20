@@ -4,15 +4,15 @@ import os
 from collections import ChainMap
 from qgis.core import QgsProcessingMultiStepFeedback
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
-from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean_algorithm import TBkSimplifyAndCleanAlgorithm
-from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_algorithm import \
+from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import \
     TBkMergeSimilarNeighboursAlgorithm
-from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch_algorithm import TBkClipToPerimeterAndEliminateGapsAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calculate_crown_coverage_algorithm import \
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch import TBkClipToPerimeterAndEliminateGapsAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import \
     TBkCalculateCrownCoverageAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion_algorithm import \
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_update_stand_attributes_algorithm import \
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import \
     TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA

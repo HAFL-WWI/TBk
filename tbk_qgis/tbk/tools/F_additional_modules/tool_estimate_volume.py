@@ -37,12 +37,13 @@ from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterFeatureSource
-from qgis.core import QgsProcessingParameterField
 from qgis.core import QgsProcessingParameterFeatureSink
 import processing
 
+from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_processing_algorithm_toolsF import TBkProcessingAlgorithmToolF
 
-class TBkVEstimate(QgsProcessingAlgorithm):
+
+class TBkVEstimate(TBkProcessingAlgorithmToolF):
 
     def initAlgorithm(self, config=None):
         self.addParameter(QgsProcessingParameterFeatureSource(
