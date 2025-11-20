@@ -101,6 +101,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         self.addAlgorithm(TBkDdomSDEstimate())
+        self.addAlgorithm(TBkVEstimate())
         # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: legacy]     grpName: Y LEGACY
