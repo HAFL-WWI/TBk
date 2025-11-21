@@ -84,6 +84,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     # output
     SAVE_IN_OUTPUT_SUBFOLDER = "save_in_output_subfolder"
     OUTPUT_SUBFOLDER = "output_subfolder"
+    PREPARE_MASK = "prepare_mask"
+    MASK_PROCESSED = "mask_processed"
     VHM_DETAIL = "vhm_detail"
     VHM_10M = "vhm_10m"
     VHM_150CM = "vhm_150cm"
@@ -162,6 +164,20 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             self.OUTPUT_SUBFOLDER,
             self.tr("Name of subfolder for outputs"),
             defaultValue="base_data_preprocessed"
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(
+            self.PREPARE_MASK,
+            self.tr("Prepare and save mask"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterString(
+            self.MASK_PROCESSED,
+            self.tr("Prepared and saved mask output name (.gpkg)"),
+            defaultValue="mask_processed.gpkg"
         )
         self.addAdvancedParameter(parameter)
 
@@ -422,6 +438,15 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         save_in_output_subfolder = self.parameterAsBool(parameters, self.SAVE_IN_OUTPUT_SUBFOLDER, context)
         output_subfolder = str(self.parameterAsString(parameters, self.OUTPUT_SUBFOLDER, context))
 
+        prepare_mask = self.parameterAsBool(parameters, self.PREPARE_MASK, context)
+
+        mask_processed = str(self.parameterAsString(parameters, self.MASK_PROCESSED, context))
+        if prepare_mask:
+            if (not mask_processed) or mask_processed == "":
+                raise QgsProcessingException("no processed mask file name specified")
+            if not os.path.splitext(mask_processed)[1].lower() in (".gpkg"):
+                raise QgsProcessingException("mask_processed must be a GPKG file name")
+
         vhm_detail = str(self.parameterAsString(parameters, self.VHM_DETAIL, context))
         if (not vhm_detail) or vhm_detail == "":
             raise QgsProcessingException("no VHM detail file name specified")
@@ -462,6 +487,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         ensure_dir(output_root)
 
+        mask_processed = os.path.join(output_root,mask_processed)
         vhm_detail = os.path.join(output_root,vhm_detail)
         vhm_10m = os.path.join(output_root,vhm_10m)
         vhm_150cm = os.path.join(output_root,vhm_150cm)
@@ -478,6 +504,8 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         tmp_mg_aligned_ = tmp_mg_aligned
         tmp_mg_na_replaced = os.path.join(output_root, "mg_na_replaced.tif")
 
+        # remove existing preprocessed-mask-.gpkg
+        delete_geopackage(mask_processed)
         # remove existing rasters
         self.deleteRasterIfExists(vhm_detail)
         self.deleteRasterIfExists(vhm_10m)
@@ -495,6 +523,24 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         #--- Process VHM
         start_time = time.time()
+
+        if prepare_mask:
+            feedback.pushInfo("prepare and save mask...")
+            # all specifications of TBk:TBk prepare mask are set to default
+            param = {
+                'mask': mask,
+                'dissolve': True,
+                'dissolve_fields': [],
+                'fid_original': 'fid_original',
+                'return_single_parts': True,
+                'min_area': 100,
+                'max_hole_size_to_remove': 10,
+                'min_width': 10,
+                'OUTPUT': mask_processed
+            }
+            processing.run("TBk:TBk prepare mask", param)
+            # further on use processed mask instead of mask input
+            mask = mask_processed
 
         def get_raster_extent(raster):
             meta_data = get_raster_metadata(raster)
@@ -938,7 +984,11 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <h3>Save preprocessing outputs in subfolder within output folder</h3>
 <p>Check box: default False.</p>
 <h3>Name of subfolder for outputs</h3>
-<p>string / subfolder name: default <i>base_data_preprocessed</i></p>
+<p>string / subfolder name: default <i>base_data_preprocessed</i>. </p>
+<h3>Prepare and save mask</h3>
+<p>Check box: default False. If applied the mask is processed by <b><i>TBk</i></b>-algorithm <b><i>TBk prepare mask</i></b> with default advanced parameter settings. For detail see <b><i>TBk prepare mask</i></b>’s description. If non-default mask processing is preferred, generate with <b><i>TBk prepare mask</i></b> a processed mask, which then can serve as mask input for <b><i>TBk</i></b>’s preprocessing algorithm <b><i>TBk prepare VHM (and MG)</i></b> resp. as perimeter input for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p>
+<h3>Prepared and saved mask output name (.gpkg)</h3>
+<p>string / .gpkg name: default <i>mask_processed.gpkg</i></p>
 <h3>VHM detail output name (.tif)</h3>
 <p>string / filename: default <i>VHM_detail.tif</i></p>
 <h3>VHM 10m output name (.tif)</h3>
