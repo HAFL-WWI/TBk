@@ -181,6 +181,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
     CALC_MIXTURE_FOR_MAIN_LAYER = "calc_mixture_for_main_layer"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
+    # Delete temporary files and fields
+    CALC_LOCAL_DENSITIES = "calc_local_densities"
+    # Delete temporary files and fields
+    CALC_VHM_HDOM_DIFF = "calc_vhm_hdom_diff"
 
     # ------- List of Algorithm Parameters -------#
     # Parameters with default values
@@ -326,9 +330,22 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
         self.addAdvancedParameter(parameter)
 
         # Additional parameters
+        parameter = QgsProcessingParameterBoolean(self.CALC_VHM_HDOM_DIFF,
+                                                  self.tr("Also calc difference from hdom to VHM layer.\n"
+                                                          "Can also be added later on."),
+                                                  defaultValue=True)
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(self.CALC_LOCAL_DENSITIES,
+                                                  self.tr("Also calc local densities.\n"
+                                                          "Can also be added later on."),
+                                                  defaultValue=True)
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterBoolean(self.DEL_TMP, self.tr("Delete temporary files and fields"),
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
+
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -403,6 +420,12 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # get calc_mixture_for_main_layer flag
         calc_mixture_for_main_layer = self.parameterAsBool(parameters, self.CALC_MIXTURE_FOR_MAIN_LAYER,
+                                                           context)
+        # get calc_local_densities flag
+        calc_local_densities = self.parameterAsBool(parameters, self.CALC_LOCAL_DENSITIES,
+                                                           context)
+        # get calc_vhm_hdom_diff flag
+        calc_vhm_hdom_diff = self.parameterAsBool(parameters, self.CALC_VHM_HDOM_DIFF,
                                                            context)
 
         # get and check perimeter file
@@ -709,8 +732,38 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             # shutil.rmtree(tmp_output_folder, ignore_errors=True)
             log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
 
+        # --- hdom Diff
+        log.info(f'12 --- hdom_diff')
+        if(calc_vhm_hdom_diff):
+            start_time_section = time.time()
+            processing.run("TBk:TBk postprocess Hdom diff", {
+                'tbk_bestandesgrenzen': stands_file_final,
+                'vhm_10m': vhm_10m,
+                'Diff_hdom_vhm': os.path.join(tbk_result_dir, 'bk_process', "hdom_diff.tif"),
+                'Vhm_10m_points': (os.path.splitext(vhm_10m)[0] + "_points.gpkg") })
+            log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        else:
+            log.info("   --- skipped")
+
+        # --- Local Densities
+        log.info(f'13 --- local densities')
+        if(calc_local_densities):
+            start_time_section = time.time()
+            processing.run("TBk:TBk postprocess local density", {
+                'path_tbk_input': tbk_result_dir,
+                'mg_use': True,
+                'mg_input': coniferous_raster,
+                'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
+                'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
+                                          100, 14], 'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200,
+                'holes_thresh': 400, 'buffer_smoothing': True, 'buffer_smoothing_dist': 7, 'save_unclipped': False,
+                'grid_cell_size': 3})
+            log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
+        else:
+            log.info("   --- skipped")
+
         # --- Create default Project
-        log.info('12 --- Create default Project')
+        log.info('14 --- Create default Project')
         start_time_section = time.time()
         # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\post_processing_arcpy\\create_mxd.py" +
         #           " " + working_root + " " + tbk_tool_path + " " + working_root + " " + vhm_10m + " " + vhm_150cm)

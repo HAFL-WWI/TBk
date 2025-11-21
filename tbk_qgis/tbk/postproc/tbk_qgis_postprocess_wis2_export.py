@@ -95,6 +95,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
     FIELD_P440 = "field_p440"
     FIELD_P800 = "field_p800"
 
+    EXPORT_DG_PER_STRATA = "export_dg_per_strata"
     DELETE_TMP = "delete_tmp"
     CREATE_WIS2_SUBFOLDER = "create_wis2_subfolder"
 
@@ -178,6 +179,9 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                                    "Other broadleaves (p800) proportion Field Name"),
                                                                optional=True))
 
+        self.addAdvancedParameter(QgsProcessingParameterBoolean(self.EXPORT_DG_PER_STRATA,
+                                                                self.tr("Also export DG per Strata attributes (DG_ks/us/ms/hs/ueb)."),
+                                                                defaultValue=True))
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.CREATE_WIS2_SUBFOLDER,
                                                                 self.tr("Create subfolder wis2_export."),
                                                                 defaultValue=True))
@@ -197,8 +201,14 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         feedback.pushInfo("====================================================================")
 
         # --- get input parameters
-        stands_layer = self.parameterAsVectorLayer(parameters, self.STANDS, context)
-        stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        stands_layer = self.parameterAsSource(parameters, self.STANDS, context)
+        try:
+            stands_layer_source = str(self.parameterAsVectorLayer(parameters, self.STANDS, context).source())
+        except Exception as e:
+            print(f"Error getting layer-source (likely temporary layer or \"only selected features\" is selected): {e}."
+                  "\nSetting stands_layer_source to \"temp_layer\"")
+            stands_layer_source = "temp_layer"
+
         feedback.pushInfo(f"Using stands:\n {stands_layer_source}\n"
                           f"with fields:\n {stands_layer.fields().names()}\n")
 
@@ -248,6 +258,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         delete_tmp = self.parameterAsBoolean(parameters, self.DELETE_TMP, context)
         tmp_joined_layer = ""
         create_wis2_subfolder = self.parameterAsBoolean(parameters, self.CREATE_WIS2_SUBFOLDER, context)
+        export_dg_per_strata = self.parameterAsBoolean(parameters, self.EXPORT_DG_PER_STRATA, context)
 
         # --- get/generate output parameters
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
@@ -404,7 +415,6 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                 '<dataroot xmlns:od="urn:schemas-microsoft-com:officedata" generated="' + currentDatetime + '">\n')
             xml_file.write('\n')
 
-            provider = stands_layer.dataProvider()
             # --- iterate over each stand and write attributes
             for f in stands_layer.getFeatures():
                 # print('load stand ' + str(f["ID"]))
@@ -432,6 +442,14 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         xml_file.write('\t<DG>' + str(1) + '</DG>\n')
                     else:
                         xml_file.write('\t<DG>' + str(f["DG"]) + '</DG>\n')
+
+                    if export_dg_per_strata:
+                        # add attributes for DG per strata
+                        xml_file.write('\t<DG_ks>' + str(f["DG_ks"]) + '</DG_ks>\n')
+                        xml_file.write('\t<DG_us>' + str(f["DG_us"]) + '</DG_us>\n')
+                        xml_file.write('\t<DG_ms>' + str(f["DG_ms"]) + '</DG_ms>\n')
+                        xml_file.write('\t<DG_os>' + str(f["DG_os"]) + '</DG_os>\n')
+                        xml_file.write('\t<DG_ueb>' + str(f["DG_ueb"]) + '</DG_ueb>\n')
 
                     # hdom: set hdom = 0/NULL to 1
                     if f["hdom"] == 0 or f["hdom"] == qgis.core.NULL:
@@ -462,7 +480,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
 
                     # iterate over tree species fields p100 - p800
                     for pkey, pvalue in pX_tree_species_values.items():
-                        # check if a field for tree species are set, do nothing otherwise
+                        # check if a field for tree species is set, do nothing otherwise
                         if not fields_pX_tree_species[pkey] == "":
                             # if no tree species fields were set in the beginning, p410 is relying only on the default_tree_species_field
                             # this checks for that case and assigns 100-default_tree_species_field then
@@ -480,7 +498,8 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                 # attempt to read value, if not valid set to default (0 or NH/100 - NH)
                                 if not f[fields_pX_tree_species[pkey]] == qgis.core.NULL:
                                     # read and assign anything other than NULL
-                                    pX_tree_species_values[pkey] = f[fields_pX_tree_species[pkey]]
+                                    # round values, since WIS.2 only handles integer-values
+                                    pX_tree_species_values[pkey] = round(f[fields_pX_tree_species[pkey]])
                                 else:
                                     # fall back to default_tree_species_field
                                     if pkey == "p100":
@@ -522,6 +541,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         if sum_tree_species == 0:
                             feedback.pushWarning(f" >\t: set to p100 = 100: {pX_tree_species_values.values()}")
                             print(f" >\t\t set to p100 = 100: {pX_tree_species_values.values()}")
+                            pX_tree_species_values["p100"] = 100
                         else:
                             # multiply all values by factor
                             pX_tree_species_values.update(

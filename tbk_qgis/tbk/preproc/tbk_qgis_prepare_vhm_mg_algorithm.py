@@ -76,14 +76,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
 
-    OUTPUT = "OUTPUT"
-
     # input
     VHM_INPUT = "vhm_input"
     MG_INPUT = "mg_input"
     MASK = "mask"
 
     # output
+    SAVE_IN_OUTPUT_SUBFOLDER = "save_in_output_subfolder"
+    OUTPUT_SUBFOLDER = "output_subfolder"
     VHM_DETAIL = "vhm_detail"
     VHM_10M = "vhm_10m"
     VHM_150CM = "vhm_150cm"
@@ -97,20 +97,23 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
     DEL_TMP = "del_tmp"
 
     # advanced params
+    CLIP_VHM = "clip_vhm"
     MASK_VHM = "mask_vhm"
     VHM_RECLASSIFY = "vhm_reclassify"
     VHM_CONVERT_TO_BYTE = "vhm_convert_to_byte"
     VMIN = "vMin"
     VMAX = "vMax"
     VNA = "vNA"
+    VNA_replacement = "vNA_replacement"
 
     # advanced params
-    MG_RESCALE_FACTOR = "100"
+    MG_RESCALE_FACTOR = "mg_rescale_factor"
     MG_RECLASSIFY_VALUES = "reclassify_mg_values"
     MIN_LH = "min_lh"
     MAX_LH = "max_lh"
     MIN_NH = "min_nh"
     MAX_NH = "max_nh"
+    MG_NA_replacement_value = "mg_NA_replacement_value"
 
     def initAlgorithm(self, config):
         """
@@ -124,13 +127,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 self.VHM_INPUT,
-                self.tr("Detailed input VHM (.tif)")
+                self.tr("Detailed input VHM (.tif or .vrt)")
             )
         )
         self.addParameter(
             QgsProcessingParameterRasterLayer(
                 self.MG_INPUT,
-                self.tr("Forest mixture degree input (.tif)"),
+                self.tr("Forest mixture degree input (.tif or .vrt)"),
                 optional=True
             )
         )
@@ -148,6 +151,20 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # --- Advanced Parameters (Tool UI) ---
 
         ## output
+        parameter = QgsProcessingParameterBoolean(
+            self.SAVE_IN_OUTPUT_SUBFOLDER,
+            self.tr("Save preprocessing outputs in subfolder within output folder"),
+            defaultValue=False
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterString(
+            self.OUTPUT_SUBFOLDER,
+            self.tr("Name of subfolder for outputs"),
+            defaultValue="base_data_preprocessed"
+        )
+        self.addAdvancedParameter(parameter)
+
         parameter = QgsProcessingParameterString(
             self.VHM_DETAIL,
             self.tr("VHM detail output name (.tif)"),
@@ -211,6 +228,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # advanced params (VHM)
         parameter = QgsProcessingParameterBoolean(
+            self.CLIP_VHM,
+            self.tr("Clip VHM by extent of mask"),
+            defaultValue=True
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(
             self.MASK_VHM,
             self.tr("Crop VHM to mask"),
             defaultValue=True
@@ -252,6 +276,16 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             self.tr("VHM NoData value"),
             type=QgsProcessingParameterNumber.Integer,
             defaultValue=255
+        )
+        self.addAdvancedParameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(
+            self.VNA_replacement,
+            self.tr(
+                "Replacement of VHM NoData with 0" +
+                "\nIf crop VHM to mask is applied, restricted to to area within mask"
+            ),
+            defaultValue=False
         )
         self.addAdvancedParameter(parameter)
 
@@ -309,7 +343,16 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         )
         self.addAdvancedParameter(parameter)
 
-
+        parameter = QgsProcessingParameterNumber(
+            self.MG_NA_replacement_value,
+            self.tr(
+                "Value for replacement of forest mixture degree NoData" +
+                "\ns. documentation"
+            ),
+            type=QgsProcessingParameterNumber.Integer,
+            optional=True
+        )
+        self.addAdvancedParameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -323,12 +366,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # advanced params
         # vhm range
+        clip_vhm = self.parameterAsBool(parameters, self.CLIP_VHM, context)
         mask_vhm = self.parameterAsBool(parameters, self.MASK_VHM, context)
         vhm_convert_to_byte = self.parameterAsBool(parameters, self.VHM_CONVERT_TO_BYTE, context)
         vhm_reclassify = self.parameterAsBool(parameters, self.VHM_RECLASSIFY, context)
         vMin = self.parameterAsDouble(parameters, self.VMIN, context)
         vMax = self.parameterAsDouble(parameters, self.VMAX, context)
         vNA = self.parameterAsInt(parameters, self.VNA, context)
+        vNA_replacement = self.parameterAsBool(parameters, self.VNA_replacement, context)
 
         # advanced params mg reclassify values
         mg_rescale_factor = self.parameterAsDouble(parameters, self.MG_RESCALE_FACTOR, context)
@@ -339,10 +384,16 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
         max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
 
+        mg_NA_replacement_value = self.parameterAsInt(parameters, self.MG_NA_replacement_value, context)
+        if mg_NA_replacement_value:
+            mg_NA_replacement = True
+        else:
+            mg_NA_replacement = False
+
         # # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
-        if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff"):
-            raise QgsProcessingException("vhm_input must be a TIFF file")
+        if not os.path.splitext(vhm_input)[1].lower() in (".tif", ".tiff", ".vrt"):
+            raise QgsProcessingException("vhm_input must be a TIFF file or a VRT file")
 
         mg_input_layer = self.parameterAsRasterLayer(parameters, self.MG_INPUT, context)
         mg_input = None
@@ -350,15 +401,27 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         if mg_input_layer:
             mg_input = str(mg_input_layer.source())
             mg_use = True
-        if mg_use and mg_input and (not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff")):
-            raise QgsProcessingException("mg_input must be a TIFF file")
+        if mg_use and mg_input and (not os.path.splitext(mg_input)[1].lower() in (".tif", ".tiff", ".vrt")):
+            raise QgsProcessingException("mg_input must be a TIFF file or a VRT file")
 
         mask = str(self.parameterAsVectorLayer(parameters, self.MASK, context).source())
+
+        crs_mask = QgsVectorLayer(mask).crs()
+        crs_vhm_input = QgsRasterLayer(vhm_input).crs()
+        if(crs_mask != crs_vhm_input):
+            raise QgsProcessingException("VHM input and polygon mask must have the same CRS")
+        if mg_use:
+            crs_mg_input = QgsRasterLayer(mg_input).crs()
+            if (crs_mask != crs_mg_input):
+                raise QgsProcessingException("Forest mixture degree input must have the same CRS as polygon mask and VHM input")
 
         # Folder for algo output
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
 
         # output
+        save_in_output_subfolder = self.parameterAsBool(parameters, self.SAVE_IN_OUTPUT_SUBFOLDER, context)
+        output_subfolder = str(self.parameterAsString(parameters, self.OUTPUT_SUBFOLDER, context))
+
         vhm_detail = str(self.parameterAsString(parameters, self.VHM_DETAIL, context))
         if (not vhm_detail) or vhm_detail == "":
             raise QgsProcessingException("no VHM detail file name specified")
@@ -390,8 +453,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if not os.path.splitext(mg_10m_binary)[1].lower() in (".tif", ".tiff"):
                 raise QgsProcessingException("mg_10m_binary must be TIFF file")
 
+        if mg_use and mg_NA_replacement:
+            if mg_NA_replacement_value < 0 or mg_NA_replacement_value > 100:
+                raise QgsProcessingException("Value for replacement of forest mixture degree NoData must be >= 0 and =< 100")
+
+        if save_in_output_subfolder:
+            output_root = os.path.join(output_root, output_subfolder)
+
         ensure_dir(output_root)
-        working_root = output_root
 
         vhm_detail = os.path.join(output_root,vhm_detail)
         vhm_10m = os.path.join(output_root,vhm_10m)
@@ -400,10 +469,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         mg_10m_binary = os.path.join(output_root, mg_10m_binary)
 
         # tmp files
+        tmp_vhm_clipped = os.path.join(output_root, "vhm_clipped.tif")
         tmp_vhm_byte = os.path.join(output_root, "vhm_byte.tif")
+        tmp_vhm_na_replaced = os.path.join(output_root, "vhm_na_replaced.tif")
         tmp_vhm_cropped = os.path.join(output_root, "vhm_cropped.tif")
         tmp_vhm_mask = os.path.join(output_root, "vhm_mask.tif")
-        tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.tif")
+        tmp_mg_aligned = os.path.join(output_root, "mg_10m_aligned.vrt")
+        tmp_mg_aligned_ = tmp_mg_aligned
+        tmp_mg_na_replaced = os.path.join(output_root, "mg_na_replaced.tif")
 
         # remove existing rasters
         self.deleteRasterIfExists(vhm_detail)
@@ -412,10 +485,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         self.deleteRasterIfExists(mg_10m)
         self.deleteRasterIfExists(mg_10m_binary)
         # remove existing tmp rasters
+        self.deleteRasterIfExists(tmp_vhm_clipped)
         self.deleteRasterIfExists(tmp_vhm_byte)
+        self.deleteRasterIfExists(tmp_vhm_na_replaced)
         self.deleteRasterIfExists(tmp_vhm_cropped)
         self.deleteRasterIfExists(tmp_vhm_mask)
         self.deleteRasterIfExists(tmp_mg_aligned)
+        self.deleteRasterIfExists(tmp_mg_na_replaced)
 
         #--- Process VHM
         start_time = time.time()
@@ -444,6 +520,30 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             ext = "{0},{1},{2},{3} [{4}]".format(xmin, xmax, ymin, ymax, epsg)
             return(ext)
 
+        def get_aligned_extent_safely_including_150cm_and_10m(vector_layer, res):
+            v = QgsVectorLayer(vector_layer)
+            ext = v.extent()
+
+            xmin_150cm = math.floor((ext.xMinimum() - 1.5) / res) * res
+            xmax_150cm = math.ceil((ext.xMaximum() + 1.5) / res) * res
+            ymin_150cm = math.floor((ext.yMinimum() - 1.5) / res) * res
+            ymax_150cm = math.ceil((ext.yMaximum() + 1.5) / res) * res
+
+            xmin_10m = math.floor((ext.xMinimum() - 10) / res) * res
+            xmax_10m = math.ceil((ext.xMaximum() + 10) / res) * res
+            ymin_10m = math.floor((ext.yMinimum() - 10) / res) * res
+            ymax_10m = math.ceil((ext.yMaximum() + 10) / res) * res
+
+            xmin = min([xmin_150cm, xmin_10m])
+            xmax = max([xmax_150cm, xmax_10m])
+            ymin = min([ymin_150cm, ymin_10m])
+            ymax = max([ymax_150cm, ymax_10m])
+            # epsg = v.crs().authid()[5:]  # remove suffix 'EPSG:', but is the suffix always == 'EPSG:'?
+            epsg = v.crs().authid()
+            # ext = "{0},{1},{2},{3} [EPSG:{4}]".format(xmin, xmax, ymin, ymax, epsg)  # using epsg without suffix 'EPSG:'
+            ext = "{0},{1},{2},{3} [{4}]".format(xmin, xmax, ymin, ymax, epsg)
+            return(ext)
+
         # print("input of align_method: " + str( align_method))
         # print("mg_use: " + str(mg_use))
 
@@ -453,7 +553,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
         # if align_method == 1 (to pixel of mg_input), but mg is not among inputs ...
         if align_method == 1 and mg_use == False:
-            feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput is not specified...")
+            feedback.pushInfo("Switch align_method from 1 to 0, because mg_input is not specified...")
             align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         # if align_method == 1 (to pixel of mg_input) and mg is among inputs ...
@@ -462,7 +562,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             mg_input_properties = processing.run("native:rasterlayerproperties", param)
             # ... but mg_input resolution != 10m x 10m ...
             if mg_input_properties['PIXEL_HEIGHT'] != 10.0 or mg_input_properties['PIXEL_WIDTH'] != 10.0:
-                feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput resolution is not 10m x 10m...")
+                feedback.pushInfo("Switch align_method from 1 to 0, because mg_input resolution is not 10m x 10m...")
                 align_method = 0  # ... align to origin (X,Y) = (0,0)
 
         # print("reset of align_method: " + str(align_method))
@@ -503,13 +603,45 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
         # print("extent of mask aligned to 150cm:")
         # print(extent_150cm)
 
+        # get pixel-resolution of VHM input
+        param = {'INPUT': vhm_input, 'BAND': None}
+        vhm_input_properties = processing.run("native:rasterlayerproperties", param)
+        res_vhm_input = vhm_input_properties['PIXEL_HEIGHT']
+        # print("resolution of VHM input:")
+        # print(res_vhm_input)
+
+        # get extent to safely clipp VHM input including aligned extents of outputs VHM 10m and VHM 150m
+        extent_clipp = get_aligned_extent_safely_including_150cm_and_10m(mask, res = res_vhm_input)
+        # print("extent to safely clipp VHM input including aligned extents of outputs VHM 10m and VHM 150m")
+        # print(extent_clipp)
+
         if vhm_convert_to_byte:
+            vhm_input_raster = gdal.Open(vhm_input) # access original / unclipped VHM-input
+            vhm_input_raster_data_type = vhm_input_raster.GetRasterBand(1).DataType
+
+        # clipp input VHM to relevant extent
+        if clip_vhm:
+            feedback.pushInfo("clip VHM by mask extent...")
+            param = {
+                'INPUT': vhm_input,
+                'PROJWIN': extent_clipp,
+                'OVERCRS': False,
+                'NODATA': None,
+                'OPTIONS': '',
+                'DATA_TYPE': 0,
+                'EXTRA': '',
+                'OUTPUT': tmp_vhm_clipped
+            }
+            processing.run("gdal:cliprasterbyextent", param)
+            vhm_input = tmp_vhm_clipped
+
+        if vhm_convert_to_byte:
+            # write message based on above accessed original / unclipped VHM-input
             feedback.pushInfo("Checking vhm input raster...")
-            vhm_input_raster = gdal.Open(vhm_input)
-            feedback.pushInfo(f"DataType Code: {vhm_input_raster.GetRasterBand(1).DataType}  "
+            feedback.pushInfo(f"DataType Code: {vhm_input_raster_data_type}  "
                               f"(1: Byte, 3: Int16, 6: Float32)")
 
-            if vhm_input_raster.GetRasterBand(1).DataType == 1:
+            if vhm_input_raster_data_type == 1:
                 feedback.pushInfo("vhm raster is already byte, not converting...")
             else:
                 feedback.pushInfo("convert vhm raster to byte...")
@@ -530,6 +662,18 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 }
                 processing.run("gdal:warpreproject", param)
                 vhm_input = tmp_vhm_byte
+
+        if vNA_replacement:
+            feedback.pushInfo("replace VHM-NoData-values with 0")
+            param = {
+                'INPUT': vhm_input,
+                'BAND': 1,
+                'FILL_VALUE': 0,
+                'CREATE_OPTIONS': None,
+                'OUTPUT': tmp_vhm_na_replaced
+            }
+            processing.run("native:fillnodata", param)
+            vhm_input = tmp_vhm_na_replaced
 
         if mask_vhm:
             feedback.pushInfo("mask vhm...")
@@ -626,6 +770,19 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 }
                 processing.run("gdal:warpreproject", param)
 
+            if mg_NA_replacement:
+                feedback.pushInfo("replace forest-mixture-degree-NoData-values with " + str(mg_NA_replacement_value))
+                param = {
+                    'INPUT': tmp_mg_aligned,
+                    'BAND': 1,
+                    'FILL_VALUE': (mg_NA_replacement_value * mg_rescale_factor),
+                    # rescaling hasn't taken place yet --> multiplying with rescale factor required
+                    'CREATE_OPTIONS': None,
+                    'OUTPUT': tmp_mg_na_replaced
+                }
+                processing.run("native:fillnodata", param)
+                tmp_mg_aligned = tmp_mg_na_replaced
+
             if mg_rescale_factor != 1.0:
                 feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
                 param = {
@@ -647,7 +804,22 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                 processing.run("gdal:rastercalculator", param)
             else:
                 feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
-                copy_raster_tiff(tmp_mg_aligned, mg_10m)
+                param = {
+                    'INPUT': tmp_mg_aligned,
+                    'SOURCE_CRS': None,
+                    'TARGET_CRS': None,
+                    'RESAMPLING': 0,  # nearest neighbour
+                    'NODATA': vNA,
+                    'TARGET_RESOLUTION': None,
+                    'OPTIONS': '',
+                    'DATA_TYPE': 1, # byte
+                    'TARGET_EXTENT': None,
+                    'TARGET_EXTENT_CRS': None,
+                    'MULTITHREADING': True,
+                    'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES',
+                    'OUTPUT': mg_10m
+                }
+                processing.run("gdal:warpreproject", param)
 
             if mg_reclassify_values:
                 feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")
@@ -668,13 +840,34 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             if os.path.exists(tmp_vhm_mask):
                 os.remove(tmp_vhm_mask)
 
-            if os.path.exists(tmp_mg_aligned):
-                os.remove(tmp_mg_aligned)
-            if os.path.exists(tmp_mg_aligned + ".aux.xml"):
-                os.remove(tmp_mg_aligned + ".aux.xml")
+            if os.path.exists(tmp_mg_aligned_):
+                os.remove(tmp_mg_aligned_)
+            if os.path.exists(tmp_mg_aligned_ + ".aux.xml"):
+                os.remove(tmp_mg_aligned_ + ".aux.xml")
+
+            if os.path.exists(tmp_vhm_clipped):
+                os.remove(tmp_vhm_clipped)
+            if os.path.exists(tmp_vhm_clipped + ".aux.xml"):
+                os.remove(tmp_vhm_clipped + ".aux.xml")
+
+            if os.path.exists(tmp_vhm_na_replaced):
+                os.remove(tmp_vhm_na_replaced)
+            if os.path.exists(tmp_vhm_na_replaced + ".aux.xml"):
+                os.remove(tmp_vhm_na_replaced + ".aux.xml")
+
+            if os.path.exists(tmp_mg_na_replaced):
+                os.remove(tmp_mg_na_replaced)
+            if os.path.exists(tmp_mg_na_replaced + ".aux.xml"):
+                os.remove(tmp_mg_na_replaced + ".aux.xml")
 
             if os.path.exists(vhm_detail + ".aux.xml"):
                 os.remove(vhm_detail + ".aux.xml")
+
+            if os.path.exists(vhm_10m + ".aux.xml"):
+                os.remove(vhm_10m + ".aux.xml")
+
+            if os.path.exists(vhm_150cm + ".aux.xml"):
+                os.remove(vhm_150cm + ".aux.xml")
 
         # finished
         feedback.pushInfo("====================================================================")
@@ -683,7 +876,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
                           str(timedelta(seconds=(time.time() - start_time))))
         feedback.pushInfo("====================================================================")
 
-        return {self.OUTPUT: working_root}
+        return {self.OUTPUT_ROOT: output_root}
 
     #--- Algorithm ID, Name
 
@@ -732,16 +925,20 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <p style=" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;">Processes VHM (<i>Vegetation Height Model</i>) and optionally <i>Forest Mixture Degree</i> (coniferous raster) raw data to ready to use raster inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p></body></html></p>
 
 <h2>Input parameters</h2>
-<h3>Detailed input VHM (.tif)</h3>
+<h3>Detailed input VHM (.tif or .vrt)</h3>
 <p>VHM raster layer with high resolution (&le; 1.5m x 1.5m)</p>
-<h3>Forest mixture degree input (.tif)</h3>
-<p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / delicious share of (woody) vegetation</p>
+<h3>Forest mixture degree input (.tif or .vrt)</h3>
+<p>Optional raster layer with <i>Forest Mixture Degree</i> documenting coniferous / deciduous share of (woody) vegetation</p>
 <h3>Polygon mask to clip final result</h3>
 <p>Layer holding (multi-)polygon(s) determines extent of all outputs and masks VHM-derivative, if advanced parameter <b><i>Crop VHM to mask</i></b> is True / checked.</p>
 <h3>Output folder</h3>
 <p>Path to folder, where output layers are gathered. Ideally in this very folder the later by <b><i>TBk</i></b>'s main algorithm <b><i>Generate BK</i></b> produced output folder is saved.</p>
 
 <h2>Advanced parameters</h2>
+<h3>Save preprocessing outputs in subfolder within output folder</h3>
+<p>Check box: default False.</p>
+<h3>Name of subfolder for outputs</h3>
+<p>string / subfolder name: default <i>base_data_preprocessed</i></p>
 <h3>VHM detail output name (.tif)</h3>
 <p>string / filename: default <i>VHM_detail.tif</i></p>
 <h3>VHM 10m output name (.tif)</h3>
@@ -763,11 +960,13 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 
 Notes:
 1) No alignment is applied to <i>VHM detail</i>, as this layer is only a (partial) copy of the original VHM. 
-2) <b><i>Methods Align to origin</i></b> and <b><i>Align to mixture degree raster</i></b> return the same outputs, if <i>Forest Mixture Degree</i> (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for the <i>Forest Mixture Degree</i> (Mishunggrad) raster layer provided by WSL with EPSG:2056. 
+2) <b><i>Methods Align to origin</i></b> and <b><i>Align to mixture degree raster</i></b> return the same outputs, if <i>Forest Mixture Degree</i> (10m x 10m) is already aligned to the origin (X,Y) = (0,0). This is the case for the <i>Forest Mixture Degree</i> (Mischungsgrad) raster layer provided by WSL with EPSG:2056. 
 3) Raster outputs generated with different masks and thus covering different areas, align with each other, if method chosen is either <b><i>Align to origin</i></b> or <b><i>Align to mixture degree raster</i></b>.
 4) Method <b><i>Random / driven by extent of masks</i></b> is a legacy allowing to prepare inputs for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b> with the sole method in praxis until July 2024.</p>
 <h3>Delete temporary files</h3>
 <p>Check box: default True.</p>
+<h3>Clip VHM by extent of mask</h3>
+<p>Check box: default True. Note that clipping by the extent of the mask lowers overall preprocessing run time, if extent of the mask is significantly smaller than extent of the VHM-input. If the VHM-input and the mask have about the same extent clipping may increase overall preprocessing run time.</p>
 <h3>Crop VHM to mask</h3>
 <p>Check box: default True.</p>
 <h3>Convert VHM to BYTE datatype (...)</h3>
@@ -780,6 +979,10 @@ Notes:
 <p>float [m]: default 60m</p>
 <h3>VHM NoData value</h3>
 <p>integer: default 255</p>
+<h3>Replacement of VHM NoData</h3>
+<p>Check box: default False.</p>
+<h3>Value for replacement of VHM NoData</h3>
+<p>integer: default 0</p>
 <h3>Rescale Forest mixture degree values ...</h3>
 <p>integer: default 100</p>
 <h3>Create Binary mixture degree layer ...</h3>
@@ -792,9 +995,13 @@ Notes:
 <p>integer [%]: default 50%</p>
 <h3>Maximum Coniferous (Nadelholz) value</h3>
 <p>integer [%]: default 100%</p>
+<h3>Value for replacement of forest mixture degree NoData</h3>
+<p>integer [%]: optional</p>
+
+Note that if <i>Rescale Forest mixture values</i> is set to anything but 1 (no rescaling), <b><i>TBk prepare VHM (and MG)</i></b> replaces by default inevitably any NoData-pixels of <i>Forest Mixture Degree</i> with 0 (= 100% deciduous). If <i>Rescale Forest mixture values</i> is set to 1, NoData-pixels are preserved by default. By setting optionally a numeric value as <i>Value for replacement of forest mixture degree NoData</i> a non-default replacement of NoData-pixel is feasible, where the min. is 0 (= 100% deciduous) and the max. is 100 (= 100% coniferous). Setting <i>Value for replacement</i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 100 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
 
 <h2>Outputs</h2>
-<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed in the <b><i>Output folder</i></b> (s. above). File names of these outputs are defined vai the five corresponding advanced parameters (s. above).</p>
+<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed either directly in the <b><i>Output folder</i></b> (s. above) or if <b><i>Save preprocessing outputs in subfolder</i></b> (s. advanced parameters) is checked in a subfolder (default <i>base_data_preprocessed</i>) within  the <b><i>Output folder</i></b>. File names of these outputs are defined via the five corresponding advanced parameters (s. above).</p>
 
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
