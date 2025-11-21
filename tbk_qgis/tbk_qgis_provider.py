@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 /***************************************************************************
     TBk: Toolkit Bestandeskarte (QGIS Plugin)
@@ -40,6 +39,7 @@ from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_algorithm import TBkPrepareVhmAlg
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_all_algorithm import TBkPrepareAlgorithm
 from tbk_qgis.tbk.preproc.tbk_qgis_prepare_vhm_mg_algorithm import TBkPrepareVhmMgAlgorithm
+from tbk_qgis.tbk.preproc.tbk_qgis_prepare_mask_algorithm import TBkPrepareMaskAlgorithm
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_hdomDiff import TBkPostprocessHdomDiff
@@ -69,6 +69,7 @@ class TBkProvider(QgsProcessingProvider):
         Loads all algorithms belonging to this provider.
         """
         # [grpID: preproc]      grpName: 0 Preprocessing
+        self.addAlgorithm(TBkPrepareMaskAlgorithm())
         self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
         # [grpID: core]         grpName: 1 Bk Generation
         self.addAlgorithm(TBkAlgorithm())
