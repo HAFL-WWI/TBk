@@ -76,6 +76,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
     # Directory containing the input files
     OUTPUT_ROOT = "output_root"
     OUTPUT = "OUTPUT"
+    OUTPUT_NAME = "output_name"
 
     # inputs
     STANDS = "stands"
@@ -96,10 +97,14 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
     FIELD_P800 = "field_p800"
 
     FIELD_DIV_ID = "field_div_id"
+    FIELD_VEGZONE_C00 = "field_vegzone_c00"
+    FIELD_VEGZONE_C01 = "field_vegzone_c01"
+    FIELD_VEGZONE_C02 = "field_vegzone_c02"
 
     EXPORT_DG_PER_STRATA = "export_dg_per_strata"
     VERBOSE = "verbose"
     DELETE_TMP = "delete_tmp"
+    EXPORT_KML = "export_kml"
     CREATE_WIS2_SUBFOLDER = "create_wis2_subfolder"
 
     def initAlgorithm(self, config):
@@ -123,16 +128,18 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                      behavior=QgsProcessingParameterFile.Folder,
                                                      fileFilter='All Folders (*.*)', defaultValue=None,
                                                      optional=True))
+
+        # export file name
+        self.addParameter(QgsProcessingParameterString(self.OUTPUT_NAME,
+                                                       self.tr(
+                                                           "Base name for XML and KML output file. If not set will be wis2_export_stand_[timestamp]"),
+                                                       optional=True))
+
         # forest site categories (field)
         self.addParameter(QgsProcessingParameterString(self.FIELD_FOREST_SITE_CATEGORY,
                                                        self.tr(
                                                            "Field Name of site category (either in stand map or in layer with forest sites - provide below)"),
-                                                       optional=True))
-        # forest site categories (layer)
-        self.addParameter(QgsProcessingParameterFeatureSource(self.FOREST_SITES,
-                                                              self.tr("Layer with Forest sites (Waldstandorte)"),
-                                                              [QgsProcessing.TypeVectorPolygon],
-                                                              optional=True))
+                                                       optional=True, defaultValue="ForestSite"))
 
         # --- Advanced Parameters
         self.addAdvancedParameter(QgsProcessingParameterString(self.DEFAULT_SITE_CATEOGRY,
@@ -185,12 +192,31 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                                                self.tr("Field from which the forest region ID is read"),
                                                                optional=True, defaultValue="div_id"))
 
+        # forest site categories (field)
+        self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_VEGZONE_C00,
+                                                               self.tr(
+                                                                   "Field Name of vegetation zone, climate szenario 0: 1975 (cc00)"),
+                                                               optional=True, defaultValue="VegZone_Code"))
+        self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_VEGZONE_C01,
+                                                               self.tr(
+                                                                   "Field Name of vegetation zone, climate szenario 1: 2085 (cc01)"),
+                                                               optional=True))
+        self.addAdvancedParameter(QgsProcessingParameterString(self.FIELD_VEGZONE_C02,
+                                                               self.tr(
+                                                                   "Field Name of vegetation zone, climate szenario 2: 2085 dry (cc02)"),
+                                                               optional=True))
+
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.EXPORT_DG_PER_STRATA,
-                                                                self.tr("Also export DG per Strata attributes (DG_ks/us/ms/hs/ueb)."),
+                                                                self.tr(
+                                                                    "Also export DG per Strata attributes (DG_ks/us/ms/hs/ueb)."),
                                                                 defaultValue=True))
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.VERBOSE,
-                                                                self.tr("Show warnings if stand attributes are modified during export."),
+                                                                self.tr(
+                                                                    "Show warnings if stand attributes are modified during export."),
                                                                 defaultValue=False))
+        self.addAdvancedParameter(QgsProcessingParameterBoolean(self.EXPORT_KML,
+                                                                self.tr("Create KML export in addition to XML export."),
+                                                                defaultValue=True))
         self.addAdvancedParameter(QgsProcessingParameterBoolean(self.CREATE_WIS2_SUBFOLDER,
                                                                 self.tr("Create subfolder wis2_export."),
                                                                 defaultValue=True))
@@ -241,15 +267,22 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         }
 
         field_div_id = str(self.parameterAsString(parameters, self.FIELD_DIV_ID, context))
+        vegzone_fields = [
+            str(self.parameterAsString(parameters, self.FIELD_VEGZONE_C00, context)),
+            str(self.parameterAsString(parameters, self.FIELD_VEGZONE_C01, context)),
+            str(self.parameterAsString(parameters, self.FIELD_VEGZONE_C02, context))
+        ]
 
         delete_tmp = self.parameterAsBoolean(parameters, self.DELETE_TMP, context)
         tmp_joined_layer = ""
         create_wis2_subfolder = self.parameterAsBoolean(parameters, self.CREATE_WIS2_SUBFOLDER, context)
+        export_kml = self.parameterAsBoolean(parameters, self.EXPORT_KML, context)
         export_dg_per_strata = self.parameterAsBoolean(parameters, self.EXPORT_DG_PER_STRATA, context)
         verbose = self.parameterAsBoolean(parameters, self.VERBOSE, context)
 
         # --- get/generate output parameters
         output_root = self.parameterAsString(parameters, self.OUTPUT_ROOT, context)
+        output_export_name = self.parameterAsString(parameters, self.OUTPUT_NAME, context)
         if not output_root or output_root == "":
             # generate output root from input source layer
             output_root = os.path.dirname(stands_layer_source)  ## directory of file
@@ -266,7 +299,10 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Output folder:\n{output_folder}\n")
 
         currentDatetime = datetime.now().strftime("%Y%m%d-%H%M")
-        output_xml = os.path.join(output_folder, ("wis2_stands_export_" + currentDatetime + ".xml"))
+        if output_export_name is None:
+            output_export_name = "wis_2_stands_export" + currentDatetime
+
+        output_export_path = os.path.join(output_folder, output_export_name)
 
         # --- check and join siteCategory_layer
         if (not siteCategory_layer):
@@ -345,11 +381,29 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                 field_forest_site_category = "siteCategory_" + field_forest_site_category
 
         # ------- MAIN PROCESSING -------#
+
         # check if provided div_id field is found
         if stands_layer.fields().indexFromName(field_div_id) == -1:
-            print(f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
-            feedback.pushWarning(f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
+            print(
+                f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
+            feedback.pushWarning(
+                f"Provided field \'{field_div_id}\' not found and won't be used for forest region ID - using default div_id (if not found assigns 1 to all stands).")
             field_div_id = "div_id"
+
+        for i, field_name in enumerate(vegzone_fields):
+            if stands_layer.fields().indexFromName(field_name) == -1:
+                if i == 0:
+                    # cc00 fallback uses different warning text
+                    print(
+                        f"Provided field '{field_name}' not found and won't be used for vegzone 0 (cc0) - using default \"VegZone_Code\" (if not found assigns 60 to all stands).")
+                    feedback.pushWarning(
+                        f"Provided field '{field_name}' not found and won't be used for vegzone 0 (cc0) - using default \"VegZone_Code\" (if not found assigns 60 to all stands).")
+                    vegzone_fields[i] = "VegZone_Code"
+                else:
+                    print(
+                        f"Provided field '{field_name}' not found and won't be used for vegzone {i} (cc{i}), will assign 60 to all stands.")
+                    feedback.pushWarning(
+                        f"Provided field '{field_name}' not found and won't be used for vegzone {i} (cc{i}), will assign 60 to all stands.")
 
         # --- set tree species fields
         print("Tree Species Fields")
@@ -398,10 +452,10 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                                  "Errors can occur if p100 and p410 have no fields to read from or if NULL values occur in these columns.")
 
         # --- open XML
-        print(f"\nExport to XML file:\n {output_xml}\n")
-        feedback.pushInfo(f"\nExport to XML file:\n {output_xml}\n")
+        print(f"\nExport to XML file:\n {output_export_path}.xml\n")
+        feedback.pushInfo(f"\nExport to XML file:\n {output_export_path}.xml\n")
         stand_count = 0
-        with open(output_xml, 'a') as xml_file:
+        with open(f"{output_export_path}.xml", 'a') as xml_file:
 
             xml_file.write('<?xml version="1.0" encoding="UTF-8"?>\n')
             xml_file.write(
@@ -486,7 +540,6 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                             if verbose:
                                 feedback.pushWarning(f" >       {str(f['ID'])}: normalized to: {normalized_values}")
                                 print(f" >       {str(f['ID'])}: normalized to: {normalized_values}")
-
 
                         # write values to XML
                         for field, value in zip(dg_fields, normalized_values):
@@ -639,17 +692,42 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
                         if value is not None and not qgis.core.NULL:
                             xml_file.write(f'\t<div_id>{value}</div_id>\n')
                         else:
-                            xml_file.write('\t<div_id>1</div_id>\n')
+                            xml_file.write('\t<div_id>60</div_id>\n')
                     else:
                         # field does not exist at all → use default
-                        xml_file.write('\t<div_id>1</div_id>\n')
+                        xml_file.write('\t<div_id>60</div_id>\n')
+
+                    # try to read vegone_code 0/1/2 from table, otherwise assign 1 as default
+                    for i, field_name in enumerate(vegzone_fields):
+                        tag = f"cc{i}"
+
+                        if field_name in f.fields().names():
+                            value = f[field_name]
+                            if value not in (None, qgis.core.NULL):
+                                xml_file.write(f'\t<{tag}>{value}</{tag}>\n')
+                            else:
+                                xml_file.write(f'\t<{tag}>1</{tag}>\n')
+                        else:
+                            # field does not exist → default
+                            xml_file.write(f'\t<{tag}>1</{tag}>\n')
 
                     xml_file.write('</Stand>\n\n')
             # --- close data tag
             xml_file.write('</dataroot>')
 
-        print(f"\nExported {stand_count} stands")
-        feedback.pushInfo(f"\nExported {stand_count} stands")
+        print(f"\nExported {stand_count} stands to XML")
+        feedback.pushInfo(f"\nExported {stand_count} stands to XML")
+
+        # --- KML export of the input stands layer (only geometry + ID needed) ---
+        export_kml = False
+        print(f"\nKML Export deactivated (will be fixed at some point)")
+        feedback.pushInfo(f"\nKML Export deactivated (will be fixed at some point)")
+        if (export_kml):
+            stands_layer = self.parameterAsVectorLayer(parameters, "INPUT", context)
+            QgsVectorFileWriter.writeAsVectorFormat(stands_layer, (output_export_path + ".kml"), "KML")
+
+            print(f"\nExported KML")
+            feedback.pushInfo(f"\nExported KML")
 
         # ------- WRAPUP -------#
         # TODO this doesn't work since the file isn't closed
