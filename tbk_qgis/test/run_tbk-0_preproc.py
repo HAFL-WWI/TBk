@@ -85,6 +85,8 @@ processing.run("TBk:TBk prepare VHM (and MG)", {
     'output_root': f'{tbk_path}/data/tbk_test_output',
     'save_in_output_subfolder': False,
     'output_subfolder': 'base_data_preprocessed',
+    'prepare_mask': False,
+    'mask_processed': 'mask_processed.gpkg',
     'vhm_detail':'VHM_detail.tif',
     'vhm_10m':'VHM_10m.tif',
     'vhm_150cm':'VHM_150cm.tif',
