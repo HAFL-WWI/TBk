@@ -529,13 +529,14 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
             # all specifications of TBk:TBk prepare mask are set to default
             param = {
                 'mask': mask,
-                'dissolve': True,
-                'dissolve_fields': [],
-                'fid_original': 'fid_original',
-                'return_single_parts': True,
-                'min_area': 100,
-                'max_hole_size_to_remove': 10,
-                'min_width': 10,
+                # use current default advance parameter setting no matter what. thus, commet all advanced parameters below
+                # 'dissolve': True,
+                # 'dissolve_fields': [],
+                # 'fid_original': 'fid_original',
+                # 'return_single_parts': True,
+                # 'min_area': 100,
+                # 'max_hole_size_to_remove': 10,
+                # 'min_width': 10,
                 'OUTPUT': mask_processed
             }
             processing.run("TBk:TBk prepare mask", param)
