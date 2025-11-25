@@ -77,37 +77,114 @@ print("####  call TBk Algorithm    ####")
 print("#------------------------------#\n\n")
 
 import processing
-# Main call of the algorithm
-processing.run("TBk:TBk prepare VHM (and MG)", {
-    'vhm_input': f'{tbk_path}/data/basedata/vhm_ALS-FINTCH2021_HAFL_2012.tif',
-    'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
-    'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
-    'output_root': f'{tbk_path}/data/tbk_test_output',
-    'save_in_output_subfolder': False,
-    'output_subfolder': 'base_data_preprocessed',
-    'prepare_mask': False,
-    'mask_processed': 'mask_processed.gpkg',
-    'vhm_detail':'VHM_detail.tif',
-    'vhm_10m':'VHM_10m.tif',
-    'vhm_150cm':'VHM_150cm.tif',
-    'mg_10m':'MG_10m.tif',
-    'mg_10m_binary':'MG_10m_binary.tif',
-    'align_method':0,
-    'del_tmp':True,
-    'clip_vhm': True,
-    'mask_vhm':True,
-    'vhm_convert_to_byte':True,
-    'vhm_reclassify':False,
-    'vMin':0,
-    'vMax':60,
-    'vNA':255,
-    'vNA_replacement': False,
-    'mg_rescale_factor': 100,
-    'reclassify_mg_values':True,
-    'min_lh':0,
-    'max_lh':50,
-    'min_nh':50,
-    'max_nh':100,
-    'mg_NA_replacement_value': None
-}
-)
+
+# 1) call of the algorithm with default settings
+test_default = True
+if test_default:
+    processing.run("TBk:TBk prepare VHM (and MG)", {
+        'vhm_input': f'{tbk_path}/data/basedata/vhm_ALS-FINTCH2021_HAFL_2012.tif',
+        'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
+        'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
+        'output_root': f'{tbk_path}/data/tbk_test_output',
+        'save_in_output_subfolder': False,
+        'output_subfolder': 'base_data_preprocessed',
+        'prepare_mask': False,
+        'mask_processed': 'mask_processed.gpkg',
+        'vhm_detail': 'VHM_detail.tif',
+        'vhm_10m': 'VHM_10m.tif',
+        'vhm_150cm': 'VHM_150cm.tif',
+        'mg_10m': 'MG_10m.tif',
+        'mg_10m_binary': 'MG_10m_binary.tif',
+        'align_method': 0,
+        'del_tmp': True,
+        'clip_vhm': True,
+        'mask_vhm': True,
+        'vhm_convert_to_byte': True,
+        'vhm_reclassify': False,
+        'vMin': 0,
+        'vMax': 60,
+        'vNA': 255,
+        'vNA_replacement': False,
+        'mg_rescale_factor': 100,
+        'reclassify_mg_values': True,
+        'min_lh': 0,
+        'max_lh': 50,
+        'min_nh': 50,
+        'max_nh': 100,
+        'mg_NA_replacement_value': None
+    }
+    )
+
+# 2) call of the algorithm saving raster outputs in subfolder within output folder
+test_subfolder = False
+if test_subfolder:
+    processing.run("TBk:TBk prepare VHM (and MG)", {
+        'vhm_input': f'{tbk_path}/data/basedata/vhm_ALS-FINTCH2021_HAFL_2012.tif',
+        'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
+        'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
+        'output_root': f'{tbk_path}/data/tbk_test_output',
+        'save_in_output_subfolder': True,  # non-default
+        'output_subfolder': 'base_data_preprocessed',
+        'prepare_mask': False,
+        'mask_processed': 'mask_processed.gpkg',
+        'vhm_detail': 'VHM_detail.tif',
+        'vhm_10m': 'VHM_10m.tif',
+        'vhm_150cm': 'VHM_150cm.tif',
+        'mg_10m': 'MG_10m.tif',
+        'mg_10m_binary': 'MG_10m_binary.tif',
+        'align_method': 0,
+        'del_tmp': True,
+        'clip_vhm': True,
+        'mask_vhm': True,
+        'vhm_convert_to_byte': True,
+        'vhm_reclassify': False,
+        'vMin': 0,
+        'vMax': 60,
+        'vNA': 255,
+        'vNA_replacement': False,
+        'mg_rescale_factor': 100,
+        'reclassify_mg_values': True,
+        'min_lh': 0,
+        'max_lh': 50,
+        'min_nh': 50,
+        'max_nh': 100,
+        'mg_NA_replacement_value': None
+    }
+    )
+
+# 3) call of the algorithm saving raster outputs in subfolder within output folder + prepare & save mask
+test_subfolder_and_prepare_mask = False
+if test_subfolder_and_prepare_mask:
+    processing.run("TBk:TBk prepare VHM (and MG)", {
+        'vhm_input': f'{tbk_path}/data/basedata/vhm_ALS-FINTCH2021_HAFL_2012.tif',
+        'mg_input': f'{tbk_path}/data/basedata/MG_2018_NH_HAFL_10m.tif',
+        'mask': f'{tbk_path}/data/basedata/waldmaske_hafl.gpkg|layername=waldmaske_hafl',
+        'output_root': f'{tbk_path}/data/tbk_test_output',
+        'save_in_output_subfolder': True,  # non-default
+        'output_subfolder': 'base_data_preprocessed_with_mask',  # non-default
+        'prepare_mask': True,  # non-default
+        'mask_processed': 'mask_processed.gpkg',
+        'vhm_detail': 'VHM_detail.tif',
+        'vhm_10m': 'VHM_10m.tif',
+        'vhm_150cm': 'VHM_150cm.tif',
+        'mg_10m': 'MG_10m.tif',
+        'mg_10m_binary': 'MG_10m_binary.tif',
+        'align_method': 0,
+        'del_tmp': True,
+        'clip_vhm': True,
+        'mask_vhm': True,
+        'vhm_convert_to_byte': True,
+        'vhm_reclassify': False,
+        'vMin': 0,
+        'vMax': 60,
+        'vNA': 255,
+        'vNA_replacement': False,
+        'mg_rescale_factor': 100,
+        'reclassify_mg_values': True,
+        'min_lh': 0,
+        'max_lh': 50,
+        'min_nh': 50,
+        'max_nh': 100,
+        'mg_NA_replacement_value': None
+    }
+    )
