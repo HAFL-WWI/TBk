@@ -987,7 +987,7 @@ class TBkPrepareVhmMgAlgorithm(QgsProcessingAlgorithm):
 <h3>Name of subfolder for outputs</h3>
 <p>string / subfolder name: default <i>base_data_preprocessed</i>. </p>
 <h3>Prepare and save mask</h3>
-<p>Check box: default False. If applied the mask is processed by <b><i>TBk</i></b>-algorithm <b><i>TBk prepare mask</i></b> with default advanced parameter settings. For detail see <b><i>TBk prepare mask</i></b>’s description. If non-default mask processing is preferred, generate with <b><i>TBk prepare mask</i></b> a processed mask, which then can serve as mask input for <b><i>TBk</i></b>’s preprocessing algorithm <b><i>TBk prepare VHM (and MG)</i></b> resp. as perimeter input for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p>
+<p>Check box: default False. If applied the mask is processed by <b><i>TBk</i></b>-algorithm <b><i>TBk prepare mask</i></b> with default advanced parameter settings. For details see <b><i>TBk prepare mask</i></b>’s description. If non-default mask processing is preferred, generate as a 1<sup>st</sup> step with <b><i>TBk prepare mask</i></b> a processed mask, which then can serve as mask input for <b><i>TBk</i></b>’s preprocessing algorithm <b><i>TBk prepare VHM (and MG)</i></b> resp. as perimeter input for <b><i>TBk</i></b>’s main algorithm <b><i>Generate BK</i></b>.</p>
 <h3>Prepared and saved mask output name (.gpkg)</h3>
 <p>string / .gpkg name: default <i>mask_processed.gpkg</i></p>
 <h3>VHM detail output name (.tif)</h3>
@@ -1022,7 +1022,7 @@ Notes:
 <p>Check box: default True.</p>
 <h3>Convert VHM to BYTE datatype (...)</h3>
 <p>Check box: default True.</p>
-<h3>Reclassify VHM values < VHM min resp. > VHM max value as NoData.</h3>
+<h3>Reclassify VHM values &lt; VHM min resp. &gt; VHM max value as NoData.</h3>
 <p>Check box: default False.</p>
 <h3>VHM min value</h3>
 <p>float [m]: default 0m</p>
@@ -1052,7 +1052,7 @@ Notes:
 Note that if <i>Rescale Forest mixture values</i> is set to anything but 1 (no rescaling), <b><i>TBk prepare VHM (and MG)</i></b> replaces by default inevitably any NoData-pixels of <i>Forest Mixture Degree</i> with 0 (= 100% deciduous). If <i>Rescale Forest mixture values</i> is set to 1, NoData-pixels are preserved by default. By setting optionally a numeric value as <i>Value for replacement of forest mixture degree NoData</i> a non-default replacement of NoData-pixel is feasible, where the min. is 0 (= 100% deciduous) and the max. is 100 (= 100% coniferous). Setting <i>Value for replacement</i> either within the range of <i>Minimum</i> / <i>Maximum Deciduous</i> or of <i>Minimum</i> / <i>Maximum Coniferous</i> will convert the original NoData-pixels accordingly to 0 (= deciduous) resp. 100 (= coniferous) as pixel values of the <i>Binary mixture degree 10m output</i>.    
 
 <h2>Outputs</h2>
-<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers placed either directly in the <b><i>Output folder</i></b> (s. above) or if <b><i>Save preprocessing outputs in subfolder</i></b> (s. advanced parameters) is checked in a subfolder (default <i>base_data_preprocessed</i>) within  the <b><i>Output folder</i></b>. File names of these outputs are defined via the five corresponding advanced parameters (s. above).</p>
+<p>Three VHM and optionally two <i>Forest Mixture Degree</i> derivative raster layers and also optionally a vector layer of the processed mask, all placed either directly in the <b><i>Output folder</i></b> (s. above) or if <b><i>Save preprocessing outputs in subfolder</i></b> (s. advanced parameters) is checked in a subfolder (default <i>base_data_preprocessed</i>) within the <b><i>Output folder</i></b>. File names of these outputs are defined via the five corresponding advanced parameters (s. above).</
 
 <p><!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN" "http://www.w3.org/TR/REC-html40/strict.dtd">
 <html><head><meta name="qrichtext" content="1" /><style type="text/css">
