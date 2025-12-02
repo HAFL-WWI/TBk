@@ -39,29 +39,62 @@ from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
 from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterFeatureSink
+from qgis.core import (QgsProcessing,
+                       QgsProcessingParameterBoolean,
+                       QgsProcessingParameterFile,
+                       QgsProcessingParameterString)
 import processing
+import logging
 from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TBkProcessingAlgorithmToolG
-
 
 
 class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
 
     def initAlgorithm(self, config=None):
         # --- Handle config argument
+
         # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
         is_standalone_context = config.get('is_standalone_context') if config else True
 
-        # Not needed in a modular context; can use the previous algorithm's output directly
         if is_standalone_context:
             self.addParameter(
                 QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
 
-        self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
-                                                            type=QgsProcessing.TypeVectorAnyGeometry,
-                                                            createByDefault=True, supportsAppend=True,
-                                                            defaultValue=None))
+            self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
+                                                                type=QgsProcessing.TypeVectorAnyGeometry,
+                                                                createByDefault=True, supportsAppend=True,
+                                                                defaultValue=None, optional=True))
+
+        if is_standalone_context:
+            # TODO: these parameters are used in the modular context, but a consistent policy on their handling still has to be established:
+            # they need to be present in the workflow, but are they sensible tool parameters?
+            self.addParameter(QgsProcessingParameterFile('result_dir',
+                                                         "Directory containing all TBk output folders and files. This "
+                                                         "folder must contain the previous generated data",
+                                                         behavior=QgsProcessingParameterFile.Folder))
+
+            self._add_advanced_parameter(QgsProcessingParameterString('logfile_name', "Log File Name (.log)",
+                                                                      defaultValue="tbk_processing.log", optional=True))
+
+            self._add_advanced_parameter(
+                QgsProcessingParameterBoolean('del_tmp', "Delete temporary files and fields",
+                                              defaultValue=True, optional=True))
+        # Not needed in a modular context; can use the previous algorithm's output directly
 
     def processAlgorithm(self, parameters, context, model_feedback):
+
+        print("--------------------------------------------")
+        print("START Cleaning up ...")
+
+        # --- Get input parameters
+        params = self._extract_context_params(parameters, context)
+
+        # Set the logger
+        self._configure_logging(params.result_dir, params.logfile_name)
+        log = logging.getLogger(self.name())
+
+        log.info('Cleanup')
+
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
         feedback = QgsProcessingMultiStepFeedback(6, model_feedback)
@@ -147,8 +180,10 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
             'OUTPUT': parameters['output_stand_map_clean']
         }
         results = processing.run('native:renametablefield', alg_params, context=context,
-                                                      feedback=feedback, is_child_algorithm=True)
+                                 feedback=feedback, is_child_algorithm=True)
 
+        print("DONE!")
+        print(f"Output: {results}")
         # outputs['RenameFieldId_1Id'] = results['OUTPUT']
         return results
 

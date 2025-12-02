@@ -61,6 +61,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         Here we define the inputs and output of the algorithm, along with some other properties.
         """
         # --- Handle config argument
+
         # Indicates whether the tool is running in standalone or modularized mode, and adjusts the GUI/behavior if needed.
         is_standalone_context = config.get('is_standalone_context') if config else True
 
@@ -79,17 +80,16 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                          "Directory containing all TBk output folders and files. This "
                                                          "folder must contain the previous generated data",
                                                          behavior=QgsProcessingParameterFile.Folder))
-
-        # Input stand map to be merged
-        self.addParameter(
-            QgsProcessingParameterFeatureSource(self.INPUT_TO_ATTRIBUTE, "Input layer to join to",
-                                                [QgsProcessing.TypeVectorPolygon],
-                                                optional=True))
-        # Output
-        self.addParameter(
-            QgsProcessingParameterFileDestination(self.OUTPUT_ATTRIBUTED, "Output",
-                                                  "GPKG files (*.gpkg)",
-                                                  optional=True))
+            # Input stand map to be merged
+            self.addParameter(
+                QgsProcessingParameterFeatureSource(self.INPUT_TO_ATTRIBUTE, "Input layer to join to",
+                                                    [QgsProcessing.TypeVectorPolygon],
+                                                    optional=True))
+            # Output
+            self.addParameter(
+                QgsProcessingParameterFileDestination(self.OUTPUT_ATTRIBUTED, "Output",
+                                                      "GPKG files (*.gpkg)",
+                                                      optional=True))
 
         # --- Advanced Parameters
 
@@ -126,13 +126,11 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                         optional=True))
 
         # Additional parameters
-        parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
-                                                 defaultValue="tbk_processing.log")
-        self._add_advanced_parameter(parameter)
+        self._add_advanced_parameter(QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
+                                                                  defaultValue="tbk_processing.log", optional=True))
 
-        parameter = QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields",
-                                                  defaultValue=True)
-        self._add_advanced_parameter(parameter)
+        self._add_advanced_parameter(QgsProcessingParameterBoolean(self.DEL_TMP, "Delete temporary files and fields",
+                                                                   defaultValue=True, optional=True))
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -141,7 +139,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         print("--------------------------------------------")
         print("START Appending attributes...")
 
-        # --- Get input parameters
+        # --- Extract input parameters
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
@@ -168,15 +166,18 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         log.info('Append attributes from join layers')
         # join VegZone if layer is provided
         if params.vegZoneLayer:
+            print(f"Joining {params.vegZoneLayer}::FIELD:{params.vegZoneLayerField} for vegZone_Code")
             joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone1_joined.gpkg")
             renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone2_renamed.gpkg")
             stands_file_join = self.join_and_rename(joined_path,
                                                     renamed_path,
-                                                    params.input_to_attribute,
+                                                    stands_file_join,
                                                     params.vegZoneLayer,
                                                     params.vegZoneLayerField,
                                                     'VegZone',
                                                     'VegZone_Code')
+        else:
+            print(f"Fill vegZone_Code with default value: {params.vegZoneLayerField}")
 
         # create field VegZone_Code (if not already existent through join) and fill (NULL values) with default
         stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone3.gpkg")
@@ -185,20 +186,23 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
             'INPUT': stands_file_join,
             'FIELD_NAME': 'VegZone_Code', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
             'FORMULA': formula, 'OUTPUT': stands_file_appended})
+        stands_file_join = stands_file_appended  # pass file with appends on as new input
 
         # join forestSite if layer is provided
         if params.forestSiteLayer:
+            print(f"Joining {params.forestSiteLayer}::FIELD:{params.forestSiteLayerField} for ForestSite")
             joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1_joined.gpkg")
             renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2_renamed.gpkg")
             stands_file_join = self.join_and_rename(joined_path,
                                                     renamed_path,
-                                                    stands_file_appended,
+                                                    stands_file_join,
                                                     params.forestSiteLayer,
                                                     params.forestSiteLayerField,
                                                     'ForestSite',
                                                     'ForestSite')
 
         if (params.forestSiteDefault is not None) and params.forestSiteDefault != "":
+            print(f"Fill ForestSite with default value: {params.forestSiteDefault}")
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
             stands_file_forest_site = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
             formula = f'if("ForestSite","ForestSite", \'{params.forestSiteDefault}\')'
@@ -206,11 +210,12 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
                 'FORMULA': formula, 'OUTPUT': stands_file_forest_site})
-            stands_file_join = stands_file_forest_site
+            stands_file_join = stands_file_forest_site  # pass file with appends on as new input
 
         output_path = os.path.join(bk_dir, "stands_dg_nh_vegZone.gpkg")
         copy_vector_file(stands_file_join, output_path, context, feedback)
-
+        print("DONE!")
+        print(f"Output: {output_path}")
         return {self.OUTPUT_ATTRIBUTED: output_path}
 
     def join_and_rename(self,
@@ -256,7 +261,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         """
         return 'Append stand attributes'
 
-    #todo
+    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.
