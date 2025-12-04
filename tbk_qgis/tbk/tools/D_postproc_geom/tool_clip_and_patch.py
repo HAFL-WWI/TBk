@@ -120,9 +120,9 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        working_root = params.working_root
+        working_root = self._get_bk_output_dir(params.working_root)
         ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(params.working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger

@@ -126,15 +126,16 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         params = self._extract_context_params(parameters, context)
 
         # Handle the working root and temp output folders
-        bk_dir = self._get_bk_output_dir(params.result_dir)
-        tmp_output_folder = self._get_tmp_output_path(params.result_dir)
+        working_root = self._get_bk_output_dir(params.result_dir)
+        ensure_dir(working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set crown coverage output folder
         dg_dir = self._get_dg_output_dir(params.result_dir)
 
         # Set the logger
-        self._configure_logging(params.result_dir, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
 
         # check tif files extension
@@ -144,7 +145,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Calculate DG
         log.info('Starting')
-        results = calculate_dg(bk_dir, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
+        results = calculate_dg(working_root, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
                                del_tmp=params.del_tmp)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],

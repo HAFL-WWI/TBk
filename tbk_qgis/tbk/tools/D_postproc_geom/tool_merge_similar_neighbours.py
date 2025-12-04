@@ -119,13 +119,14 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         params = self._extract_context_params(parameters, context)
 
         # Ensure directories exist
-        working_root = params.working_root
+        working_root = self._get_bk_output_dir(params.working_root)
+        # todo ensure is done within function as well
         ensure_dir(working_root)
-        tmp_output_folder = self._get_tmp_output_path(params.working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger('Merge similar neighbours')
 
         # --- Merge similar neighbours

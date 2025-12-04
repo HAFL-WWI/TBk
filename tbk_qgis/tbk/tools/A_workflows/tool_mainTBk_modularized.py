@@ -78,13 +78,13 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
 
         # set the stand map output directory and file
         result_dir = self._get_result_dir(parameters['output_root'])
-        bk_dir = self._get_bk_output_dir(result_dir)
+        bk_process_dir = self._get_bk_output_dir(result_dir)
         parameters['final_stand_map_clean'] = os.path.join(result_dir, "TBk_Bestandeskarte.gpkg")
 
         # --- 1 Delineate Stand
 
         # define parameters
-        parameters['output_stand_boundaries'] = os.path.join(bk_dir, "stand_boundaries.gpkg")
+        parameters['output_stand_boundaries'] = os.path.join(bk_process_dir, "stand_boundaries.gpkg")
 
         # run tool
         outputs['DelineateStand'] = self.run_delineate_stand(parameters, outputs, context, feedback)
@@ -100,7 +100,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- 2 Simplify and Clean
-        parameters['stands_simplified'] = os.path.join(bk_dir, "stands_simplified.gpkg")
+        parameters['stands_simplified'] = os.path.join(bk_process_dir, "stands_simplified.gpkg")
         outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
         intermediate_results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
 
@@ -109,7 +109,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- 3 Merge similar neighbours (FM)
-        parameters['stands_merged'] = os.path.join(bk_dir, "stands_merged.gpkg")
+        parameters['stands_merged'] = os.path.join(bk_process_dir, "stands_merged.gpkg")
         outputs['MergeSimilarNeighboursFm'] = self.run_merge_similar_neighbours(parameters, outputs, context, feedback)
         intermediate_results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
 
@@ -118,7 +118,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- 4 Clip to perimeter and eliminate gaps
-        parameters['stands_clipped_no_gaps'] = os.path.join(bk_dir, "stands_clipped.gpkg")
+        parameters['stands_clipped_no_gaps'] = os.path.join(bk_process_dir, "stands_clipped.gpkg")
         outputs['ClipToPerimeterAndEliminateGaps'] = self.run_clip_and_eliminate(parameters, outputs, context, feedback)
         intermediate_results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
         # intermediate_results['stands_highest_tree_clipped'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_highest_tree_clipped']
@@ -128,7 +128,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- 5 Calculate crown coverage
-        parameters['stands_dg'] = os.path.join(bk_dir, "stands_dg.gpkg")
+        parameters['stands_dg'] = os.path.join(bk_process_dir, "stands_dg.gpkg")
         outputs['CalculateCrownCoverage'] = self.run_calculate_crown_coverage(parameters, outputs, context, feedback)
         intermediate_results['stands_dg'] = outputs['CalculateCrownCoverage']['stands_dg']
 
@@ -144,7 +144,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- 6 Add coniferous proportion
-        parameters['stands_dg_nh'] = os.path.join(bk_dir, "stands_dg_nh.gpkg")
+        parameters['stands_dg_nh'] = os.path.join(bk_process_dir, "stands_dg_nh.gpkg")
         outputs['AddConiferousProportion'] = self.run_add_coniferous_proportion(parameters, outputs, context, feedback)
 
         feedback.setCurrentStep(6)

@@ -144,13 +144,13 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         # Handle the working root and temp output folders
         # todo: do the same for the other algorithms:
-        bk_dir = self._get_bk_output_dir(params.result_dir)
-
-        tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
+        working_root = self._get_bk_output_dir(params.result_dir)
+        ensure_dir(working_root)
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.result_dir, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger(self.name())
 
         # Check that the necessary files are provided
@@ -212,7 +212,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                 'FORMULA': formula, 'OUTPUT': stands_file_forest_site})
             stands_file_join = stands_file_forest_site  # pass file with appends on as new input
 
-        output_path = os.path.join(bk_dir, "stands_dg_nh_vegZone.gpkg")
+        output_path = os.path.join(working_root, "stands_dg_nh_vegZone.gpkg")
         copy_vector_file(stands_file_join, output_path, context, feedback)
         print("DONE!")
         print(f"Output: {output_path}")

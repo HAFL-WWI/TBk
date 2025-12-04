@@ -117,14 +117,14 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
         # Handle the working root and temp output folders
         # todo: do the same for the other algorithms:
-        bk_dir = self._get_bk_output_dir(params.result_dir)
+        working_root = self._get_bk_output_dir(params.result_dir)
         # todo: use this instead of tbk_result_dir in calculate_dg()
         dg_dir = self._get_dg_output_dir(params.result_dir)
-        tmp_output_folder = self._get_tmp_output_path(os.path.join(params.result_dir, 'bk_process'))
+        tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(params.result_dir, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger(self.name())
 
         # Make a copy of the stands with crown coverage
@@ -132,7 +132,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
         # --- Add coniferous proportion
         log.info('Add coniferous proportion')
-        stands_dg_nh = add_coniferous_proportion(bk_dir,
+        stands_dg_nh = add_coniferous_proportion(working_root,
                                                  tmp_output_folder,
                                                  params.dg_layer,
                                                  stands_dg_copy,

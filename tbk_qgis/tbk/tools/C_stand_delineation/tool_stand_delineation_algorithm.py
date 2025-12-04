@@ -212,11 +212,11 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # Handle the outputs directories
         result_dir = self._get_result_dir(params.output_root)
-        bk_dir = self._get_bk_output_dir(result_dir)
-        ensure_dir(bk_dir)
+        working_root = self._get_bk_output_dir(result_dir) #
+        ensure_dir(working_root)
 
         # set logger
-        self._configure_logging(result_dir, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger(self.name())
 
         # check tif files extension
@@ -227,9 +227,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # Write the used parameters in a toml file
         try:
-            write_dict_to_toml_file(params.__dict__, bk_dir)
+            write_dict_to_toml_file(params.__dict__, working_root)
         except Exception:
-            feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
 
         # ------- TBk Processing --------#
         # --- Stand delineation (Main)
@@ -238,7 +238,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
             'del_tmp': params.del_tmp,
-            'out_path': bk_dir,
+            'out_path': working_root,
             'input_vhm_raster': params.vhm_10m,
             'coniferous_raster_file': params.coniferous_raster_for_classification,
             'zone_raster': None,
