@@ -14,8 +14,6 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import \
     TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import \
-    TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 
@@ -33,7 +31,6 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         TBkCalculateCrownCoverageAlgorithm(),
         TBkAddConiferousProportionAlgorithm(),
         TBkAppendStandAttributesAlgorithm(),
-        TBkUpdateStandAttributesAlgorithm(),
         TBkPostprocessCleanup(),
     ]
 
@@ -149,14 +146,6 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
         # --- 6 Add coniferous proportion
         parameters['stands_dg_nh'] = os.path.join(bk_dir, "stands_dg_nh.gpkg")
         outputs['AddConiferousProportion'] = self.run_add_coniferous_proportion(parameters, outputs, context, feedback)
-
-        # feedback.setCurrentStep(6)
-        # if feedback.isCanceled():
-        #     return {}
-        #
-        # # # Calculate attribute "struktur"
-        # # outputs['CalculateAttributeStruktur'] = self.run_calculate_attribute_struktur(parameters, outputs, context,
-        # #                                                                               feedback)
 
         feedback.setCurrentStep(6)
         if feedback.isCanceled():
