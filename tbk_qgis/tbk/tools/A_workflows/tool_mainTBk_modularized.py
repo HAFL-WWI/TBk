@@ -101,8 +101,10 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
 
         # --- 2 Simplify and Clean
         parameters['stands_simplified'] = os.path.join(bk_process_dir, "stands_simplified.gpkg")
+        parameters['stands_highest_tree'] = os.path.join(bk_process_dir, "stands_highest_tree.gpkg")
         outputs['SimplifyAndClean'] = self.run_simplify_and_clean(parameters, outputs, context, feedback)
         intermediate_results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
+        intermediate_results['stands_highest_tree'] = outputs['SimplifyAndClean']['stands_highest_tree']
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
@@ -199,6 +201,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'simplification_tolerance': parameters['simplification_tolerance'],
             'working_root': outputs['DelineateStand']['result_dir'],
             'stands_simplified': parameters['stands_simplified'],
+            'stands_highest_tree': parameters['stands_highest_tree'],
         }
         return processing.run('TBk:2 Simplify and Clean', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
@@ -223,7 +226,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
             'input_to_clip': outputs['MergeSimilarNeighboursFm']['stands_merged'],
-            'tmp_stands_highest_tree': outputs['SimplifyAndClean']['tmp_stands_highest_tree'],
+            'stands_highest_tree': outputs['SimplifyAndClean']['stands_highest_tree'],
             'logfile_name': parameters['logfile_name'],
             'perimeter': parameters['perimeter'],
             'working_root': outputs['DelineateStand']['result_dir'],

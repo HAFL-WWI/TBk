@@ -33,9 +33,10 @@ from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
 from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile
 
 
-def post_process(shape_in,
+def post_process(stands_in,
                  h_max_input,
-                 shape_out,
+                 stands_out,
+                 stands_highest_tree_out,
                  tmp_output_folder,
                  min_area,
                  simplification_tolerance=8,
@@ -63,8 +64,8 @@ def post_process(shape_in,
 
     # Output files
     output_files = {
-        "tmp_stands_highest_tree": os.path.join(tmp_output_folder, "tmp_stands_highest_tree.gpkg"),
-        "stands_simplified": shape_out
+        "stands_highest_tree": stands_highest_tree_out,
+        "stands_simplified": stands_out
     }
 
     ########################################
@@ -75,13 +76,13 @@ def post_process(shape_in,
     algo_output = processing.run("native:pixelstopoints", params)
 
     params = {'INPUT': algo_output["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
-              'OUTPUT': output_files['tmp_stands_highest_tree']}
+              'OUTPUT': output_files['stands_highest_tree']}
     processing.run("native:extractbyattribute", params)
 
     ########################################
     # --- Eliminate small polygons
 
-    params = {'INPUT': shape_in, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
+    params = {'INPUT': stands_in, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
               'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_files['stands_buf']}
     processing.run("native:buffer", params)
 

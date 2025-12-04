@@ -63,8 +63,8 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     H_MAX_INPUT = "h_max_input"
     # Output simplified stand map
     OUTPUT_SIMPLIFIED = "stands_simplified"
-    # stands highest tree tmp output file
-    TMP_OUTPUT_STANDS_HIGHEST_TREE = "tmp_stands_highest_tree"
+    # stands highest tree output file
+    OUTPUT_STANDS_HIGHEST_TREE = "stands_highest_tree"
 
     def initAlgorithm(self, config=None):
         """
@@ -105,9 +105,12 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                       "GPKG files (*.gpkg)",
                                                       optional=True))
 
-        # Outputs
-        self.addOutput(QgsProcessingOutputFile(self.TMP_OUTPUT_STANDS_HIGHEST_TREE,
-                                               "Stands highest tree tmp file"))
+            self.addParameter(
+                QgsProcessingParameterFileDestination(self.OUTPUT_STANDS_HIGHEST_TREE,
+                                                      "Stands highest tree file",
+                                                      "GPKG files (*.gpkg)",
+                                                      optional=True))
+
         # --- Advanced Parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
@@ -149,7 +152,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         try:
             write_dict_to_toml_file(params.__dict__, working_root)
         except Exception:
-            feedback.pushWarning('The TOML file was not writen in the output folder because an error occurred')
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
 
         # ------- TBk Processing --------#
 
@@ -158,15 +161,16 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         log.info('Starting')
         # todo: also log the key:
         log.debug(f"used parameters: {params.input_to_simplify}, {params.h_max_input,},"
-                  f"{params.stands_simplified}, {tmp_output_folder}, {params.min_area_m2}, "
-                  f"{params.simplification_tolerance}, {params.del_tmp}")
+                  f"{params.stands_simplified}, {params.stands_highest_tree}, {tmp_output_folder}, "
+                  f"{params.min_area_m2}, {params.simplification_tolerance}, {params.del_tmp}")
 
-        results = post_process(params.input_to_simplify, params.h_max_input, params.stands_simplified,
+        results = post_process(params.input_to_simplify, params.h_max_input,
+                               params.stands_simplified, params.stands_highest_tree,
                                tmp_output_folder, params.min_area_m2,
                                params.simplification_tolerance, params.del_tmp)
 
         return {self.OUTPUT_SIMPLIFIED: results["stands_simplified"],
-                self.TMP_OUTPUT_STANDS_HIGHEST_TREE: results["tmp_stands_highest_tree"], }
+                self.OUTPUT_STANDS_HIGHEST_TREE: results["stands_highest_tree"], }
 
     def createInstance(self):
         """

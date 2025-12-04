@@ -31,7 +31,6 @@ from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopacka
 
 def clip_to_perimeter(working_root,
                       input_to_clip_path,
-                      tmp_stands_highest_tree,
                       tmp_output_folder,
                       perimeter,
                       del_tmp=True):
