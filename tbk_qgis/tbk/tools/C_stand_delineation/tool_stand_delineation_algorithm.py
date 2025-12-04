@@ -211,7 +211,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         params = self._extract_context_params(parameters, context)
 
         # Handle the outputs directories
-        result_dir = self._get_result_dir(params.output_root)
+        result_dir = params.output_root
         working_root = self._get_bk_output_dir(result_dir) #
         ensure_dir(working_root)
 
