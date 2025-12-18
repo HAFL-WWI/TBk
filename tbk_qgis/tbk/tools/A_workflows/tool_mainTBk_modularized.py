@@ -108,13 +108,14 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'vhm_10m': parameters['vhm_10m'],
             'vhm_max_height': parameters['vhm_max_height'],
             'vhm_min_height': parameters['vhm_min_height'],
-            'output_root': parameters['output_root'],
+            'output_root': result_dir,
             'output_stand_boundaries': parameters['output_stand_boundaries'],
         }
         outputs['DelineateStand'] = processing.run('TBk:1 Delineate Stand', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
 
         # store outputs in dict
+        intermediate_results['h_max_input'] = outputs['DelineateStand']['output_h_max']
         intermediate_results['classified_raw'] = outputs['DelineateStand']['classified_raw']
         intermediate_results['classified_smooth_1'] = outputs['DelineateStand']['classified_smooth_1']
         intermediate_results['classified_smooth_2'] = outputs['DelineateStand']['classified_smooth_2']
@@ -257,7 +258,6 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'result_dir': result_dir,
             'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],
             'stands_dg_nh': parameters['stands_dg_nh'],
-            'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
         }
         outputs['AddConiferousProportion'] =  processing.run('TBk:6 Add coniferous proportion', alg_params,
                               context=context, feedback=feedback,
@@ -268,6 +268,9 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             return {}
 
         # --- Append stand attributes
+
+        # create output filename parameters
+        parameters['stands_dg_nh_vegZone'] = os.path.join(bk_process_dir, "stands_dg_nh_vegZone.gpkg")
 
         # compile params and run tool
         alg_params = {
@@ -282,6 +285,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
             'vegZoneDefault': parameters['vegZoneDefault'],
             'vegZoneLayer': parameters['vegZoneLayer'],
             'vegZoneLayerField': parameters['vegZoneLayerField'],
+            'stands_dg_nh_vegZone': parameters['stands_dg_nh_vegZone']
         }
         outputs['AppendStandAttributes'] =  processing.run('TBk:Append stand attributes', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
@@ -294,7 +298,7 @@ class TBkAlgorithmModularized(TBkProcessingAlgorithmToolA):
 
         # compile params and run tool
         alg_params = {
-            'input_stand_map': outputs['AppendStandAttributes']['stands_dg_nh_vegZone'],
+            'input_to_clean': outputs['AppendStandAttributes']['stands_dg_nh_vegZone'],
             'output_stand_map_clean': parameters['final_stand_map_clean'],
             'result_dir': result_dir,
             'logfile_name': parameters['logfile_name'],

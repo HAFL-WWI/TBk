@@ -58,7 +58,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
 
         if is_standalone_context:
             self.addParameter(
-                QgsProcessingParameterVectorLayer('input_stand_map', 'TBk Bestandeskarte', defaultValue=None))
+                QgsProcessingParameterVectorLayer('input_to_clean', 'TBk Bestandeskarte', defaultValue=None))
 
             self.addParameter(QgsProcessingParameterFeatureSink('output_stand_map_clean', 'TBk Bestandeskarte clean',
                                                                 type=QgsProcessing.TypeVectorAnyGeometry,
@@ -104,7 +104,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
         # Extract area_m2 > 100
         alg_params = {
             'EXPRESSION': '"area_m2" >= 100',
-            'INPUT': parameters['input_stand_map'],
+            'INPUT': parameters['input_to_clean'],
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['ExtractArea_m2100'] = processing.run('native:extractbyexpression', alg_params, context=context,

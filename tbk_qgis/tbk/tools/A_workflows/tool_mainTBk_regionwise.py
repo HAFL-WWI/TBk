@@ -7,7 +7,7 @@ from collections import ChainMap
 from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
-    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing
+    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing, QgsProcessingException, QgsProcessingParameterBoolean
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
@@ -52,7 +52,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         params = []
 
         # Initialisation config used to adapt the output root UI description
-        init_config = {'output_root': {'name': "output_root", 'description': "Output folder"}}
+        init_config = {# Indicates the tool is running in a standalone or modularized context in the initAlgorithm() method
+                       'is_standalone_context': False,
+                       }
+        params = []
 
         # init all used algorithm and add their parameters to parameters list
         for alg in self.algorithms:
@@ -68,6 +71,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         for param in unique_param_definitions:
             if param.name() != 'working_root':
                 self.addParameter(param.clone())
+
+        parameter = QgsProcessingParameterBoolean('create_subdir_time', "Create subfolder with timestamp", defaultValue=True)
+        self._add_advanced_parameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -136,7 +142,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 raise QgsProcessingException(f"The configuration file was not found at this location: {config_path}")
 
         # Handle the working root and temp output folder
-        output_root = parameters["output_root"]
+        if parameters['create_subdir_time']:
+            output_root = self._get_result_dir(parameters['output_root'])
+        else: output_root = parameters['output_root']
 
         # set logger
         self._configure_logging(output_root, parameters['logfile_name'])
@@ -190,6 +198,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             region_name = feature["region"]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, str(region_name))
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
+            region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
+
             os.makedirs(region_base_data_dir, exist_ok=True)
             print(f"\n--------------------------------")
             print(f"--- Processing Region {region_name} ---")
@@ -280,39 +290,55 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # copy parent parameters and adjust only those relevant for the region
             parameters_region = parameters.copy()
             parameters_region["config_file"] = ""
+
+            # region input files (clipped vhm and mg)
             parameters_region["perimeter"] = output_vector
             parameters_region["vhm_10m"] = vhm_10m_clipped
             parameters_region["coniferous_raster_for_classification"] = mg_10m_clipped
+
+            # region outpoot roots
             parameters_region["output_root"] = region_root_dir
-            parameters_region["working_root"] = os.path.join(region_root_dir, 'bk_process')
+            parameters_region["working_root"] = region_bk_process_dir
             parameters_region["result_dir"] = region_root_dir
-            # todo: some of these paths are still hardcoded, need to be dynamic
-            parameters_region["output_stand_delineation"] = os.path.join(region_root_dir, 'bk_process',
-                                                                         'stand_boundaries.gpkg')
+
+            parameters_region['output_stand_boundaries'] = os.path.join(region_bk_process_dir, "stand_boundaries.gpkg")
+            parameters_region['h_max_input'] = os.path.join(region_bk_process_dir, "hmax.tif")
+
+            # TODO add input parameters
+            # parameters for single steps
+            parameters_region["input_to_simplify"] = parameters_region["output_stand_boundaries"]
+            parameters_region['stands_highest_tree'] = os.path.join(region_bk_process_dir, "stands_highest_tree.gpkg")
+            parameters_region['stands_simplified'] = os.path.join(region_bk_process_dir, "stands_simplified.gpkg")
+
+            parameters_region["input_to_clip"] = parameters_region["stands_simplified"]
+            parameters_region['stands_clipped_no_gaps'] = os.path.join(region_bk_process_dir, "stands_clipped.gpkg")
+
+            parameters_region["input_to_merge"] = parameters_region["stands_clipped_no_gaps"]
+            parameters_region['stands_merged'] = os.path.join(region_bk_process_dir, "stands_merged.gpkg")
+
+            parameters_region["input_to_clean"] = parameters_region["stands_merged"]
+            parameters_region["output_stand_map_clean"] = os.path.join(region_bk_process_dir, 'TBk_Bestandeskarte.gpkg')
+
+            parameters_region['final_stand_map_clean'] = os.path.join(region_bk_process_dir, "TBk_Bestandeskarte.gpkg")
+
             # --- Run Stand Delineation
-            if overwrite or not os.path.exists(parameters_region["output_stand_delineation"]):
+            if overwrite or not os.path.exists(parameters_region["output_stand_boundaries"]):
                 print(f"STAND DELINEATION: \n{parameters_region['perimeter']}")
                 results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
                                                            context=context, feedback=feedback)
             else:
                 print(f"Skipped STAND DELINEATION, file already exists (overwrite = False)")
 
-            parameters_region["input_to_simplify"] = parameters_region["output_stand_delineation"]
-            parameters_region["output_simplified"] = os.path.join(region_root_dir, 'bk_process',
-                                                                  'stands_simplified.gpkg')
             # --- Simplify and eliminate
-            if overwrite or not os.path.exists(parameters_region["output_simplified"]):
-                print(f"SIMPLIFY & CLEAN: \n{parameters_region['input_to_simplify']}")
+            if overwrite or not os.path.exists(parameters_region['stands_simplified']):
+                print(f"SIMPLIFY & CLEAN: \n{parameters_region['output_stand_boundaries']}")
                 results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
                                                   context=context, feedback=feedback)
             else:
                 print(f"Skipped SIMPLIFY & CLEAN, file already exists (overwrite = False)")
 
-            parameters_region["input_to_clip"] = parameters_region["output_simplified"]
-            parameters_region["output_clipped"] = os.path.join(region_root_dir, 'bk_process', 'stands_clipped.gpkg')
-
             # --- Clip & Singlepart
-            if overwrite or not os.path.exists(parameters_region["output_clipped"]):
+            if overwrite or not os.path.exists(parameters_region["stands_clipped_no_gaps"]):
                 print(f"CLIP: \n{parameters_region['input_to_clip']}")
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
                                                  context=context, feedback=feedback)
@@ -320,94 +346,32 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 print(f"Skipped CLIP, file already exists (overwrite = False)")
 
             # --- Merge
-            parameters_region["input_to_merge"] = parameters_region["output_clipped"]
-            parameters_region["output_merged"] = os.path.join(region_root_dir, 'bk_process', 'stands_merged.gpkg')
-
-            if overwrite or not os.path.exists(parameters_region["output_merged"]):
+            if overwrite or not os.path.exists(parameters_region["stands_merged"]):
                 print(f"MERGE: \n{parameters_region['input_to_merge']}")
                 algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
                                            context=context, feedback=feedback)
             else:
                 print(f"Skipped MERGE, file already exists (overwrite = False)")
 
-            # --- Eliminate second pass
-            parameters_region["input_to_simplify_2"] = parameters_region["output_merged"]
-            parameters_region["output_simplified_2"] = os.path.join(region_root_dir, 'bk_process',
-                                                                    'stands_simplified_2.gpkg')
-            # remove small and elongated polygons
-            # expression = f"with_variable('shape_index', $area / ($perimeter^2) * 100, " \
-            #              f"($area < {parameters_region['min_area_m2']})" \
-            #              f"OR (shape_index < 1.5 AND $area < ({parameters_region['min_area_m2']} + 500) AND \"hdom\" < 10)" \
-            #              f"OR (shape_index < 2.05 AND $area < ({parameters_region['min_area_m2']} + 500) AND \"type\" = 'remainder')" \
-            #              f"OR (shape_index < 2.2 AND \"type\" = 'remainder')"
-            expression = f"with_variable('shape_index', $area / ($perimeter^2) * 100, " \
-                         f"($area < {parameters_region['min_area_m2']}) " \
-                         f"OR (@shape_index < 1.5 AND $area < ({parameters_region['min_area_m2']} + 500) AND hdom < 10) " \
-                         f"OR (@shape_index < 2.05 AND $area < ({parameters_region['min_area_m2']} + 500) AND type = 'remainder') " \
-                         f"OR (@shape_index < 2.2 AND type = 'remainder'))"
-
-            if overwrite or not os.path.exists(parameters_region["output_simplified_2"]):
-                print(f"Second ELIMINATE pass: \n{parameters_region['output_simplified_2']}")
-                # Select by area_attribute
-                alg_params = {
-                    'EXPRESSION': expression,
-                    'INPUT': algOutput['OUTPUT'],
-                    'METHOD': 0,  # creating new selection
-                }
-                algOutput = processing.run('qgis:selectbyexpression', alg_params, context=context,
-                                           feedback=feedback, is_child_algorithm=True)
-
-                # processing.run("native:saveselectedfeatures", {
-                #     'INPUT': algOutput['OUTPUT'],
-                #     'OUTPUT': 'C:/Users/hbh1/Projects/H07_TBk/Dev/TBk_QGIS_Plugin/data/tbk_test/regions/test_select.gpkg'})
-
-                # Eliminate selected polygons
-                alg_params = {
-                    'INPUT': algOutput['OUTPUT'],
-                    'MODE': 2,  # Largest Common Boundary
-                    'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-                }
-                algOutput = processing.run('qgis:eliminateselectedpolygons', alg_params,
-                                           context=context, feedback=feedback,
-                                           is_child_algorithm=True)
-                # Field calculator
-                alg_params = {
-                    'FIELD_LENGTH': 0,
-                    'FIELD_NAME': "area_m2",
-                    'FIELD_PRECISION': 0,
-                    'FIELD_TYPE': 0,  # Decimal (double)
-                    'FORMULA': '$area',
-                    'INPUT': algOutput['OUTPUT'],
-                    'OUTPUT': parameters_region["output_simplified_2"]
-                }
-                algOutput = processing.run('native:fieldcalculator', alg_params, context=context,
-                                           feedback=feedback, is_child_algorithm=True)
-            else:
-                print(f"Skipped second eliminate, file already exists (overwrite = False)")
-
             # --- Cleanup
-            parameters_region["input_to_clean"] = parameters_region["output_simplified_2"]
-            parameters_region["output_clean"] = os.path.join(region_root_dir, 'bk_process', 'stands_clean.gpkg')
-
-            if overwrite or not os.path.exists(parameters_region["output_clean"]):
-                algOutput = processing.run("TBk:TBk postprocess Cleanup",
-                                           {'input_stand_map': parameters_region["input_to_clean"],
-                                            'output_stand_map_clean': parameters_region["output_clean"]})
+            if overwrite or not os.path.exists(parameters_region["output_stand_map_clean"]):
+                algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
+                                           context=context, feedback=feedback)
             else:
                 print(f"Skipped cleanup, file already exists (overwrite = False)")
 
             # --- Collect regions and ID/name
-            regions_stand_map.append(parameters_region["output_clean"])
+            regions_stand_map.append(parameters_region["output_stand_map_clean"])
             # collect bk_process results as well
             if merge_bk_process:
                 # add alg outputs
-                regions_stand_boundaries.append(parameters_region["output_stand_delineation"])
-                regions_stands_merged.append(parameters_region["output_merged"])
-                regions_stands_clipped.append(parameters_region["output_clipped"])
-                regions_stands_simplified.append(parameters_region["output_simplified"])
-                regions_stands_simplified2.append(parameters_region["output_simplified_2"])
-                # todo these are not explicit outputs (yet?). As of now, file paths need to be constructed
-                regions_classified_raw.append(os.path.join(region_root_dir, 'bk_process', 'classified_raw.tif'))
+                regions_stand_boundaries.append(parameters_region["output_stand_boundaries"])
+                regions_stands_merged.append(parameters_region["stands_merged"])
+                regions_stands_clipped.append(parameters_region["stands_clipped_no_gaps"])
+                regions_stands_simplified.append(parameters_region["stands_simplified"])
+
+                regions_classified_raw.append(
+                    os.path.join(region_root_dir, 'bk_process', 'classified_raw.tif'))
                 regions_classified_smooth_1.append(
                     os.path.join(region_root_dir, 'bk_process', 'classified_smooth_1.tif'))
                 regions_classified_smooth_2.append(
@@ -456,7 +420,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 'stands_merged': regions_stands_merged,
                 'stands_clipped': regions_stands_clipped,
                 'stands_simplified': regions_stands_simplified,
-                'stands_simplified2': regions_stands_simplified2,
                 'stands_highest_tree': regions_stands_highest_tree,
             }
 
@@ -506,16 +469,24 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # ---   ***  TBk Attributierung    *** ---#
         # *************************************** #
 
-        # prepare for running multiple tbk algorithms
+        # prepare parameters for running multiple tbk algorithms
         parameters["result_dir"] = output_root
         parameters["working_dir"] = os.path.join(output_root, 'bk_process')
-        parameters["input_to_attribute"] = os.path.join(output_root, 'bk_process', 'tmp', 'stands_attributed_tmp.gpkg')
-        parameters["output_attributed"] = os.path.join(output_root, 'bk_process', 'stands_attributed.gpkg')
+
+        #
+        parameters['stands_clipped_no_gaps'] = os.path.join(parameters["working_dir"], "stands_clipped.gpkg")
+        parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg")
+        parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif")
+        parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"], "stands_dg_nh.gpkg")
+        parameters["input_to_attribute"] = parameters['stands_dg_nh']
+        parameters['stands_dg_nh_vegZone'] = os.path.join(parameters["working_dir"], "stands_dg_nh_vegZone.gpkg")
+
+        parameters['final_stand_map'] = os.path.join(parameters["result_dir"], 'TBk_Bestandeskarte.gpkg')
+        # parameters["output_attributed"] = os.path.join(output_root, 'bk_process', 'stands_attributed.gpkg')
 
         algorithms_attributation = [
             TBkCalculateCrownCoverageAlgorithm(),
             TBkAddConiferousProportionAlgorithm(),
-            TBkUpdateStandAttributesAlgorithm(),
             TBkAppendStandAttributesAlgorithm()
         ]
 
@@ -529,7 +500,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         print("\n--------------------------------------------")
         print("\n--- Final cleanup and appends ---")
-        finalize_TBk(result['OUTPUT'], os.path.join(output_root, 'TBk_Bestandeskarte.gpkg'))
+        finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
         print("--------------------------------------------")
 
         print("\n--------------------------------------------")

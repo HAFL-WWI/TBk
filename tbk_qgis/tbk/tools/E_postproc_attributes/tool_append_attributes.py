@@ -212,7 +212,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                 'FORMULA': formula, 'OUTPUT': stands_file_forest_site})
             stands_file_join = stands_file_forest_site  # pass file with appends on as new input
 
-        output_path = os.path.join(working_root, "stands_dg_nh_vegZone.gpkg")
+        output_path = params.stands_dg_nh_vegZone
         copy_vector_file(stands_file_join, output_path, context, feedback)
         print("DONE!")
         print(f"Output: {output_path}")

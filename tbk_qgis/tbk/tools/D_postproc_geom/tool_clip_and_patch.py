@@ -38,8 +38,6 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
     INPUT_TO_CLIP = "input_to_clip"
     # Clipped stands
     OUTPUT_CLIPPED_NO_GAPS = "stands_clipped_no_gaps"
-    # Clipped highest trees
-    OUTPUT_STANDS_HIGHEST_TREE_CLIPPED = "stands_highest_tree_clipped"
 
     # Additional parameters
     # Delete temporary files and fields

@@ -346,7 +346,9 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         }
 
         # Define temporary output file paths
-        temp_file_folder = QgsProcessingUtils.tempFolder() if del_tmp else out_path
+        # temp_file_folder = QgsProcessingUtils.tempFolder() if del_tmp else out_path
+        temp_file_folder = os.path.join(out_path, 'tmp')
+        ensure_dir(temp_file_folder)
         if del_tmp:
             tmp_stat = os.path.join(temp_file_folder, "stand_boundaries_stat.gpkg")
         else:
