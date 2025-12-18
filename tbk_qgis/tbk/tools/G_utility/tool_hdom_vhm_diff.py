@@ -51,10 +51,10 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             QgsProcessingParameterVectorLayer('tbk_bestandesgrenzen', 'TBk: Bestandesgrenzen', defaultValue=None))
         self.addParameter(QgsProcessingParameterRasterLayer('vhm_10m', 'VHM_10m ', defaultValue=None))
         self.addParameter(
-            QgsProcessingParameterRasterDestination('Diff_hdom_vhm', 'diff_hdom_vhm', createByDefault=True,
+            QgsProcessingParameterRasterDestination('diff_hdom_vhm', 'Output diff_hdom_vhm.tif', createByDefault=True,
                                                     defaultValue=''))
         self.addParameter(
-            QgsProcessingParameterFeatureSink('Vhm_10m_points', 'vhm_10m_points', type=QgsProcessing.TypeVectorPoint,
+            QgsProcessingParameterFeatureSink('vhm_10m_points', 'Output VHM_10m_points.gpkg', type=QgsProcessing.TypeVectorPoint,
                                               createByDefault=True, defaultValue=None))
 
     def processAlgorithm(self, parameters, context, model_feedback):
@@ -109,11 +109,11 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             'OPTIONS': '',
             'PROJWIN': None,
             'RTYPE': 1,  # Int16
-            'OUTPUT': parameters['Diff_hdom_vhm']
+            'OUTPUT': parameters['diff_hdom_vhm']
         }
         outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                                      feedback=feedback, is_child_algorithm=True)
-        results['Diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
+        results['diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
@@ -124,11 +124,11 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             'FIELD_NAME': 'VHM_10m',
             'INPUT_RASTER': parameters['vhm_10m'],
             'RASTER_BAND': 1,
-            'OUTPUT': parameters['Vhm_10m_points']
+            'OUTPUT': parameters['vhm_10m_points']
         }
         outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
                                                          feedback=feedback, is_child_algorithm=True)
-        results['Vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
+        results['vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
         return results
 
     def name(self):

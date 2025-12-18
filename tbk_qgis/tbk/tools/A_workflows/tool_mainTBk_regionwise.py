@@ -25,6 +25,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkA
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import \
     TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_merge_stand_maps import TBkPostprocessMergeStandMaps
+from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
 
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 
@@ -52,9 +53,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         params = []
 
         # Initialisation config used to adapt the output root UI description
-        init_config = {# Indicates the tool is running in a standalone or modularized context in the initAlgorithm() method
-                       'is_standalone_context': False,
-                       }
+        init_config = {
+            # Indicates the tool is running in a standalone or modularized context in the initAlgorithm() method
+            'is_standalone_context': False,
+        }
         params = []
 
         # init all used algorithm and add their parameters to parameters list
@@ -72,7 +74,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             if param.name() != 'working_root':
                 self.addParameter(param.clone())
 
-        parameter = QgsProcessingParameterBoolean('create_subdir_time', "Create subfolder with timestamp", defaultValue=True)
+        parameter = QgsProcessingParameterBoolean('create_subdir_time', "Create subfolder with timestamp",
+                                                  defaultValue=True)
         self._add_advanced_parameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -143,11 +146,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # Handle the working root and temp output folder
         if parameters['create_subdir_time']:
-            output_root = self._get_result_dir(parameters['output_root'])
-        else: output_root = parameters['output_root']
+            result_dir = self._get_result_dir(parameters['output_root'])
+        else:
+            result_dir = parameters['output_root']
+        bk_process_dir = self._get_bk_output_dir(result_dir)
+        os.makedirs(bk_process_dir, exist_ok=True)
 
         # set logger
-        self._configure_logging(output_root, parameters['logfile_name'])
+        self._configure_logging(bk_process_dir, parameters['logfile_name'])
         log = logging.getLogger(self.name())
 
         # *************************************** #
@@ -160,11 +166,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if not perimeter_layer.isValid():
             raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
         num_regions = perimeter_layer.featureCount()
-        log.info(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
         print(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
+        log.info(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
 
-        # Create subfolder "regions" within output_root
-        regions_dir = os.path.join(output_root, 'regions')
+        # Create subfolder "regions" within result_dir
+        regions_dir = os.path.join(bk_process_dir, 'regions')
         os.makedirs(regions_dir, exist_ok=True)
 
         # Loop over each feature in the perimeter layer
@@ -185,15 +191,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         region_ID_prefix = []
 
-        print(f"\n--------------------------------")
-        print(f"--- Sorting with region attribute ---")
-        print(f"--------------------------------")
-
+        print(f"Sorting with region attribute")
+        log.info(f"Sorting with region attribute")
         # create list and sort after attribute region
         features = list(perimeter_layer.getFeatures())
         features_sorted = sorted(features, key=lambda f: f['region'])
 
-        for feature in features_sorted : # perimeter_layer.getFeatures():
+        # --- -------------------------------- ---#
+        for i, feature in enumerate(features_sorted, start = 1):  # perimeter_layer.getFeatures():
             # --- Create folders for current feature
             region_name = feature["region"]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, str(region_name))
@@ -201,9 +206,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
 
             os.makedirs(region_base_data_dir, exist_ok=True)
-            print(f"\n--------------------------------")
-            print(f"--- Processing Region {region_name} ---")
-            print(f"--------------------------------")
+            log.info(f"\n")
+            log.info(f"-----------------------------------------------------")
+            log.info(f"--- Processing Region {region_name} :: ({i:>2} / {len(features_sorted)}) ---")
+            log.info(f"-----------------------------------------------------")
+            print(f"\n-----------------------------------------------------")
+            print(f"--- Processing Region {region_name} :: ({i:>2} / {len(features_sorted)}) ---")
+            print(f"-----------------------------------------------------")
             print(f"to {region_base_data_dir}")
 
             # Construct output file path for the clipped rasters
@@ -213,7 +222,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
             if overwrite or not os.path.exists(vhm_10m_clipped) or not os.path.exists(mg_10m_clipped):
                 # --- Create buffered perimeter feature layer
-                buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}", "buffered_mask",
+                buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}",
+                                                        "buffered_mask",
                                                         "memory")
                 buffered_feature = QgsFeature()
                 buffered_feature.setGeometry(feature.geometry().buffer(10, 5))
@@ -380,9 +390,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     os.path.join(region_root_dir, 'bk_process', 'stands_highest_tree.gpkg'))
 
             region_ID_prefix.append(feature["region"])
-            print(f"--------------------------------")
-            print(f"--- completed {region_ID_prefix} ---")
-            print(f"--------------------------------\n\n")
+            print(f"-----------------------------------------------------")
+            print(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
+            print(f"-----------------------------------------------------\n")
+            log.info(f"-----------------------------------------------------")
+            log.info(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
+            log.info(f"-----------------------------------------------------")
+            log.info(f"\n")
 
         # --- -------------------------------- ---#
 
@@ -392,10 +406,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         log.info(f"Layer results per region: \n{regions_stand_map}")
 
         # write to working dir for compatibility with the following tools
-        os.makedirs(os.path.join(output_root, 'bk_process'), exist_ok=True)
-        merged = os.path.join(output_root, 'bk_process', 'stands_clipped.gpkg')
-        # merged = os.path.join(output_root, 'bk_process', 'tbk_regions_merged.gpkg')
-        # merged = os.path.join(regions_dir, 'tbk_regions_merged.gpkg')
+        merged = os.path.join(bk_process_dir, 'stands_clipped.gpkg')
+
         # if True or not os.path.exists(merged): # force overwrite
         if overwrite or not os.path.exists(merged):
             print(f"Now merging into one single Stand Map")
@@ -412,8 +424,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- Merge bk process
 
         if merge_bk_process:
-            os.makedirs(os.path.join(output_root, 'bk_process'), exist_ok=True)
-
             # Mapping each list to a name (for vector data)
             gpkg_to_merge = {
                 'stand_boundaries': regions_stand_boundaries,
@@ -433,7 +443,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # Handle vector data
             for list_name, region_list_item in gpkg_to_merge.items():
                 # Set up the output file path for vector data
-                merged = os.path.join(output_root, 'bk_process', f'{list_name}.gpkg')
+                merged = os.path.join(bk_process_dir, f'{list_name}.gpkg')
 
                 # Check if we need to overwrite or if the file doesn't exist
                 if overwrite or not os.path.exists(merged):
@@ -448,7 +458,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # Handle raster data
             for list_name, region_list_item in raster_to_merge.items():
                 # Set up the output file path for raster data
-                merged_raster = os.path.join(output_root, 'bk_process', f'{list_name}.tif')
+                merged_raster = os.path.join(bk_process_dir, f'{list_name}.tif')
 
                 # Check if we need to overwrite or if the file doesn't exist
                 if overwrite or not os.path.exists(merged_raster):
@@ -470,30 +480,36 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # *************************************** #
 
         # prepare parameters for running multiple tbk algorithms
-        parameters["result_dir"] = output_root
-        parameters["working_dir"] = os.path.join(output_root, 'bk_process')
+        parameters["result_dir"] = result_dir
+        parameters["working_dir"] = bk_process_dir
 
-        #
+        # set outputs of the individual tools (for toolchain)
         parameters['stands_clipped_no_gaps'] = os.path.join(parameters["working_dir"], "stands_clipped.gpkg")
-        parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg")
-        parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif")
-        parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"], "stands_dg_nh.gpkg")
-        parameters["input_to_attribute"] = parameters['stands_dg_nh']
-        parameters['stands_dg_nh_vegZone'] = os.path.join(parameters["working_dir"], "stands_dg_nh_vegZone.gpkg")
+        parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg") # out calc_dg > in calc_nh
+        parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif") # > in calc_nh
+        parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"], "stands_dg_nh.gpkg") # out calc_nh > in add_attributes
+        parameters["input_to_attribute"] = parameters['stands_dg_nh'] # > in add_attributes
+        parameters['stands_dg_nh_vegZone'] = os.path.join(parameters["working_dir"], "stands_dg_nh_vegZone.gpkg") # out add_attributes
 
-        parameters['final_stand_map'] = os.path.join(parameters["result_dir"], 'TBk_Bestandeskarte.gpkg')
-        # parameters["output_attributed"] = os.path.join(output_root, 'bk_process', 'stands_attributed.gpkg')
+        parameters['tbk_bestandesgrenzen'] = parameters['stands_dg_nh_vegZone'] # in diff_hdom_vhm
+        parameters['diff_hdom_vhm'] = os.path.join(parameters["working_dir"], "diff_hdom_vhm.tif") # out diff_hdom_vhm
+        # construct points filename vhm_10m_points.gpkg from vhm_10m.tif
+        parameters['vhm_10m_points'] = os.path.splitext(parameters["vhm_10m"])[0] + "_points.gpkg" # out diff_hdom_vhm
+
+        parameters['final_stand_map'] = os.path.join(parameters["result_dir"], 'TBk_Bestandeskarte.gpkg') # out finalize
 
         algorithms_attributation = [
             TBkCalculateCrownCoverageAlgorithm(),
             TBkAddConiferousProportionAlgorithm(),
-            TBkAppendStandAttributesAlgorithm()
+            TBkAppendStandAttributesAlgorithm(),
+            TBkPostprocessHdomDiff()
+            # cleanup is not included as the region maps are already cleaned up
         ]
 
         # run remaining algorithms
         for alg in algorithms_attributation:
             print("->------------------------------------------")
-            print(f"-> run {alg} -")
+            print(f"-> run {alg.name()} -")
             result = processing.run(alg, parameters, context=context, feedback=feedback)
             print(f"{result}")
             print("----------------------------------------->|-\n")
@@ -506,7 +522,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         print("\n--------------------------------------------")
         print("\n--- Run Local Densities ---")
         processing.run("TBk:TBk postprocess local density", {
-            'path_tbk_input': output_root,
+            'path_tbk_input': result_dir,
             'mg_use': True,
             'mg_input': parameters["coniferous_raster"],
             'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
@@ -565,18 +581,20 @@ def finalize_TBk(input_layer, output_layer):
         'FIELDS_MAPPING': [
             {'alias': '', 'comment': '', 'expression': '"fid"', 'length': 0, 'name': 'fid', 'precision': 0,
              'sub_type': 0, 'type': 4, 'type_name': 'int8'},
-            {'alias': '', 'comment': '', 'expression': '"ID"', 'length': 0, 'name': 'ID', 'precision': 0,
-             'sub_type': 0, 'type': 10, 'type_name': 'text'},
+            {'alias': '', 'comment': '', 'expression': '"ID"', 'length': 0, 'name': 'ID', 'precision': 0, 'sub_type': 0,
+             'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"hmax"', 'length': 0, 'name': 'hmax', 'precision': 0,
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
             {'alias': '', 'comment': '', 'expression': '"hdom"', 'length': 0, 'name': 'hdom', 'precision': 0,
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG"', 'length': 0, 'name': 'DG', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"NH"', 'length': 0, 'name': 'NH', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'alias': '', 'comment': '', 'expression': '"DG"', 'length': 0, 'name': 'DG', 'precision': 0, 'sub_type': 0,
+             'type': 2, 'type_name': 'integer'},
+            {'alias': '', 'comment': '', 'expression': '"NH"', 'length': 0, 'name': 'NH', 'precision': 0, 'sub_type': 0,
+             'type': 2, 'type_name': 'integer'},
             {'alias': '', 'comment': '', 'expression': '"area_m2"', 'length': 0, 'name': 'area_m2', 'precision': 0,
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'alias': '', 'comment': '', 'expression': '"type"', 'length': 1000, 'name': 'type', 'precision': 0,
+             'sub_type': 0, 'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"DG_ks"', 'length': 0, 'name': 'DG_ks', 'precision': 0,
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
             {'alias': '', 'comment': '', 'expression': '"DG_us"', 'length': 0, 'name': 'DG_us', 'precision': 0,
@@ -587,17 +605,14 @@ def finalize_TBk(input_layer, output_layer):
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
             {'alias': '', 'comment': '', 'expression': '"DG_ueb"', 'length': 0, 'name': 'DG_ueb', 'precision': 0,
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"struktur"', 'length': 0, 'name': 'struktur',
+            {'alias': '', 'comment': '', 'expression': '"NH_OS"', 'length': 0, 'name': 'NH_OS', 'precision': 0,
+             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'alias': '', 'comment': '', 'expression': '"VegZone_Code"', 'length': 0, 'name': 'VegZone_Code',
              'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"tbk_typ"', 'length': 0, 'name': 'tbk_typ', 'precision': 0,
-             'sub_type': 0, 'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"ID_meta"', 'length': 0, 'name': 'ID_meta', 'precision': 0,
              'sub_type': 0, 'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"ID_pre_merge"', 'length': 0, 'name': 'ID_pre_merge',
-             'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'int8'},
-            {'alias': '', 'comment': '', 'expression': '"VegZone_Code"', 'length': 0, 'name': 'VegZone_Code',
-             'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'}],
-        'OUTPUT': 'TEMPORARY_OUTPUT'})
+             'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'int8'}], 'OUTPUT': 'TEMPORARY_OUTPUT'})
 
     processing.run("native:fieldcalculator", {
         'INPUT': algoOutput['OUTPUT'],
