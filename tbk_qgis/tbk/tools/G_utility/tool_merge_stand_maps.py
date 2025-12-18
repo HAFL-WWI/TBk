@@ -31,6 +31,7 @@ import math
 import time
 from datetime import timedelta
 import pandas as pd
+from PyQt5.QtCore import QMetaType
 # import string # not needed since some code involving chr() replaces string.ascii_uppercase
 
 from qgis.PyQt.QtCore import QCoreApplication
@@ -228,7 +229,7 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
                 # If 'ID' does not exist, create it from 'fid'
                 with edit(tbk_map_layers[index]):
                     # Create a new 'ID' field (integer type, adjust the type if needed)
-                    tbk_map_layers[index].addAttribute(QgsField('ID', QVariant.Int))
+                    tbk_map_layers[index].addAttribute(QgsField('ID', QMetaType.Int))
 
                     # Assign 'fid' to 'ID' for all features
                     for feature in tbk_map_layers[index].getFeatures():
@@ -244,10 +245,10 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
             # add attribute ID_meta & ID
             if prefix_type == 'numerical':
-                ID_meta = QgsField('ID_meta', QVariant.Int)
+                ID_meta = QgsField('ID_meta', QMetaType.Int)
             else:
-                ID_meta = QgsField('ID_meta', QVariant.String)
-            ID = QgsField('ID', QVariant.String)
+                ID_meta = QgsField('ID_meta', QMetaType.QString)
+            ID = QgsField('ID', QMetaType.QString)
             pr = tbk_map.dataProvider()
             pr.addAttributes([ID_meta, ID])
             tbk_map.updateFields()

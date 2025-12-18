@@ -31,7 +31,7 @@ import shutil
 from typing import Dict
 from qgis import core
 from PyQt5.QtWidgets import *
-from PyQt5.QtCore import QVariant
+from PyQt5.QtCore import QVariant, QMetaType
 from qgis.utils import iface
 from qgis.core import QgsProject
 import processing
@@ -64,7 +64,7 @@ def add_coniferous_proportion(working_root,
     with edit(stands_layer_copy):
         # Add NH fields
         provider = stands_layer_copy.dataProvider()
-        provider.addAttributes([QgsField("NH", QVariant.Int)])
+        provider.addAttributes([QgsField("NH", QMetaType.Int)])
         stands_layer_copy.updateFields()
 
         # Write NH attribute per stand
@@ -153,8 +153,8 @@ def add_coniferous_proportion(working_root,
         with edit(stands_layer_copy):
             # Add NH fields
             provider = stands_layer_copy.dataProvider()
-            provider.addAttributes([QgsField("NH_OS", QVariant.Int),
-                                    QgsField("NH_OS_PIX", QVariant.Int)])
+            provider.addAttributes([QgsField("NH_OS", QMetaType.Int),
+                                    QgsField("NH_OS_PIX", QMetaType.Int)])
             stands_layer_copy.updateFields()
 
             # Write NH_OS attribute per stand

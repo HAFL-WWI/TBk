@@ -25,6 +25,8 @@
 """
 
 import processing
+from PyQt5.QtCore import QMetaType
+
 from tbk_qgis.tbk.general.tbk_utilities import *
 import pandas as pd
 from datetime import timedelta
@@ -127,17 +129,19 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
     # Begin editing memory layer and create 3 fields
     neighbour_layer.startEditing()
     provider = neighbour_layer.dataProvider()
-    provider.addAttributes([QgsField("OID", QVariant.Int),
-                            QgsField("src_FID", QVariant.Int),
-                            QgsField("nbr_FID", QVariant.Int),
-                            QgsField("src_hdom", QVariant.Int),
-                            QgsField("nbr_hdom", QVariant.Int),
-                            QgsField("src_type", QVariant.String),
-                            QgsField("nbr_type", QVariant.String),
-                            QgsField("src_area_m2", QVariant.Int),
-                            QgsField("nbr_area_m2", QVariant.Int),
-                            QgsField("LENGTH", QVariant.Double),
-                            QgsField("NODE_COUNT", QVariant.Int)])
+    provider.addAttributes([
+        QgsField("OID", QMetaType.Int),
+        QgsField("src_FID", QMetaType.Int),
+        QgsField("nbr_FID", QMetaType.Int),
+        QgsField("src_hdom", QMetaType.Int),
+        QgsField("nbr_hdom", QMetaType.Int),
+        QgsField("src_type", QMetaType.QString, len=50),
+        QgsField("nbr_type", QMetaType.QString, len=50),
+        QgsField("src_area_m2", QMetaType.Int),
+        QgsField("nbr_area_m2", QMetaType.Int),
+        QgsField("LENGTH", QMetaType.Double, len=10, prec=3),
+        QgsField("NODE_COUNT", QMetaType.Int),
+    ])
     neighbour_layer.updateFields()
 
     for n in neighbours_tmp:

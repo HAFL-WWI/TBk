@@ -40,6 +40,8 @@ import processing
 from datetime import timedelta
 import time
 
+from PyQt5.QtCore import QMetaType
+
 from tbk_qgis.tbk.general.tbk_utilities import *
 
 
@@ -96,12 +98,14 @@ def calculate_dg(working_root,
     # Add DG limits fields per stand
     with edit(stands_layer):
         provider = stands_layer.dataProvider()
-        provider.addAttributes([QgsField("dg_ks_max", QVariant.Double),
-                                QgsField("dg_us_min", QVariant.Double),
-                                QgsField("dg_ms_min", QVariant.Double),
-                                QgsField("dg_os_min", QVariant.Double),
-                                QgsField("dg_ueb_min", QVariant.Double),
-                                QgsField("dg_min", QVariant.Double)])
+        provider.addAttributes([
+            QgsField("dg_ks_max", QMetaType.Double, len=10, prec=3),
+            QgsField("dg_us_min", QMetaType.Double, len=10, prec=3),
+            QgsField("dg_ms_min", QMetaType.Double, len=10, prec=3),
+            QgsField("dg_os_min", QMetaType.Double, len=10, prec=3),
+            QgsField("dg_ueb_min", QMetaType.Double, len=10, prec=3),
+            QgsField("dg_min", QMetaType.Double, len=10, prec=3),
+        ])
         stands_layer.updateFields()
 
         # Calculate DG limits per stand
@@ -206,12 +210,12 @@ def calculate_dg(working_root,
     with edit(stands_layer):
         # Add DG fields
         provider = stands_layer.dataProvider()
-        provider.addAttributes([QgsField("DG_ks", QVariant.Int),
-                                QgsField("DG_us", QVariant.Int),
-                                QgsField("DG_ms", QVariant.Int),
-                                QgsField("DG_os", QVariant.Int),
-                                QgsField("DG_ueb", QVariant.Int),
-                                QgsField("DG", QVariant.Int)])
+        provider.addAttributes([QgsField("DG_ks", QMetaType.Int),
+                                QgsField("DG_us", QMetaType.Int),
+                                QgsField("DG_ms", QMetaType.Int),
+                                QgsField("DG_os", QMetaType.Int),
+                                QgsField("DG_ueb", QMetaType.Int),
+                                QgsField("DG", QMetaType.Int)])
         stands_layer.updateFields()
 
         # Calculate DG per stand

@@ -31,6 +31,7 @@ import time
 from datetime import timedelta
 import math
 
+from PyQt5.QtCore import QMetaType
 from qgis.PyQt.QtCore import QCoreApplication
 import processing
 
@@ -825,9 +826,9 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         new_attributes = []
         for i in new_fields:
             if i[-8:] == "area_pct":
-                new_attributes.append(QgsField(i, QVariant.Double))
+                new_attributes.append(QgsField(i, QMetaType.Double))
             else:
-                new_attributes.append(QgsField(i, QVariant.Int))
+                new_attributes.append(QgsField(i, QMetaType.Int))
 
         # get unique values from tmp. group id (fid_stand_group) add to original stand map
         fid_stand_group_index = stands_all.fields().indexFromName("fid_stand_group")
