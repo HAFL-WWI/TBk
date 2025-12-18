@@ -16,7 +16,7 @@ class TBkProcessingAlgorithmToolE(TBkProcessingAlgorithm):
         Returns the name of the group this algorithm belongs to. This string
         should be localised.
         """
-        return 'e   Post Processing Attributes'
+        return 'e   Postprocessing Attributes'
 
     def groupId(self):
         """

@@ -12,10 +12,10 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.tools.E_postproc_attributes.attributes_default import calc_attributes
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.E_postproc_attributes.tbk_qgis_processing_algorithm_toolsE import TBkProcessingAlgorithmToolE
+from tbk_qgis.tbk.tools.Y_legacy.tbk_qgis_processing_algorithm_toolsY import TBkProcessingAlgorithmToolY
 
 
-class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
+class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolY):
     """
     todo
     """

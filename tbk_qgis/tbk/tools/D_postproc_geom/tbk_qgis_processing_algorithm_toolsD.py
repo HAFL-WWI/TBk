@@ -16,7 +16,7 @@ class TBkProcessingAlgorithmToolD(TBkProcessingAlgorithm):
         Returns the name of the group this algorithm belongs to. This string
         should be localised.
         """
-        return 'd   Postprocess Geometry'
+        return 'd   Postprocessing Geometry'
 
     def groupId(self):
         """

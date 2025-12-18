@@ -1,5 +1,4 @@
 # todo: set header
-import os
 
 import processing
 import logging
@@ -7,12 +6,11 @@ from collections import ChainMap
 from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
-    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing, QgsProcessingException, QgsProcessingParameterBoolean, \
+    QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
     QgsProcessingMultiStepFeedback
-from sympy import false
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
-from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
+from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
@@ -24,9 +22,6 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import \
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import \
-    TBkUpdateStandAttributesAlgorithm
-from tbk_qgis.tbk.tools.G_utility.tool_merge_stand_maps import TBkPostprocessMergeStandMaps
 from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
 
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
@@ -44,7 +39,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         TBkClipToPerimeterAndEliminateGapsAlgorithm(),
         TBkCalculateCrownCoverageAlgorithm(),
         TBkAddConiferousProportionAlgorithm(),
-        TBkUpdateStandAttributesAlgorithm(),
         TBkAppendStandAttributesAlgorithm()
     ]
 
@@ -167,8 +161,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # Load the perimeter vector layer from the path stored in parameters
         perimeter_layer = QgsVectorLayer(parameters["perimeter"], "perimeter", "ogr")
-        if not perimeter_layer.isValid():
-            raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
+        # if not perimeter_layer.isValid():
+        #     raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
         num_regions = perimeter_layer.featureCount()
         print(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
         log.info(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
@@ -608,15 +602,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         return ('')
 
 
-from qgis.core import QgsVectorLayer, QgsFeature, QgsField, QgsVectorFileWriter, QgsWkbTypes
-from qgis.PyQt.QtCore import QVariant
-
 import os
-from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
-from PyQt5.QtCore import QVariant
-
-import os
-from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, QgsWkbTypes
+from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField
 from PyQt5.QtCore import QVariant
 
 

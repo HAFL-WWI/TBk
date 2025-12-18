@@ -33,18 +33,17 @@ import os
 from qgis.core import QgsProcessingProvider
 from PyQt5.QtGui import *
 
-from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk import TBkAlgorithm
-from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk_modularized import TBkAlgorithmModularized
+
+from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk import TBkAlgorithmMainWorkflow
 from tbk_qgis.tbk.tools.A_workflows.tool_mainTBk_regionwise import TBkAlgorithmRegionwise
 from tbk_qgis.tbk.tools.B_preproc.tool_prepare_vhm_mg import TBkPrepareVhmMgAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
+from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch import TBkClipToPerimeterAndEliminateGapsAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import TBkMergeSimilarNeighboursAlgorithm
-from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import TBkCalculateCrownCoverageAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
-from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_structure import TBkUpdateStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.F_additional_modules.tool_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_ddom_SD import TBkDdomSDEstimate
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_volume import TBkVEstimate
@@ -58,6 +57,7 @@ from tbk_qgis.tbk.tools.G_utility.tool_optimized_spatial_join import OptimizedSp
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_all_algorithm import TBkPrepareAlgorithm
+from tbk_qgis.tbk.tools.Y_legacy.tool_calc_structure import TBkUpdateStandAttributesAlgorithm
 
 
 class TBkProvider(QgsProcessingProvider):
@@ -79,34 +79,37 @@ class TBkProvider(QgsProcessingProvider):
         """
         Loads all algorithms belonging to this provider.
         """
-        # [grpID: preproc]      grpName: 0 Preprocessing
+        # [grpID: a]    grpName: Main Workflows
+        self.addAlgorithm(TBkAlgorithmMainWorkflow())
+        self.addAlgorithm(TBkAlgorithmRegionwise())
+        # [grpID: b]    grpName: Preprocessing
         self.addAlgorithm(TBkPrepareVhmMgAlgorithm())
-        # [grpID: core]         grpName: 1 Bk Generation
+        # [grpID: c]    grpName: Stand Delineation (Core)
         self.addAlgorithm(TBkStandDelineationAlgorithm())
         self.addAlgorithm(TBkSimplifyAndCleanAlgorithm())
+        # [grpID: d]    grpName: Postprocessing Geometry
         self.addAlgorithm(TBkMergeSimilarNeighboursAlgorithm())
         self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
+        # [grpID: e]    grpName: Postprocessing Attributes
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
         self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
-        self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
         self.addAlgorithm(TBkAppendStandAttributesAlgorithm())
-        self.addAlgorithm(TBkAlgorithm())
-        self.addAlgorithm(TBkAlgorithmModularized())
-        self.addAlgorithm(TBkAlgorithmRegionwise())
-        # [grpID: postproc]     grpName: 2 Postprocessing
+        # [grpID: f]    grpName: Additional Modules
+        self.addAlgorithm(TBkDdomSDEstimate())
+        self.addAlgorithm(TBkPostprocessLocalDensity())
+        self.addAlgorithm(TBkPostprocessOSChange())
+        self.addAlgorithm(TBkVEstimate())
+        self.addAlgorithm(TBkPostprocessWIS2Export())
+        # [grpID: g]    grpName: Utility
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
         self.addAlgorithm(TBkPostprocessMergeStandMaps())
-        self.addAlgorithm(TBkPostprocessOSChange())
-        self.addAlgorithm(TBkPostprocessLocalDensity())
-        self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
-        self.addAlgorithm(TBkDdomSDEstimate())
-        self.addAlgorithm(TBkVEstimate())
-        # [grpID: utlity]     grpName: X Utility
         self.addAlgorithm(OptimizedSpatialJoin())
-        # [grpID: legacy]     grpName: Y LEGACY
+        # [grpID: y]    grpName: Legacy
         # self.addAlgorithm(BkAGAlgorithm())
+        # self.addAlgorithm(TBkMainWorkflowOld())
+        self.addAlgorithm(TBkUpdateStandAttributesAlgorithm())
         self.addAlgorithm(TBkPrepareVhmAlgorithm())
         self.addAlgorithm(TBkPrepareMgAlgorithm())
         self.addAlgorithm(TBkPrepareAlgorithm())
