@@ -7,7 +7,9 @@ from collections import ChainMap
 from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
-    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing, QgsProcessingException, QgsProcessingParameterBoolean
+    QgsFeature, QgsProject, QgsWkbTypes, QgsProcessing, QgsProcessingException, QgsProcessingParameterBoolean, \
+    QgsProcessingMultiStepFeedback
+from sympy import false
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
@@ -161,6 +163,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # *************************************** #
         log.info('TBk Starting Region-wise Processing')
 
+        # --- Prepare looping through regions (load regions, create folder, init arrays, setup feedback)
+
         # Load the perimeter vector layer from the path stored in parameters
         perimeter_layer = QgsVectorLayer(parameters["perimeter"], "perimeter", "ogr")
         if not perimeter_layer.isValid():
@@ -197,8 +201,16 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         features = list(perimeter_layer.getFeatures())
         features_sorted = sorted(features, key=lambda f: f['region'])
 
+        # initialize feedback
+        # number of total_processing_steps is number of regions + merging (1)
+        # + processing steps (see alg loop after merging) + local densities (2, because it's long)
+        # + last step (so that the second to last step doesn't already show 100%)
+        total_processing_steps = len(features_sorted) + 1 + 4 + 2 + 1
+        feedback = QgsProcessingMultiStepFeedback(total_processing_steps, feedback)
+        processing_step = 0
+
         # --- -------------------------------- ---#
-        for i, feature in enumerate(features_sorted, start = 1):  # perimeter_layer.getFeatures():
+        for i, feature in enumerate(features_sorted, start=1):  # perimeter_layer.getFeatures():
             # --- Create folders for current feature
             region_name = feature["region"]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, str(region_name))
@@ -206,6 +218,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
 
             os.makedirs(region_base_data_dir, exist_ok=True)
+
+            # progress info
+            processing_step = processing_step + 1
+            feedback.setCurrentStep(processing_step)
+            feedback.setProgressText("\n")  # insert processing log space
+            feedback.setProgressText(f"Process region {region_name} :: ({i:>2} / {len(features_sorted)})")
+            if feedback.isCanceled():
+                return {}
             log.info(f"\n")
             log.info(f"-----------------------------------------------------")
             log.info(f"--- Processing Region {region_name} :: ({i:>2} / {len(features_sorted)}) ---")
@@ -403,6 +423,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- -------------------------------- ---#
 
         # --- Merge stand map
+
+        # progress info
+        feedback.setProgressText("\n\n") # insert processing log space
+        processing_step = processing_step + 1
+        feedback.setCurrentStep(processing_step)
+        feedback.setProgressText("Merging of regions")
+        if feedback.isCanceled():
+            return {}
         print(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
         log.info(f"All {len(region_ID_prefix)} Regions processed: \n{region_ID_prefix}")
         log.info(f"Layer results per region: \n{regions_stand_map}")
@@ -487,18 +515,21 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # set outputs of the individual tools (for toolchain)
         parameters['stands_clipped_no_gaps'] = os.path.join(parameters["working_dir"], "stands_clipped.gpkg")
-        parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg") # out calc_dg > in calc_nh
-        parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif") # > in calc_nh
-        parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"], "stands_dg_nh.gpkg") # out calc_nh > in add_attributes
-        parameters["input_to_attribute"] = parameters['stands_dg_nh'] # > in add_attributes
-        parameters['stands_dg_nh_vegZone'] = os.path.join(parameters["working_dir"], "stands_dg_nh_vegZone.gpkg") # out add_attributes
+        parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg")  # out calc_dg > in calc_nh
+        parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif")  # > in calc_nh
+        parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"],
+                                                  "stands_dg_nh.gpkg")  # out calc_nh > in add_attributes
+        parameters["input_to_attribute"] = parameters['stands_dg_nh']  # > in add_attributes
+        parameters['stands_dg_nh_vegZone'] = os.path.join(parameters["working_dir"],
+                                                          "stands_dg_nh_vegZone.gpkg")  # out add_attributes
 
-        parameters['tbk_bestandesgrenzen'] = parameters['stands_dg_nh_vegZone'] # in diff_hdom_vhm
-        parameters['diff_hdom_vhm'] = os.path.join(parameters["working_dir"], "diff_hdom_vhm.tif") # out diff_hdom_vhm
+        parameters['tbk_bestandesgrenzen'] = parameters['stands_dg_nh_vegZone']  # in diff_hdom_vhm
+        parameters['diff_hdom_vhm'] = os.path.join(parameters["working_dir"], "diff_hdom_vhm.tif")  # out diff_hdom_vhm
         # construct points filename vhm_10m_points.gpkg from vhm_10m.tif
-        parameters['vhm_10m_points'] = os.path.splitext(parameters["vhm_10m"])[0] + "_points.gpkg" # out diff_hdom_vhm
+        parameters['vhm_10m_points'] = os.path.splitext(parameters["vhm_10m"])[0] + "_points.gpkg"  # out diff_hdom_vhm
 
-        parameters['final_stand_map'] = os.path.join(parameters["result_dir"], 'TBk_Bestandeskarte.gpkg') # out finalize
+        parameters['final_stand_map'] = os.path.join(parameters["result_dir"],
+                                                     'TBk_Bestandeskarte.gpkg')  # out finalize
 
         algorithms_attributation = [
             TBkCalculateCrownCoverageAlgorithm(),
@@ -510,6 +541,12 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # run remaining algorithms
         for alg in algorithms_attributation:
+            # progress info
+            processing_step = processing_step + 1
+            feedback.setCurrentStep(processing_step)
+            feedback.setProgressText(alg.name())
+            if feedback.isCanceled():
+                return {}
             print("->------------------------------------------")
             print(f"-> run {alg.name()} -")
             result = processing.run(alg, parameters, context=context, feedback=feedback)
@@ -523,6 +560,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         print("\n--------------------------------------------")
         print("\n--- Run Local Densities ---")
+        # progress info
+        processing_step = processing_step + 1
+        feedback.setCurrentStep(processing_step)
+        feedback.setProgressText("Calculate local densities (can take a while)")
+        if feedback.isCanceled():
+            return {}
+
         processing.run("TBk:TBk postprocess local density", {
             'path_tbk_input': result_dir,
             'mg_use': True,
