@@ -33,6 +33,8 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
+import os
+
 from PyQt5.QtCore import QCoreApplication
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
@@ -89,46 +91,55 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
         if feedback.isCanceled():
             return {}
 
-        # Raster calculator
-        alg_params = {
-            'BAND_A': 1,
-            'BAND_B': 1,
-            'BAND_C': None,
-            'BAND_D': None,
-            'BAND_E': None,
-            'BAND_F': None,
-            'EXTRA': '--extent=intersect',
-            'FORMULA': 'B - A',
-            'INPUT_A': parameters['vhm_10m'],
-            'INPUT_B': outputs['RasterizeHdom_new']['OUTPUT'],
-            'INPUT_C': None,
-            'INPUT_D': None,
-            'INPUT_E': None,
-            'INPUT_F': None,
-            'NO_DATA': None,
-            'OPTIONS': '',
-            'PROJWIN': None,
-            'RTYPE': 1,  # Int16
-            'OUTPUT': parameters['diff_hdom_vhm']
-        }
-        outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
-                                                     feedback=feedback, is_child_algorithm=True)
-        results['diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
+
+        if not os.path.exists(parameters['diff_hdom_vhm']):
+            # Raster calculator
+            alg_params = {
+                'BAND_A': 1,
+                'BAND_B': 1,
+                'BAND_C': None,
+                'BAND_D': None,
+                'BAND_E': None,
+                'BAND_F': None,
+                'EXTRA': '--extent=intersect',
+                'FORMULA': 'B - A',
+                'INPUT_A': parameters['vhm_10m'],
+                'INPUT_B': outputs['RasterizeHdom_new']['OUTPUT'],
+                'INPUT_C': None,
+                'INPUT_D': None,
+                'INPUT_E': None,
+                'INPUT_F': None,
+                'NO_DATA': None,
+                'OPTIONS': '',
+                'PROJWIN': None,
+                'RTYPE': 1,  # Int16
+                'OUTPUT': parameters['diff_hdom_vhm']
+            }
+            outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
+                                                         feedback=feedback, is_child_algorithm=True)
+            results['diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
+        else:
+            feedback.pushWarning(f"Output already exists: {parameters['diff_hdom_vhm']}. Skipping.")
+            results['diff_hdom_vhm'] = parameters['diff_hdom_vhm']
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
             return {}
 
         # Raster pixels to points
-        alg_params = {
-            'FIELD_NAME': 'VHM_10m',
-            'INPUT_RASTER': parameters['vhm_10m'],
-            'RASTER_BAND': 1,
-            'OUTPUT': parameters['vhm_10m_points']
-        }
-        outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
+        if not os.path.exists(parameters['vhm_10m_points']):
+            alg_params = {
+                'FIELD_NAME': 'VHM_10m',
+                'INPUT_RASTER': parameters['vhm_10m'],
+                'RASTER_BAND': 1,
+                'OUTPUT': parameters['vhm_10m_points']
+            }
+            outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
                                                          feedback=feedback, is_child_algorithm=True)
-        results['vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
+            results['vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
+        else:
+            feedback.pushWarning(f"Output already exists: {parameters['vhm_10m_points']}. Skipping.")
+            results['vhm_10m_points'] = parameters['vhm_10m_points']
         return results
 
     def name(self):
