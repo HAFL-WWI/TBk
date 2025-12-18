@@ -160,9 +160,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- Prepare looping through regions (load regions, create folder, init arrays, setup feedback)
 
         # Load the perimeter vector layer from the path stored in parameters
-        perimeter_layer = QgsVectorLayer(parameters["perimeter"], "perimeter", "ogr")
-        # if not perimeter_layer.isValid():
-        #     raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
+        # to get a usable source path, the param needs to be extracted
+        params = self._extract_context_params(parameters, context)
+        perimeter_layer = QgsVectorLayer(params.perimeter, "perimeter", "ogr")
+        if not perimeter_layer.isValid():
+            raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
         num_regions = perimeter_layer.featureCount()
         print(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
         log.info(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
@@ -520,7 +522,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         parameters['tbk_bestandesgrenzen'] = parameters['stands_dg_nh_vegZone']  # in diff_hdom_vhm
         parameters['diff_hdom_vhm'] = os.path.join(parameters["working_dir"], "diff_hdom_vhm.tif")  # out diff_hdom_vhm
         # construct points filename vhm_10m_points.gpkg from vhm_10m.tif
-        parameters['vhm_10m_points'] = os.path.splitext(parameters["vhm_10m"])[0] + "_points.gpkg"  # out diff_hdom_vhm
+        parameters['vhm_10m_points'] = os.path.splitext(params.vhm_10m)[0] + "_points.gpkg"  # out diff_hdom_vhm
 
         parameters['final_stand_map'] = os.path.join(parameters["result_dir"],
                                                      'TBk_Bestandeskarte.gpkg')  # out finalize
