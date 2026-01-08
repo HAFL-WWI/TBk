@@ -65,6 +65,8 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
         feedback = QgsProcessingMultiStepFeedback(3, model_feedback)
         results = {}
         outputs = {}
+        # to get a usable source path, the param needs to be extracted
+        params = self._extract_context_params(parameters, context)
 
         # Rasterize hdom_new
         alg_params = {
@@ -92,7 +94,7 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             return {}
 
 
-        if not os.path.exists(parameters['diff_hdom_vhm']):
+        if not os.path.exists(params.diff_hdom_vhm):
             # Raster calculator
             alg_params = {
                 'BAND_A': 1,
@@ -113,33 +115,33 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
                 'OPTIONS': '',
                 'PROJWIN': None,
                 'RTYPE': 1,  # Int16
-                'OUTPUT': parameters['diff_hdom_vhm']
+                'OUTPUT': params.diff_hdom_vhm
             }
             outputs['RasterCalculator'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                                          feedback=feedback, is_child_algorithm=True)
             results['diff_hdom_vhm'] = outputs['RasterCalculator']['OUTPUT']
         else:
-            feedback.pushWarning(f"Output already exists: {parameters['diff_hdom_vhm']}. Skipping.")
-            results['diff_hdom_vhm'] = parameters['diff_hdom_vhm']
+            feedback.pushWarning(f"Output already exists: {params.diff_hdom_vhm}. Skipping.")
+            results['diff_hdom_vhm'] = params.diff_hdom_vhm
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
             return {}
 
         # Raster pixels to points
-        if not os.path.exists(parameters['vhm_10m_points']):
+        if not os.path.exists(params.vhm_10m_points):
             alg_params = {
                 'FIELD_NAME': 'VHM_10m',
                 'INPUT_RASTER': parameters['vhm_10m'],
                 'RASTER_BAND': 1,
-                'OUTPUT': parameters['vhm_10m_points']
+                'OUTPUT': params.vhm_10m_points
             }
             outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
                                                          feedback=feedback, is_child_algorithm=True)
             results['vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
         else:
-            feedback.pushWarning(f"Output already exists: {parameters['vhm_10m_points']}. Skipping.")
-            results['vhm_10m_points'] = parameters['vhm_10m_points']
+            feedback.pushWarning(f"Output already exists: {params.vhm_10m_points}. Skipping.")
+            results['vhm_10m_points'] = params.vhm_10m_points
         return results
 
     def name(self):
