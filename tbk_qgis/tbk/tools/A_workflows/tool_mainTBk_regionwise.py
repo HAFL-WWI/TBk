@@ -7,7 +7,7 @@ from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
-    QgsProcessingMultiStepFeedback
+    QgsProcessingMultiStepFeedback, QgsProcessingParameterField
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
@@ -54,6 +54,12 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'is_standalone_context': False,
         }
         params = []
+
+        self._add_advanced_parameter(
+            QgsProcessingParameterField('fieldname_region', 'Field with IDs of the regions (should contain unique names/ID)',
+                                        type=QgsProcessingParameterField.Any,
+                                        parentLayerParameterName='perimeter', allowMultiple=False,
+                                        defaultValue='region'))
 
         # init all used algorithm and add their parameters to parameters list
         for alg in self.algorithms:
@@ -191,11 +197,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         region_ID_prefix = []
 
+        fieldname_region = parameters['fieldname_region']
+
         print(f"Sorting with region attribute")
         log.info(f"Sorting with region attribute")
         # create list and sort after attribute region
         features = list(perimeter_layer.getFeatures())
-        features_sorted = sorted(features, key=lambda f: f['region'])
+        features_sorted = sorted(features, key=lambda f: f[fieldname_region])
 
         # initialize feedback
         # number of total_processing_steps is number of regions + merging (1)
@@ -208,7 +216,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- -------------------------------- ---#
         for i, feature in enumerate(features_sorted, start=1):  # perimeter_layer.getFeatures():
             # --- Create folders for current feature
-            region_name = feature["region"]  # Adjust attribute name if different
+            region_name = feature[fieldname_region]  # Adjust attribute name if different
             region_root_dir = os.path.join(regions_dir, str(region_name))
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
             region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
@@ -407,7 +415,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 regions_stands_highest_tree.append(
                     os.path.join(region_root_dir, 'bk_process', 'stands_highest_tree.gpkg'))
 
-            region_ID_prefix.append(feature["region"])
+            region_ID_prefix.append(feature[fieldname_region])
             print(f"-----------------------------------------------------")
             print(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
             print(f"-----------------------------------------------------\n")
