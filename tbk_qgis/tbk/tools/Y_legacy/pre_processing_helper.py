@@ -79,9 +79,21 @@ class PreProcessingHelper:
         driver = gdal.GetDriverByName("GTiff")
         dst_options = ['COMPRESS=LZW']
         dsOut = driver.Create(out_raster, ds.RasterXSize, ds.RasterYSize, 1, b1.DataType, dst_options)
-        dsOut.GetRasterBand(1).SetNoDataValue(vNA)
-        CopyDatasetInfo(ds, dsOut)
+
         bandOut = dsOut.GetRasterBand(1)
+        if vNA is not None:
+            if b1.DataType in (
+                    gdal.GDT_Byte,
+                    gdal.GDT_Int16,
+                    gdal.GDT_UInt16,
+                    gdal.GDT_Int32,
+                    gdal.GDT_UInt32,
+            ):
+                bandOut.SetNoDataValue(int(vNA))
+            else:
+                bandOut.SetNoDataValue(float(vNA))
+
+        CopyDatasetInfo(ds, dsOut)
         BandWriteArray(bandOut, dataOut)
         del ds
         del dsOut
