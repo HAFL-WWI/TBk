@@ -96,7 +96,7 @@ class TBkVEstimate(TBkProcessingAlgorithmToolF):
         V_estimator_stratification_CSV = QgsVectorLayer(uri, 'V_estimator_stratification_CSV', 'delimitedtext')
 
         if not V_estimator_stratification_CSV.isValid():
-            raise QgsProcessingException(f"Failed to load ForestSite–BonClass key from: {key_path}")
+            raise QgsProcessingException(f"Failed to load V_estimator_stratification_CSV key from: {key_path}")
 
         feedback.pushInfo(f"Loaded key layer with fields: {[f.name() for f in V_estimator_stratification_CSV.fields()]}")
 
