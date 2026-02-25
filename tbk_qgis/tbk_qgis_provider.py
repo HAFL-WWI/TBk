@@ -50,6 +50,7 @@ from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_ddom_SD import TBkDdo
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_volume import TBkVEstimate
 from tbk_qgis.tbk.tools.F_additional_modules.tool_OS_change import TBkPostprocessOSChange
 from tbk_qgis.tbk.tools.F_additional_modules.tool_wis2_export import TBkPostprocessWIS2Export
+from tbk_qgis.tbk.tools.F_additional_modules.tool_prep_wis2web_export import TBkPrepareWIS2Export
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
 from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
 from tbk_qgis.tbk.tools.G_utility.tool_merge_stand_maps import TBkPostprocessMergeStandMaps
@@ -101,10 +102,12 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessOSChange())
         self.addAlgorithm(TBkVEstimate())
         self.addAlgorithm(TBkPostprocessWIS2Export())
+        self.addAlgorithm(TBkPrepareWIS2Export())
         # [grpID: g]    grpName: Utility
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
         self.addAlgorithm(TBkPostprocessMergeStandMaps())
+        self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkTreeSpeciesFromRaster())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         self.addAlgorithm(OptimizedSpatialJoin())

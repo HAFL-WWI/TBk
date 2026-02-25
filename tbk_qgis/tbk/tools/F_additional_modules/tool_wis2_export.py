@@ -730,7 +730,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'TBk WIS2 export'
+        return 'TBk WIS.2 Desktop export (XML)'
 
     def tr(self, string):
         return QCoreApplication.translate('Processing', string)
