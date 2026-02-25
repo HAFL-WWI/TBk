@@ -4,8 +4,6 @@
 #
 # Model exported as python.
 # Name : Append Attribute (singlepart + index)
-# Group :
-# With QGIS : 33404
 #
 # (C) Hannes Horneber (BFH-HAFL)
 # *************************************************************************** #
@@ -33,114 +31,259 @@
 __revision__ = '$Format:%H$'
 
 from PyQt5.QtCore import QCoreApplication
-from qgis.core import QgsProcessing
-from qgis.core import QgsProcessingAlgorithm
-from qgis.core import QgsProcessingMultiStepFeedback
-from qgis.core import QgsProcessingParameterField
-from qgis.core import QgsProcessingParameterString
-from qgis.core import QgsProcessingParameterVectorLayer
-from qgis.core import QgsProcessingParameterFeatureSink
+from qgis.core import (
+    QgsProcessing,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterVectorLayer,
+    QgsProcessingParameterField,
+    QgsProcessingParameterString,
+    QgsProcessingParameterBoolean,
+    QgsProcessingParameterFeatureSink,
+    QgsProcessingMultiStepFeedback,
+)
 import processing
+import time  # ← added
 
 
 class OptimizedSpatialJoin(QgsProcessingAlgorithm):
+    # -----------------------------------------
+    # PARAMETER KEYS
+    # =========================================
+    P_LAYER_A = "layer_to_join_attribute_on"
+    P_LAYER_B = "attribute_layer"
+    P_FIELDS = "fields_to_join"
+    P_PREFIX = "joined_attributes_prefix"
+    P_OUTPUT = "OUTPUT"
 
+    P_SINGLEPART = "convert_to_singlepart_before_join"
+    P_FIXGEOM = "fix_geometries_before_join"
+    P_CLIP = "clip_before_join"
+
+    # -----------------------------------------
+    # ALGORITHM SETUP
+    # =========================================
     def initAlgorithm(self, config=None):
 
-        self.addParameter(QgsProcessingParameterVectorLayer('layer_to_join_attribute_on', 'Layer to join attribute on',
-                                                            defaultValue=None))
+        # Main join target (layer A)
         self.addParameter(
-            QgsProcessingParameterVectorLayer('attribute_layer', 'attribute Layer', types=[QgsProcessing.TypeVectorPolygon],
-                                              defaultValue=None))
-        self.addParameter(
-            QgsProcessingParameterFeatureSink('output_with_attribute', 'Output with attribute', optional=True,
-                                              type=QgsProcessing.TypeVectorAnyGeometry, createByDefault=True,
-                                              defaultValue='TEMPORARY_OUTPUT'))
-        self.addParameter(
-            QgsProcessingParameterField('fields_to_join', 'Fields to Join', type=QgsProcessingParameterField.Any,
-                                        parentLayerParameterName='attribute_layer', allowMultiple=True,
-                                        defaultValue='Code'))
-        self.addParameter(
-            QgsProcessingParameterString('joined_attributes_prefix', 'Joined Attributes Prefix', multiLine=False,
-                                         defaultValue='VegZone_'))
+            QgsProcessingParameterVectorLayer(
+                self.P_LAYER_A,
+                "Layer to join attribute on",
+                types=[QgsProcessing.TypeVectorAnyGeometry]
+            )
+        )
 
+        # Attribute source (layer B)
+        self.addParameter(
+            QgsProcessingParameterVectorLayer(
+                self.P_LAYER_B,
+                "Attribute Layer",
+                types=[QgsProcessing.TypeVectorPolygon]
+            )
+        )
+
+        # Fields to join
+        self.addParameter(
+            QgsProcessingParameterField(
+                self.P_FIELDS,
+                "Fields to Join",
+                type=QgsProcessingParameterField.Any,
+                parentLayerParameterName=self.P_LAYER_B,
+                allowMultiple=True,
+                defaultValue=["Code"]
+            )
+        )
+
+        # Prefix
+        self.addParameter(
+            QgsProcessingParameterString(
+                self.P_PREFIX,
+                "Joined Attributes Prefix",
+                optional=True,
+                defaultValue=""
+            )
+        )
+
+        # toggle singlepart conversion
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.P_SINGLEPART,
+                "Convert attribute layer to singlepart before join",
+                defaultValue=False
+            )
+        )
+
+        # toggle fix geometries conversion
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.P_FIXGEOM,
+                "Fix geometries on attribute layer before join",
+                defaultValue=False
+            )
+        )
+
+        # toggle bounding-box clipping option
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.P_CLIP,
+                "Clip attribute layer B to extent of layer A (bounding-box)",
+                defaultValue=True
+            )
+        )
+
+        # Output
+        self.addParameter(
+            QgsProcessingParameterFeatureSink(
+                self.P_OUTPUT,
+                "Output with attribute",
+                createByDefault=True,
+                type=QgsProcessing.TypeVectorAnyGeometry
+            )
+        )
+
+    # -----------------------------------------
+    # MAIN LOGIC
+    # =========================================
     def processAlgorithm(self, parameters, context, model_feedback):
-        # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
-        # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(5, model_feedback)
+
+        feedback = QgsProcessingMultiStepFeedback(10, model_feedback)
         results = {}
-        outputs = {}
 
-        layer_to_join_on = self.parameterAsVectorLayer(parameters, 'layer_to_join_attribute_on', context)
-        if (layer_to_join_on.dataProvider().hasSpatialIndex() == 2):
-            print(f'The {layer_to_join_on.name()} has spatial index')
-            input_layer1_join_attributes_by_location = str(layer_to_join_on.source())
+        t0 = time.perf_counter()
+        last = t0
+
+        def _tick(label):
+            nonlocal last
+            now = time.perf_counter()
+            feedback.pushInfo(f"{label}: \t\t      {now - last:.3f}s (total {now - t0:.3f}s)")
+            last = now
+
+        # PARAMETERS
+        layer_A = self.parameterAsVectorLayer(parameters, self.P_LAYER_A, context)
+        layer_B = self.parameterAsVectorLayer(parameters, self.P_LAYER_B, context)
+
+        fields_to_join = parameters[self.P_FIELDS]
+        prefix = parameters[self.P_PREFIX]
+
+        do_singlepart = self.parameterAsBoolean(parameters, self.P_SINGLEPART, context)
+        do_clip = self.parameterAsBoolean(parameters, self.P_CLIP, context)
+        do_fixgeom = self.parameterAsBoolean(parameters, self.P_FIXGEOM, context)
+
+        # -----------------------------------------
+        # SECTION 1: PREPARE LAYER A (target)
+        # =========================================
+
+        # --- STEP 1: ensure spatial index on A
+        feedback.setCurrentStep(0)
+        if layer_A.dataProvider().hasSpatialIndex() == 2:
+            feedback.pushInfo(f"{layer_A.name()}: Spatial index already exists")
+            input_A = layer_A.source()
         else:
-            # Indexed Input
-            print(f'Creating spatial index for {layer_to_join_on}')
+            feedback.pushInfo(f"Creating spatial index for {layer_A.name()}")
+            res = processing.run(
+                "native:createspatialindex",
+                {"INPUT": parameters[self.P_LAYER_A]},
+                context=context,
+                feedback=feedback,
+                is_child_algorithm=True
+            )
+            input_A = res["OUTPUT"]
+        _tick("Step 1 (Index A)")
 
-            alg_params = {
-                'INPUT': parameters['layer_to_join_attribute_on']
-            }
-            outputs['IndexedInput'] = processing.run('native:createspatialindex', alg_params, context=context,
-                                                     feedback=feedback, is_child_algorithm=True)
-            input_layer1_join_attributes_by_location = outputs['IndexedInput']['OUTPUT']
+        # -----------------------------------------
+        # SECTION 2: PREPARE LAYER B (attribute source)
+        # =========================================
+        prepared_B = parameters[self.P_LAYER_B]
 
+        # --- STEP 2: multipart → singlepart (optional)
         feedback.setCurrentStep(1)
-        if feedback.isCanceled():
-            return {}
+        if do_singlepart:
+            feedback.pushInfo("Converting attribute layer B to singlepart…")
+            res = processing.run(
+                "native:multiparttosingleparts",
+                {"INPUT": prepared_B, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
+                context=context, feedback=feedback, is_child_algorithm=True
+            )
+            prepared_B = res["OUTPUT"]
+            _tick("Step 2 (Singlepart B)")
+        else:
+            feedback.pushInfo("skip Step 2 (Singlepart disabled)")
 
-        # Multipart to singleparts
-        alg_params = {
-            'INPUT': parameters['attribute_layer'],
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        outputs['MultipartToSingleparts'] = processing.run('native:multiparttosingleparts', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-
+        # --- STEP 3: fix geometries
         feedback.setCurrentStep(2)
-        if feedback.isCanceled():
-            return {}
+        if do_fixgeom:
+            feedback.pushInfo("Fixing geometries…")
+            res = processing.run(
+                "native:fixgeometries",
+                {"INPUT": prepared_B, "METHOD": 1, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
+                context=context, feedback=feedback, is_child_algorithm=True
+            )
+            prepared_B = res["OUTPUT"]
+            _tick("Step 3 (Fix geometries)")
+        else:
+            feedback.pushInfo("skip Step 3 (Fix geometries disabled)")
 
-        # Fix geometries that were created by single part algorithm
-        alg_params = {
-            'INPUT': outputs['MultipartToSingleparts']['OUTPUT'],
-            'METHOD': 1,  # Structure
-            'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
-        }
-        outputs['FixGeometries'] = processing.run('native:fixgeometries', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
-
+        # --- STEP 4: bounding-box clip (optional)
         feedback.setCurrentStep(3)
-        if feedback.isCanceled():
-            return {}
+        if do_clip:
+            feedback.pushInfo("Clipping attribute layer B to bounding box of A…")
+            res_box = processing.run(
+                "native:polygonfromlayerextent",
+                {"INPUT": layer_A, "ROUND_TO": 0, "OUTPUT": "TEMPORARY_OUTPUT"},
+            )
+            temp_bbox = res_box["OUTPUT"]
 
-        # Indexed Singlepart AttributeLayer
-        alg_params = {
-            'INPUT': outputs['FixGeometries']['OUTPUT']
-        }
-        outputs['IndexedSinglepartAttributeLayer'] = processing.run('native:createspatialindex', alg_params, context=context, feedback=feedback, is_child_algorithm=True)
+            res_clip = processing.run(
+                "native:clip",
+                {"INPUT": prepared_B, "OVERLAY": temp_bbox, "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT},
+                context=context, feedback=feedback, is_child_algorithm=True
+            )
+            prepared_B = res_clip["OUTPUT"]
+            _tick("Step 4 (Clip B)")
+        else:
+            feedback.pushInfo("skip Step 3 (Bounding-box clipping disabled")
 
+        # --- STEP 5: ensure spatial index on B
         feedback.setCurrentStep(4)
-        if feedback.isCanceled():
-            return {}
+        res = processing.run(
+            "native:createspatialindex",
+            {"INPUT": prepared_B},
+            context=context, feedback=feedback, is_child_algorithm=True
+        )
+        indexed_B = res["OUTPUT"]
+        _tick("Step 5 (Index B)")
 
+        # -----------------------------------------
+        # SECTION 3: SPATIAL JOIN
+        # =========================================
 
+        feedback.setCurrentStep(5)
+        feedback.pushInfo("Running spatial join (largest overlap)…")
 
-        # Join attributes by location
-        alg_params = {
-            'DISCARD_NONMATCHING': False,
-            'INPUT': input_layer1_join_attributes_by_location,
-            'JOIN': outputs['IndexedSinglepartAttributeLayer']['OUTPUT'],
-            'JOIN_FIELDS': parameters['fields_to_join'],
-            'METHOD': 2,  # Take attributes of the feature with largest overlap only (one-to-one)
-            'PREDICATE': [0],  # intersect
-            'PREFIX': parameters['joined_attributes_prefix'],
-            'OUTPUT': parameters['output_with_attribute']
-        }
-        outputs['JoinAttributesByLocation'] = processing.run('native:joinattributesbylocation', alg_params,
-                                                             context=context, feedback=feedback,
-                                                             is_child_algorithm=True)
-        results['OutputWithAttribute'] = outputs['JoinAttributesByLocation']['OUTPUT']
+        res = processing.run(
+            "native:joinattributesbylocation",
+            {
+                "INPUT": input_A,
+                "JOIN": indexed_B,
+                "JOIN_FIELDS": fields_to_join,
+                "PREDICATE": [0],  # intersects
+                "METHOD": 2,  # largest overlap (1:1)
+                "DISCARD_NONMATCHING": False,
+                "PREFIX": prefix,
+                "OUTPUT": parameters[self.P_OUTPUT],
+            },
+            context=context, feedback=feedback, is_child_algorithm=True
+        )
+        _tick("Step 6 (Spatial join)")
+
+        feedback.pushInfo(f"TOTAL TIME Optimized spatial Join: {time.perf_counter() - t0:.3f}s")
+
+        results[self.P_OUTPUT] = res["OUTPUT"]
         return results
+
+    # -----------------------------------------
+    # METADATA
+    # =========================================
 
     def name(self):
         """
