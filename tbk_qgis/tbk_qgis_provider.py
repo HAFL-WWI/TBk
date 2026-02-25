@@ -44,6 +44,7 @@ from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import TBk
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import TBkCalculateCrownCoverageAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_tree_species_from_raster import TBkTreeSpeciesFromRaster
 from tbk_qgis.tbk.tools.F_additional_modules.tool_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_ddom_SD import TBkDdomSDEstimate
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_volume import TBkVEstimate
@@ -104,6 +105,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessCleanup())
         self.addAlgorithm(TBkPostprocessHdomDiff())
         self.addAlgorithm(TBkPostprocessMergeStandMaps())
+        self.addAlgorithm(TBkTreeSpeciesFromRaster())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         self.addAlgorithm(OptimizedSpatialJoin())
         # [grpID: y]    grpName: Legacy
