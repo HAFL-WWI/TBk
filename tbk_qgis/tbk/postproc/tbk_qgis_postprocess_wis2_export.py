@@ -752,7 +752,7 @@ class TBkPostprocessWIS2Export(QgsProcessingAlgorithm):
         lowercase alphanumeric characters only and no spaces or other
         formatting characters.
         """
-        return 'TBk WIS2 export'
+        return 'TBk WIS.2 Desktop export (XML)'
 
     def displayName(self):
         """
