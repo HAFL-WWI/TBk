@@ -48,6 +48,7 @@ from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_merge_stand_maps import TBkPostp
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_OSChange import TBkPostprocessOSChange
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_wis2_export import TBkPostprocessWIS2Export
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_prep_wis2web_export import TBkPrepareWIS2Export
+from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_import_wis2web_csv import TBkPostprocessImportWIS2WebCSV
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_tree_species_from_raster import TBkTreeSpeciesFromRaster
 from tbk_qgis.tbk.postproc.tbk_qgis_postprocess_extract_perimeter import TBkPostprocessExtractPerimeter
 from tbk_qgis.tbk.utility.optimized_spatial_join import OptimizedSpatialJoin
@@ -83,6 +84,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkPostprocessLocalDensity())
         self.addAlgorithm(TBkPostprocessWIS2Export())
         self.addAlgorithm(TBkPrepareWIS2Export())
+        self.addAlgorithm(TBkPostprocessImportWIS2WebCSV())
         self.addAlgorithm(TBkTreeSpeciesFromRaster())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         self.addAlgorithm(TBkDdomSDEstimate())
