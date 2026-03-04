@@ -84,7 +84,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
 
         # Perimeter shapefile to clip final result
         self.addParameter(
-            QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter shapefile to clip final result",
+            QgsProcessingParameterFeatureSource(self.PERIMETER, "Perimeter (Forest Mask) to clip final result",
                                                 [QgsProcessing.TypeVectorPolygon]))
 
         # --- Advanced Parameters

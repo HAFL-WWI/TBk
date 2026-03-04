@@ -106,7 +106,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # Config file containing all parameter key-value pairs
         self.addParameter(QgsProcessingParameterFile(self.CONFIG_FILE,
-                                                     'Configuration file to set the algorithm parameters. The bellow '
+                                                     'Configuration file to set the algorithm parameters. The below '
                                                      'non-optional parameters must still be set but will not be used.',
                                                      optional=True))
 
