@@ -11,6 +11,7 @@ from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, 
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
+from tbk_qgis.tbk.general.qgis_processing_utility import QgsUtility
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
@@ -55,12 +56,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         }
         params = []
 
-        self._add_advanced_parameter(
-            QgsProcessingParameterField('fieldname_region', 'Field with IDs of the regions (should contain unique names/ID)',
-                                        type=QgsProcessingParameterField.Any,
-                                        parentLayerParameterName='perimeter', allowMultiple=False,
-                                        defaultValue='region'))
-
         # init all used algorithm and add their parameters to parameters list
         for alg in self.algorithms:
             alg.initAlgorithm(init_config)
@@ -70,11 +65,17 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # parameters chain map used as a simple way to avoid duplicate parameter
         params_chain = ChainMap(*params)
-
         unique_param_definitions = list(params_chain.values())
         for param in unique_param_definitions:
             if param.name() != 'working_root':
                 self.addParameter(param.clone())
+
+        self.addParameter(
+            QgsProcessingParameterField('fieldname_region',
+                                        'Perimeter Region-ID Field (each unique name/ID in this field will be processed separately)',
+                                        type=QgsProcessingParameterField.Any,
+                                        parentLayerParameterName='perimeter', allowMultiple=False,
+                                        defaultValue='region'))
 
         parameter = QgsProcessingParameterBoolean('create_subdir_time', "Create subfolder with timestamp",
                                                   defaultValue=True)
@@ -167,13 +168,31 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         # Load the perimeter vector layer from the path stored in parameters
         # to get a usable source path, the param needs to be extracted
+        # TODO: this tackles the same issue as the newly implemented QgsUtility.ensure_vector_layer, however can't handle memory layers (parameterAsFeatureSource())... should be handled consistently.
         params = self._extract_context_params(parameters, context)
-        perimeter_layer = QgsVectorLayer(params.perimeter, "perimeter", "ogr")
+
+        # perimeter_layer = QgsVectorLayer(params.perimeter, "perimeter", "ogr")
+        perimeter_layer = QgsUtility.ensure_vector_layer(params.perimeter, context)
         if not perimeter_layer.isValid():
             raise Exception(f"Invalid perimeter layer: {perimeter_layer.source()}")
+
+        fieldname_region = parameters['fieldname_region']
         num_regions = perimeter_layer.featureCount()
-        print(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
-        log.info(f"Loaded perimeter {perimeter_layer.source()}.\nRegionwise processing for {num_regions} regions")
+
+        # dissolve by fieldname_region (avoid redundant IDs overwriting each others result when being subsequently processed)
+        print(f"Loaded perimeter {perimeter_layer.source()}\n Dissolving {num_regions} regions by {fieldname_region}.")
+        log.info(f"Loaded perimeter {perimeter_layer.source()}\n Dissolving {num_regions} regions by {fieldname_region}.")
+        perimeter_layer = processing.run("native:dissolve", {
+            'INPUT': perimeter_layer,
+            'FIELD': [fieldname_region],
+            'SEPARATE_DISJOINT': False,
+            'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+        # create layer from memory layer ID
+        perimeter_layer = QgsUtility.ensure_vector_layer(perimeter_layer, context)
+
+        num_regions = perimeter_layer.featureCount()
+        print(f"Regionwise processing for {num_regions} regions with unique {fieldname_region}.")
+        log.info(f"Regionwise processing for {num_regions} regions with unique {fieldname_region}.")
 
         # Create subfolder "regions" within result_dir
         regions_dir = os.path.join(bk_process_dir, 'regions')
@@ -197,7 +216,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         region_ID_prefix = []
 
-        fieldname_region = parameters['fieldname_region']
+
 
         print(f"Sorting with region attribute")
         log.info(f"Sorting with region attribute")
@@ -429,7 +448,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         # --- Merge stand map
 
         # progress info
-        feedback.setProgressText("\n\n") # insert processing log space
+        feedback.setProgressText("\n\n")  # insert processing log space
         processing_step = processing_step + 1
         feedback.setCurrentStep(processing_step)
         feedback.setProgressText("Merging of regions")

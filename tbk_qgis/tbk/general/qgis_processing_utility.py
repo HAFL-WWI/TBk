@@ -2,7 +2,7 @@
 # *************************************************************************** #
 # Helper Classes and Functions for QGIS Processing.
 #
-# (C) Hannes Horneber, Christoph Schaller (BFH-HAFL)
+# (C) Hannes Horneber (BFH-HAFL)
 # *************************************************************************** #
 """
 /***************************************************************************
@@ -28,6 +28,28 @@
 __revision__ = '$Format:%H$'
 
 import logging
+from qgis._core import QgsVectorLayer, QgsProcessingUtils, QgsProcessingException
+
+class QgsUtility:
+
+    @staticmethod
+    def ensure_vector_layer(layer_or_id, context):
+        """
+        Ensures we always return a QgsVectorLayer.
+        Accepts either:
+          - QgsVectorLayer
+          - processing output string (layer id / uri)
+        """
+        if isinstance(layer_or_id, QgsVectorLayer):
+            return layer_or_id
+
+        layer = QgsProcessingUtils.mapLayerFromString(layer_or_id, context)
+
+        if not layer:
+            raise QgsProcessingException(f"Could not resolve layer from id/source: {layer_or_id}")
+
+        return layer
+
 
 # Helper class that implements an interface for using the QGIS feedback in the logging context
 class QgisHandler(logging.Handler):
