@@ -650,7 +650,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             param = {'layer_to_join_attribute_on': stands_file_cleaned,
                      'attribute_layer': vegZoneLayer,
                      'fields_to_join': [vegZoneLayerField], 'joined_attributes_prefix': 'VegZone_',
-                     'output_with_attribute': stands_file_join}
+                     'OUTPUT': stands_file_join}
             processing.run("TBk:Optimized Spatial Join", param)
 
             # rename field to VegZone_Code (if vegZoneLayerField is anything other than "Code")
@@ -681,7 +681,7 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
             param = {'layer_to_join_attribute_on': stands_file_appended,
                      'attribute_layer': forestSiteLayer,
                      'fields_to_join': [forestSiteLayerField], 'joined_attributes_prefix': 'ForestSite_',
-                     'output_with_attribute': stands_file_join}
+                     'OUTPUT': stands_file_join}
             processing.run("TBk:Optimized Spatial Join", param)
 
             # rename field to ForestSite
