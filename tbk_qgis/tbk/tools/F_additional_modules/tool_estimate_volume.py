@@ -32,7 +32,8 @@ __revision__ = '$Format:%H$'
 import os
 
 from PyQt5.QtCore import QCoreApplication
-from qgis._core import QgsProcessingException, QgsVectorLayer, QgsProcessingParameterFile
+from qgis._core import QgsProcessingException, QgsVectorLayer, QgsProcessingParameterFile, \
+    QgsProcessingParameterBoolean, QgsProcessingParameterString, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
 from qgis.core import QgsProcessingAlgorithm
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -46,11 +47,13 @@ from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_processing_algorithm_tools
 class TBkVEstimate(TBkProcessingAlgorithmToolF):
 
     def initAlgorithm(self, config=None):
+        # INPUT stand map
         self.addParameter(QgsProcessingParameterFeatureSource(
             'stand_map_features', 'Stand map features with hdom, DG and NH attributes',
             types=[QgsProcessing.TypeVectorAnyGeometry],
             defaultValue=None))
 
+        # CSV with stratification and volume
         self.addParameter(QgsProcessingParameterFile(
             'V_estimator_stratification_CSV',
             'File with Volume Estimator specification (optional, CSV file)',
@@ -60,11 +63,29 @@ class TBkVEstimate(TBkProcessingAlgorithmToolF):
             defaultValue=None
         ))
 
+        # Output field name
+        self.addParameter(QgsProcessingParameterString(
+            'OUTPUT_FIELD_NAME',
+            'Output field name for estimated volume',
+            defaultValue='V_per_ha'
+        ))
+
+        # OUTPUT: Stand map with Volume
         self.addParameter(QgsProcessingParameterFeatureSink(
             'stand_map_with_V', 'Stand map with V',
             type=QgsProcessing.TypeVectorAnyGeometry,
             createByDefault=True, supportsAppend=True,
             defaultValue=None))
+
+        # Advanced rounding parameter
+        round_param = QgsProcessingParameterBoolean(
+            'ROUND_VOLUME',
+            'Round estimated volume to nearest 10',
+            defaultValue=True
+        )
+        round_param.setFlags(round_param.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(round_param)
+
 
     def processAlgorithm(self, parameters, context, model_feedback):
         feedback = QgsProcessingMultiStepFeedback(2, model_feedback)
@@ -72,8 +93,12 @@ class TBkVEstimate(TBkProcessingAlgorithmToolF):
         outputs = {}
 
         # --- ----------------------------------------------------
-        # 1 Handle V_estimator_stratification_CSV input (CSV / layer / default)
+        # 0 Extract parameters
+        field_name = self.parameterAsString(parameters, 'OUTPUT_FIELD_NAME', context)
+        round_volume = self.parameterAsBool(parameters, 'ROUND_VOLUME', context)
 
+        # --- ----------------------------------------------------
+        # 1 Handle V_estimator_stratification_CSV input (CSV / layer / default)
         key_path = self.parameterAsFile(parameters, 'V_estimator_stratification_CSV', context)
 
         if not key_path:
@@ -125,14 +150,15 @@ class TBkVEstimate(TBkProcessingAlgorithmToolF):
                 h_lo, h_hi,
                 dg_lo, dg_hi,
                 nh_lo, nh_hi,
-                (round(mean_V / 10 ) * 10) if mean_V is not None else 0
+                (round(mean_V / 10) * 10) if (mean_V is not None and round_volume) else
+                (mean_V if mean_V is not None else 0)
             ))
 
         alg_params = {
             'FIELD_LENGTH': 0,
-            'FIELD_NAME': 'Volume_estimated',
+            'FIELD_NAME': field_name,
             'FIELD_PRECISION': 0,
-            'FIELD_TYPE': 1,
+            'FIELD_TYPE': 1, # Integer
             'FORMULA': (
                     'CASE ' +
                     ''.join([
