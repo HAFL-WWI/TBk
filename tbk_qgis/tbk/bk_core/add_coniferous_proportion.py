@@ -81,7 +81,7 @@ def add_coniferous_proportion(working_root, tmp_output_folder, tbk_result_dir, c
     if calc_main_layer:
         print("calc mean coniferous proportion for main layer...")
         # dg raster layer
-        dg_layer_os = os.path.join(tbk_result_dir, r"dg_layers\dg_layer.tif")
+        dg_layer_os = os.path.join(tbk_result_dir, "dg_layers", "dg_layer.tif")  # remove hard-coded \ for unix compatibility
 
         # minimum degree of cover to select valid 10 m NH pixels
         cover = 40
