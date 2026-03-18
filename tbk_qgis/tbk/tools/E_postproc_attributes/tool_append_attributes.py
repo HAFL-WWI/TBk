@@ -229,8 +229,9 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         param = {'layer_to_join_attribute_on': input_layer,
                  'attribute_layer': join_layer,
-                 'fields_to_join': [join_field], 'joined_attributes_prefix': f"{prefix}_",
-                 'output_with_attribute': joined_path}
+                 'fields_to_join': [join_field],
+                 'joined_attributes_prefix': f"{prefix}_",
+                 'OUTPUT': joined_path}
         processing.run("TBk:Optimized Spatial Join", param)
 
         # If the field has already the correct name, it is not necessary to rename it
