@@ -26,9 +26,7 @@
  ***************************************************************************/
 """
 
-import shutil
 import sys
-import os
 from pathlib import Path
 
 if __name__ == "__main__":  # this will be invoked if this module is being run directly, but not via import!
@@ -40,7 +38,6 @@ else:
     # this replaces above import, if this is executed in the regular QGIS environment where processing plugins are "known"
     from tbk_qgis.tbk.utility.tbk_utilities import *
 
-from qgis.utils import iface
 from qgis.core import *
 from qgis.gui import *
 

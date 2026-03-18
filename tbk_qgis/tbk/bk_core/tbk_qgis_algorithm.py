@@ -45,6 +45,9 @@ from datetime import timedelta
 import time
 import logging, logging.handlers
 import sys
+import platform
+
+python_exe = "python3.exe" if platform.system() == "Windows" else "python3"
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
@@ -346,7 +349,6 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                   defaultValue=True)
         self.addAdvancedParameter(parameter)
 
-
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -423,10 +425,10 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
                                                            context)
         # get calc_local_densities flag
         calc_local_densities = self.parameterAsBool(parameters, self.CALC_LOCAL_DENSITIES,
-                                                           context)
+                                                    context)
         # get calc_vhm_hdom_diff flag
         calc_vhm_hdom_diff = self.parameterAsBool(parameters, self.CALC_VHM_HDOM_DIFF,
-                                                           context)
+                                                  context)
 
         # get and check perimeter file
         perimeter = str(self.parameterAsVectorLayer(parameters, self.PERIMETER, context).source())
@@ -734,27 +736,28 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # --- hdom Diff
         log.info(f'12 --- hdom_diff')
-        if(calc_vhm_hdom_diff):
+        if (calc_vhm_hdom_diff):
             start_time_section = time.time()
             processing.run("TBk:TBk postprocess Hdom diff", {
                 'tbk_bestandesgrenzen': stands_file_final,
                 'vhm_10m': vhm_10m,
                 'Diff_hdom_vhm': os.path.join(tbk_result_dir, 'bk_process', "hdom_diff.tif"),
-                'Vhm_10m_points': (os.path.splitext(vhm_10m)[0] + "_points.gpkg") })
+                'Vhm_10m_points': (os.path.splitext(vhm_10m)[0] + "_points.gpkg")})
             log.info("   --- done: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time_section))))
         else:
             log.info("   --- skipped")
 
         # --- Local Densities
         log.info(f'13 --- local densities')
-        if(calc_local_densities):
+        if (calc_local_densities):
             start_time_section = time.time()
             processing.run("TBk:TBk postprocess local density", {
                 'path_tbk_input': tbk_result_dir,
                 'mg_use': True,
                 'mg_input': coniferous_raster,
                 'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
-                'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
+                'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12,
+                                          60,
                                           100, 14], 'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200,
                 'holes_thresh': 400, 'buffer_smoothing': True, 'buffer_smoothing_dist': 7, 'save_unclipped': False,
                 'grid_cell_size': 3})
@@ -781,15 +784,28 @@ class TBkAlgorithm(QgsProcessingAlgorithm):
 
         # construct a python call command with all necessary paramters and call
         script_path = os.path.join(tbk_tool_path, "create_project.py")
-        command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" \
-                  + working_root.replace("\\", "/") + "\" \"" \
-                  + tmp_output_folder.replace("\\", "/") + "\" \"" \
-                  + tbk_result_dir.replace("\\", "/") + "\" \"" \
-                  + tbk_tool_path.replace("\\", "/") + "\" \"" \
-                  + vhm_10m + "\" \"" \
-                  + vhm_150cm + "\" \"" \
-                  + coniferous_raster + "\" \"" \
-                  + str(del_tmp) + "\""
+        if platform.system() == "Windows":
+            log.info("Using Windows paths")
+            command = "python3.exe \"" + script_path.replace("\\", "/") + "\" \"" \
+                      + working_root.replace("\\", "/") + "\" \"" \
+                      + tmp_output_folder.replace("\\", "/") + "\" \"" \
+                      + tbk_result_dir.replace("\\", "/") + "\" \"" \
+                      + tbk_tool_path.replace("\\", "/") + "\" \"" \
+                      + vhm_10m + "\" \"" \
+                      + vhm_150cm + "\" \"" \
+                      + coniferous_raster + "\" \"" \
+                      + str(del_tmp) + "\""
+        else:
+            log.info("Using Unix (Linux/Mac OS) paths")
+            command = python_exe + " \"" + script_path + "\" \"" \
+                      + working_root + "\" \"" \
+                      + tmp_output_folder + "\" \"" \
+                      + tbk_result_dir + "\" \"" \
+                      + tbk_tool_path + "\" \"" \
+                      + vhm_10m + "\" \"" \
+                      + vhm_150cm + "\" \"" \
+                      + coniferous_raster + "\" \"" \
+                      + str(del_tmp) + "\""
 
         log.info(command)
         os.system(command)
