@@ -17,6 +17,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import \
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
+from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 
 
@@ -34,6 +35,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         TBkAddConiferousProportionAlgorithm(),
         TBkAppendStandAttributesAlgorithm(),
         TBkPostprocessCleanup(),
+        TBkCreateProject(),
     ]
 
     def initAlgorithm(self, config=None):
