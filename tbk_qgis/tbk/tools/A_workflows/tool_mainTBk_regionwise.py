@@ -615,17 +615,25 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 return {}
             print("->------------------------------------------")
             print(f"-> run {alg.name()} -")
+            feedback.pushInfo("->------------------------------------------")
+            feedback.pushInfo(f"-> run {alg.name()} -")
             result = processing.run(alg, parameters, context=context, feedback=feedback)
             print(f"{result}")
             print("----------------------------------------->|-\n")
+            feedback.pushInfo("----------------------------------------->|-\n")
 
         print("\n--------------------------------------------")
         print("\n--- Final cleanup and appends ---")
+        feedback.pushInfo("\n--------------------------------------------")
+        feedback.pushInfo("\n--- Final cleanup and appends ---")
         finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
         print("--------------------------------------------")
+        feedback.pushInfo("--------------------------------------------")
 
         print("\n--------------------------------------------")
         print("\n--- Run Local Densities ---")
+        feedback.pushInfo("\n--------------------------------------------")
+        feedback.pushInfo("\n--- Run Local Densities ---")
         # progress info
         processing_step = processing_step + 1
         feedback.setCurrentStep(processing_step)
@@ -644,10 +652,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'buffer_smoothing': True,
             'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
         print("--------------------------------------------")
+        feedback.pushInfo("--------------------------------------------")
 
         print(f"\n---------------------------------")
         print(f"--- COMPLETED REGION-WISE TBk ---")
         print(f"---------------------------------\n")
+        feedback.pushInfo("====================================================================")
+        feedback.pushInfo("--- COMPLETED REGION-WISE TBk ---")
+        feedback.pushInfo("====================================================================")
         return {}
 
     def createInstance(self):
