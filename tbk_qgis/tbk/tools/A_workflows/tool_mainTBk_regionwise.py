@@ -24,8 +24,9 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion imp
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
-import gc
+from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 
+import gc
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 
 
@@ -587,7 +588,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             TBkCalculateCrownCoverageAlgorithm(),
             TBkAddConiferousProportionAlgorithm(),
             TBkAppendStandAttributesAlgorithm(),
-            TBkPostprocessHdomDiff()
+            TBkPostprocessHdomDiff(),
+            TBkCreateProject()
             # cleanup is not included as the region maps are already cleaned up
         ]
 
