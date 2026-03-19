@@ -581,6 +581,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         parameters['final_stand_map'] = os.path.join(parameters["result_dir"],
                                                      'TBk_Bestandeskarte.gpkg')  # out finalize
 
+
+        # --- run remaining algorithms
         algorithms_attributation = [
             TBkCalculateCrownCoverageAlgorithm(),
             TBkAddConiferousProportionAlgorithm(),
@@ -589,7 +591,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # cleanup is not included as the region maps are already cleaned up
         ]
 
-        # run remaining algorithms
         for alg in algorithms_attributation:
             # progress info
             processing_step = processing_step + 1

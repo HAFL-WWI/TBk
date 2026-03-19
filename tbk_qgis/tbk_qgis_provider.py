@@ -57,6 +57,7 @@ from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDi
 from tbk_qgis.tbk.tools.G_utility.tool_merge_stand_maps import TBkPostprocessMergeStandMaps
 from tbk_qgis.tbk.tools.G_utility.tool_extract_perimeter import TBkPostprocessExtractPerimeter
 from tbk_qgis.tbk.tools.G_utility.tool_optimized_spatial_join import OptimizedSpatialJoin
+from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_vhm_algorithm import TBkPrepareVhmAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_mg_algorithm import TBkPrepareMgAlgorithm
 from tbk_qgis.tbk.tools.Y_legacy.tool_prepare_all_algorithm import TBkPrepareAlgorithm
@@ -112,6 +113,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkTreeSpeciesFromRaster())
         self.addAlgorithm(TBkPostprocessExtractPerimeter())
         self.addAlgorithm(OptimizedSpatialJoin())
+        self.addAlgorithm(TBkCreateProject())
         # [grpID: y]    grpName: Legacy
         # self.addAlgorithm(BkAGAlgorithm())
         # self.addAlgorithm(TBkMainWorkflowOld())
