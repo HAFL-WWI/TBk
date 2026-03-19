@@ -121,7 +121,9 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         """
         Here is where the processing itself takes place.
         """
-
+        feedback.pushInfo("----------------------------")
+        feedback.pushInfo("Start CreateProject")
+        feedback.pushInfo("----------------------------")
         start_time = time.time()
 
         # --- Read parameters properly
@@ -254,10 +256,10 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         feedback.pushInfo(f"Writing project:  {timedelta(seconds=(time.time() - start_time))}")
         project.write(str(project_copy_path))
 
-        feedback.pushInfo("====================================================================")
-        feedback.pushInfo("FINISHED")
+        feedback.pushInfo("----------------------------")
+        feedback.pushInfo("Finished CreateProject")
         feedback.pushInfo(f"TOTAL TIME: {timedelta(seconds=(time.time() - start_time))}")
-        feedback.pushInfo("====================================================================")
+        feedback.pushInfo("----------------------------")
 
         return {"OUTPUT_PROJECT": str(project_copy_path)}
 
