@@ -55,7 +55,11 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
     INPUT = "input_layer"
     OUTPUT = "OUTPUT"
 
+    # div_id
+    DIV_ID_SOURCE_FIELD = "div_id_source_field"
+
     # ForestSite
+    OVERWRITE_FORESTSITE = "overwrite_forestsite"
     FORESTSITE_DEFAULT = "forestsite_default"
     FORESTSITE_LAYER = "forestsite_layer"
     FORESTSITE_LAYER_FIELD = "forestsite_layer_field"
@@ -236,7 +240,15 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
             )
         )
 
-        # --- ForestSite params (Advanced)
+
+        # --- ForestSite params
+        self.addParameter(
+            QgsProcessingParameterBoolean(
+                self.OVERWRITE_FORESTSITE,
+                self.tr("Overwrite existing ForestSite field (if unchecked, an already present ForestSite field is kept as-is)"),
+                defaultValue=False,
+            )
+        )
         self.addParameter(
             QgsProcessingParameterString(
                 self.FORESTSITE_DEFAULT,
@@ -260,6 +272,18 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
                 parentLayerParameterName=self.FORESTSITE_LAYER,
                 allowMultiple=False,
                 optional=True
+            )
+        )
+
+        # --- div_id: copy a source field as "div_id"
+        self.addAdvancedParameter(
+            QgsProcessingParameterField(
+                self.DIV_ID_SOURCE_FIELD,
+                self.tr("Field to use as 'div_id' (will be simply copied)"),
+                type=QgsProcessingParameterField.Any,
+                parentLayerParameterName=self.INPUT,
+                allowMultiple=False,
+                optional=True,
             )
         )
 
@@ -414,6 +438,10 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
         stands_src = self.parameterAsSource(parameters, self.INPUT, context)
         stands_vl = self.parameterAsVectorLayer(parameters, self.INPUT, context)
 
+        div_id_source_field = self.parameterAsString(parameters, self.DIV_ID_SOURCE_FIELD, context)
+
+        overwrite_forestsite = self.parameterAsBoolean(parameters, self.OVERWRITE_FORESTSITE, context)
+
         use_coni = self.parameterAsBoolean(parameters, self.USE_CONIFEROUS, context)
         source_field_nh = self.parameterAsString(parameters, self.SOURCE_FIELD_NH, context)
         target_field_nh = self.parameterAsString(parameters, self.TARGET_FIELD_NH, context)
@@ -441,6 +469,46 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
         # Start chain with original input
         current = stands_vl  # processing accepts layer obj or path; we keep as layer until first algorithm
 
+        # -----------------------------------------
+        # Optional div_id: copy source field as "div_id"
+        # =================================================
+
+        if div_id_source_field:
+            feedback.pushInfo(f"\ndiv_id: copying field '{div_id_source_field}' as 'div_id'")
+            current = self._ensure_vector_layer(current, context)
+
+            if div_id_source_field not in current.fields().names():
+                raise QgsProcessingException(
+                    f'Source field "{div_id_source_field}" not found for div_id copy')
+
+            # Drop existing div_id if present
+            if "div_id" in current.fields().names():
+                feedback.pushInfo("div_id: dropping existing 'div_id' field before copy")
+                current = processing.run(
+                    "native:deletecolumn",
+                    {
+                        "INPUT": current,
+                        "COLUMN": ["div_id"],
+                        "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                    }, context=context, feedback=feedback, is_child_algorithm=True,
+                )["OUTPUT"]
+
+            current = processing.run(
+                "native:fieldcalculator",
+                {
+                    "INPUT": current,
+                    "FIELD_NAME": "div_id",
+                    "FIELD_TYPE": 2,  # String (safe for any source field type)
+                    "FIELD_LENGTH": 80,
+                    "FIELD_PRECISION": 0,
+                    "NEW_FIELD": True,
+                    "FORMULA": f'"{div_id_source_field}"',
+                    "OUTPUT": QgsProcessing.TEMPORARY_OUTPUT,
+                }, context=context, feedback=feedback, is_child_algorithm=True,
+            )["OUTPUT"]
+        else:
+            feedback.pushInfo("\ndiv_id: no source field selected, skipping")
+
         # -------------------------------------------
         # Join / apply default (ForestSite, cc0 - 2)
         # ===========================================
@@ -456,19 +524,35 @@ class TBkPrepareWIS2Export(TBkProcessingAlgorithmToolF):
             # Skip if default is empty AND (layer or field missing)
             if (default in (None, "")) and (not layer or not field):
                 feedback.pushInfo(f"{name}: skipped (no default and missing layer/field)")
-            else:
-                feedback.pushInfo(f"\n{name} processing...")
-                current = self.join_create_and_apply_default(
-                    current=current,
-                    join_layer=layer,
-                    join_field=field,
-                    target_field_name=name,
-                    target_field_type=data_type,
-                    default_value=default,
-                    multiply_factor=multiply,
-                    context=context,
-                    feedback=feedback,
-                )
+                continue
+
+            # ForestSite-specific: honour overwrite_forestsite flag
+            if name == "ForestSite":
+                current = self._ensure_vector_layer(current, context)
+                forestsite_exists = "ForestSite" in current.fields().names()
+                if forestsite_exists and not overwrite_forestsite:
+                    feedback.pushInfo(
+                        "ForestSite: field already present and 'Overwrite ForestSite' is off "
+                        "→ keeping existing values"
+                    )
+                    continue
+                if forestsite_exists:
+                    feedback.pushInfo(
+                        "ForestSite: field already present but 'Overwrite ForestSite' is on → overwriting"
+                    )
+
+            feedback.pushInfo(f"\n{name} processing...")
+            current = self.join_create_and_apply_default(
+                current=current,
+                join_layer=layer,
+                join_field=field,
+                target_field_name=name,
+                target_field_type=data_type,
+                default_value=default,
+                multiply_factor=multiply,
+                context=context,
+                feedback=feedback,
+            )
 
         # -----------------------------------------
         # Optional ConInd / FolInd from NH
