@@ -5,6 +5,7 @@ import logging
 from collections import ChainMap
 from osgeo import ogr
 
+from qgis.PyQt.QtWidgets import QApplication
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
     QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
@@ -298,6 +299,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
                 layer_out.updateExtents()
 
+                # delete provide and layer objects to avoid memory accumulation in QGIS UI
+                del provider
+                del layer_out
                 print(f"Successfully saved perimeter {region_name} to {output_vector}")
 
             if overwrite or not os.path.exists(perimeter_buffered):
@@ -305,7 +309,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 if os.path.exists(perimeter_buffered):
                     os.remove(perimeter_buffered)
 
-                ptions = QgsVectorFileWriter.SaveVectorOptions()
+                options = QgsVectorFileWriter.SaveVectorOptions()
                 options.driverName = "GPKG"
                 options.fileEncoding = "UTF-8"
                 options.layerName = "perimeter_buffered"
@@ -337,6 +341,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
                 layer_out.updateExtents()
 
+                # delete provide and layer objects to avoid memory accumulation in QGIS UI
+                del provider
+                del layer_out
                 print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
 
             # Construct output file path for the clipped rasters
@@ -466,8 +473,14 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             log.info(f"-----------------------------------------------------")
             log.info(f"\n")
 
+            # --- cleanup after each loop iteration
+
+            # avoid leaking of Layer Objects (in case if parameters holds QgsMapLayer objects)
+            del parameters_region
             # delete all temporary layers
-            context.temporaryLayerStore().removeAllMapLayers()
+            # context.temporaryLayerStore().removeAllMapLayers()
+            # Let the UI thread flush before continuing:
+            QApplication.processEvents()
             # forces cleanup of unused objects in memory (on Python-level objects)
             gc.collect()
 
