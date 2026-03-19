@@ -7,7 +7,7 @@ from osgeo import ogr
 
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
-    QgsProcessingMultiStepFeedback, QgsProcessingParameterField
+    QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
@@ -24,6 +24,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion imp
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
+import gc
 
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 
@@ -258,35 +259,96 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             print(f"-----------------------------------------------------")
             print(f"to {region_base_data_dir}")
 
+            # Construct the output path for the vector files (GeoPackage)
+            output_vector = os.path.join(region_base_data_dir, f'perimeter_{region_name}.gpkg')
+            perimeter_buffered = os.path.join(region_base_data_dir, f'perimeter_{region_name}_buffered.gpkg')
+            print(f"Creating Vector Masks")
+
+            # --- Create perimeter feature layer
+            if overwrite or not os.path.exists(output_vector):
+                # Delete existing file
+                if os.path.exists(output_vector):
+                    os.remove(output_vector)
+
+                options = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"
+                options.fileEncoding = "UTF-8"
+                options.layerName = "perimeter"
+                options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+
+                # Create EMPTY file first
+                QgsVectorFileWriter.writeAsVectorFormatV3(
+                    perimeter_layer,  # schema source
+                    output_vector,
+                    QgsProject.instance().transformContext(),
+                    options
+                )
+
+                # Reopen and write ONLY the feature you want
+                layer_out = QgsVectorLayer(output_vector, "perimeter", "ogr")
+                provider = layer_out.dataProvider()
+
+                feat = QgsFeature()
+                feat.setGeometry(feature.geometry())
+                feat.setAttributes(feature.attributes())
+
+                provider.truncate()  # remove all features written by default export
+                provider.addFeature(feat)
+
+                layer_out.updateExtents()
+
+                print(f"Successfully saved perimeter {region_name} to {output_vector}")
+
+            if overwrite or not os.path.exists(perimeter_buffered):
+                # --- Create buffered perimeter feature layer
+                if os.path.exists(perimeter_buffered):
+                    os.remove(perimeter_buffered)
+
+                ptions = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"
+                options.fileEncoding = "UTF-8"
+                options.layerName = "perimeter_buffered"
+                options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+
+                # Create EMPTY file with correct schema
+                QgsVectorFileWriter.writeAsVectorFormatV3(
+                    perimeter_layer,
+                    perimeter_buffered,
+                    QgsProject.instance().transformContext(),
+                    options
+                )
+
+                layer_out = QgsVectorLayer(perimeter_buffered, "perimeter_buffered", "ogr")
+                provider = layer_out.dataProvider()
+
+                provider.truncate()
+
+                # Safe geometry handling
+                geom = feature.geometry()
+                if not geom.isGeosValid():
+                    geom = geom.makeValid()
+
+                buffered_feat = QgsFeature()
+                buffered_feat.setGeometry(geom.buffer(10, 5))
+                buffered_feat.setAttributes(feature.attributes())
+
+                provider.addFeature(buffered_feat)
+
+                layer_out.updateExtents()
+
+                print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
+
             # Construct output file path for the clipped rasters
             vhm_10m_clipped = os.path.join(region_base_data_dir, 'VHM_10m.tif')
             mg_10m_clipped = os.path.join(region_base_data_dir, 'MG_10m.tif')
             print(f"Clipping VHM10m / Coniferous raster with buffered perimeter")
 
-            created_buffered_feature_layer = False
-            if overwrite or not os.path.exists(vhm_10m_clipped) or not os.path.exists(mg_10m_clipped):
-                # --- Create buffered perimeter feature layer
-                buffered_feature_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}",
-                                                        "buffered_mask",
-                                                        "memory")
-                buffered_feature = QgsFeature()
-                buffered_feature.setGeometry(feature.geometry().buffer(10, 5))
-                buffered_feature_layer.dataProvider().addFeature(buffered_feature)
-                buffered_feature_layer.updateExtents()
-                # Add the buffered layer to the map registry (otherwise it isn't found)
-                QgsProject.instance().addMapLayer(buffered_feature_layer)
-                created_buffered_feature_layer = True
-
             if overwrite or not os.path.exists(vhm_10m_clipped):
                 # Clip VHM with buffered mask
                 processing.run("gdal:cliprasterbymasklayer", {
                     'INPUT': parameters["vhm_10m"],
-                    'MASK': QgsProcessingFeatureSourceDefinition(
-                        buffered_feature_layer.source(),
-                        selectedFeaturesOnly=False,
-                        featureLimit=1,
-                        geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
-                    ),
+                    'MASK': perimeter_buffered,
+                    # 'MASK': buffered_feature_layer,
                     'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': vhm_10m_clipped
                 })
@@ -295,50 +357,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 # Clip Coniferous raster with buffered perimeter
                 processing.run("gdal:cliprasterbymasklayer", {
                     'INPUT': parameters["coniferous_raster_for_classification"],
-                    'MASK': QgsProcessingFeatureSourceDefinition(
-                        buffered_feature_layer.source(),
-                        selectedFeaturesOnly=False,
-                        featureLimit=1,
-                        geometryCheck=QgsFeatureRequest.GeometryAbortOnInvalid
-                    ),
+                    'MASK': perimeter_buffered,
                     'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
                     'OUTPUT': mg_10m_clipped
                 })
-
-            if created_buffered_feature_layer:
-                # --- Remove buffered layer from registry and delete it (if it was created)
-                QgsProject.instance().removeMapLayer(buffered_feature_layer.id())
-                buffered_feature_layer = None  # Ensures layer is dereferenced
-
-            # Construct the output path for the vector file (GeoPackage)
-            output_vector = os.path.join(region_base_data_dir, f'perimeter_{region_name}.gpkg')
-
-            if overwrite or not os.path.exists(output_vector):
-                # Create and populate the single-feature layer
-                perimeter_single_feature = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}",
-                                                          f"perimeter_{region_name}", "memory")
-                perimeter_single_feature_data = perimeter_single_feature.dataProvider()
-                perimeter_single_feature_data.addAttributes(perimeter_layer.fields())
-                perimeter_single_feature.updateFields()
-                perimeter_single_feature_data.addFeature(feature)
-
-                # Commit changes to the layer before saving
-                perimeter_single_feature.commitChanges()
-
-                # Save the single feature layer to the GeoPackage
-                ctc = QgsProject.instance().transformContext()
-                error = QgsVectorFileWriter.writeAsVectorFormatV3(
-                    perimeter_single_feature,  # The memory layer
-                    output_vector,  # output file path
-                    ctc,  # CRS
-                    getVectorSaveOptions('GPKG', 'utf-8')
-                )
-
-                # Check for errors
-                if error != QgsVectorFileWriter.NoError:
-                    print(f"Error while saving {output_vector}: {error}")
-                else:
-                    print(f"Successfully saved {region_name} perimeter to {output_vector}")
 
             # --- Configure parameters for region
 
@@ -442,6 +464,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             log.info(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
             log.info(f"-----------------------------------------------------")
             log.info(f"\n")
+
+            # delete all temporary layers
+            context.temporaryLayerStore().removeAllMapLayers()
+            # forces cleanup of unused objects in memory (on Python-level objects)
+            gc.collect()
 
         # --- -------------------------------- ---#
 
@@ -638,7 +665,7 @@ from PyQt5.QtCore import QVariant
 
 def finalize_TBk(input_layer, output_layer):
     # remove unnecessary fields and change order
-    algoOutput = processing.run("native:refactorfields", {
+    processingResult = processing.run("native:refactorfields", {
         'INPUT': input_layer,
         'FIELDS_MAPPING': [
             {'alias': '', 'comment': '', 'expression': '"fid"', 'length': 0, 'name': 'fid', 'precision': 0,
@@ -676,10 +703,16 @@ def finalize_TBk(input_layer, output_layer):
             {'alias': '', 'comment': '', 'expression': '"ID_pre_merge"', 'length': 0, 'name': 'ID_pre_merge',
              'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'int8'}], 'OUTPUT': 'TEMPORARY_OUTPUT'})
 
-    processing.run("native:fieldcalculator", {
-        'INPUT': algoOutput['OUTPUT'],
+    processingResult = processing.run("native:fieldcalculator", {
+        'INPUT': processingResult['OUTPUT'],
         'FIELD_NAME': 'PH_STRUCTURE', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
         'FORMULA': 'if("VegZone_Code" IN (-1, 0, 1, 2, 4, 5), \r\n    if("NH">50,\r\n        if("hdom">=26, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n                5\r\n            ), \r\n            if("hdom">18,\r\n                -1, \r\n                if("hdom">10,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        ),\r\n        if("hdom">=23, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                    4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n            5), \r\n            if("hdom">16,\r\n                -1, \r\n                if("hdom">9,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        )\r\n    ),\r\n    if ("VegZone_Code" IN (6, 7),\r\n        if("NH">50,\r\n            if("hdom">=23, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                    4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                    5\r\n                ), \r\n                if("hdom">16,\r\n                    -1, \r\n                    if("hdom">9,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            ),\r\n            if("hdom">=19, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                        4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                5), \r\n                if("hdom">13,\r\n                    -1, \r\n                    if("hdom">7,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            )\r\n        ),\r\n        if("VegZone_Code" IN (8),\r\n            if("NH">50,\r\n                if("hdom">=19, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">13,\r\n                        -1, \r\n                        if("hdom">7,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            ),\r\n            if("NH">50,\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=13, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">9,\r\n                        -1, \r\n                        if("hdom">5,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            )\r\n        )\r\n    )\r\n)\r\n\r\n',
+        'OUTPUT': 'TEMPORARY_OUTPUT'})
+
+    processing.run("native:fieldcalculator", {
+        'INPUT': processingResult['OUTPUT'],
+        'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
+        'FORMULA': '$area',
         'OUTPUT': output_layer})
 
 
