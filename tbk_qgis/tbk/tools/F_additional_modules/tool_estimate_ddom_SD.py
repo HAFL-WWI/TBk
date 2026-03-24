@@ -90,7 +90,7 @@ class TBkDdomSDEstimate(TBkProcessingAlgorithmToolF):
         if not key_path:
             # No file provided — use default from plugin directory
             plugin_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # tbk_qgis root
-            key_path = os.path.join(plugin_dir, 'tbk', 'postproc', 'resources', 'ForestSite_BonClass_key_BE.csv')
+            key_path = os.path.join(plugin_dir, 'tbk', 'resources', 'sd_ddom_estimation', 'ForestSite_BonClass_key_BE.csv')
             feedback.pushInfo(f"Using default ForestSite–BonClass key from: {key_path}")
         else:
             feedback.pushInfo(f"Using user-specified ForestSite–BonClass key: {key_path}")
