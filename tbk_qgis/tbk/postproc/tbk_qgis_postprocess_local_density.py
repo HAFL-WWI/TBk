@@ -31,6 +31,7 @@ import os  # os is used below, so make sure it's available in any case
 import time
 from datetime import datetime, timedelta
 import math
+import platform
 
 from qgis.PyQt.QtCore import QCoreApplication
 from qgis.core import (QgsProcessing,
@@ -603,10 +604,14 @@ class TBkPostprocessLocalDensity(QgsProcessingAlgorithm):
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
         feedback.pushInfo("fix geometries of local densities and selected stands ...")
-        param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        if platform.system() == "Windows":
+            fix_geometry_method = 1 # Structure
+        else:
+            fix_geometry_method = 0 # Linework
+        param = {'INPUT': den_polys, 'METHOD': fix_geometry_method, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fixgeometries", param)
         den_polys = algoOutput["OUTPUT"]
-        param = {'INPUT': stands, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        param = {'INPUT': stands, 'METHOD': fix_geometry_method, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fixgeometries", param)
         stands = algoOutput["OUTPUT"]
 

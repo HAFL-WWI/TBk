@@ -85,10 +85,14 @@ class TBkPostprocessCleanup(QgsProcessingAlgorithm):
         if feedback.isCanceled():
             return {}
 
+        if platform.system() == "Windows":
+            fix_geometry_method = 1 # Structure
+        else:
+            fix_geometry_method = 0 # Linework
         # Fix geometries
         alg_params = {
             'INPUT': outputs['ExtractArea_m2IsNotNull']['OUTPUT'],
-            'METHOD': 1,  # Structure
+            'METHOD': fix_geometry_method,
             'OUTPUT': QgsProcessing.TEMPORARY_OUTPUT
         }
         outputs['FixGeometries'] = processing.run('native:fixgeometries', alg_params, context=context,
