@@ -1,16 +1,23 @@
-# This file contains metadata for your plugin and should be included when you packaging the plugin.
-
 # ***********************      Mandatory Metadata   ************************* #
 [general]
-name=Toolkit Bestandeskarte [core]
-# name=Toolkit Bestandeskarte [TBk]
+name=TBk Core v0.4.2 - Toolkit Bestandeskarte
 qgisMinimumVersion=3.16
-description=Toolkit for the generation of forest stand maps. This is the stable core algorithm (no regionwise/modular processing).
+description=Toolkit for the generation of forest stand maps.
 version=0.4.2
 author=Berner Fachhochschule BFH-HAFL
 email=hannes.horneber@bfh.ch
 
-about=Toolkit for the generation of forest stand maps. This is the stable core algorithm (no regionwise/modular processing). Support will be discontinued in the course of 2026.
+about=
+    A set of processing tools for parametrized creation of stand maps as well as extraction of stand attributes and further processing.
+    Input data to delineate forest stand maps are vegetation height models (and forest type rasters).
+    Examples for information on the forest (stands) are, amongst others: dominating height/diameter, degree of cover (per layer), conifer proportion, horizontal and vertical structure, local density zones, volume, change of the upper layer (if datasets from at least two dates are available).
+
+    <i>This is the stable core algorithm (replaced since 2026-03 by the modularized design in v0.5.0, allowing more flexible and regionwise processing). Further development on this branch will be ceased in the course of 2026 (consider switching, once the new design is stable). As TBk QGIS core v0.4.2 it can be installed alongside the continuously developed current version.</i>
+
+    The core algorithm and toolkit was developed at the Bern University of Applied Science and is Open Source since 2025. It is designed as an expandable toolkit, contributions are welcome.
+    Contacts:
+    - Christian Rosset (<a href="mailto:christian.rosset@bfh.ch">christian.rosset@bfh.ch</a>) Forestry Expertise
+    - Hannes Horneber (<a href="mailto:hannes.horneber@bfh.ch">hannes.horneber@bfh.ch</a>) Technical Development
 
 tracker=https://github.com/HAFL-WWI/TBk/issues
 repository=https://github.com/HAFL-WWI/TBk
@@ -18,20 +25,26 @@ repository=https://github.com/HAFL-WWI/TBk
 
 
 # * * * * * * * * * * * *     Additional Metadata     * * * * * * * * * * * * #
+homepage=https://www.planfor.ch/tools/9
+category=Analysis
+icon=resources/icon_tbk.png
+
+# experimental flag
+experimental=True
+
+# Uncomment the following line and add your changelog:
+changelog=
+    0.4.2 (2026-03-25) stable core functionality, mac/Linux compatibility (no regionwise processing)
+    0.4 (2025-11-29) redesign & speedup preproc/local density, config file
+    0.3 (2024-06-19) local densities, OS change, WIS.2 desktop export,
+    0.2 (2023-10-18) compatibility and stability (QGIS 3.16 -> 3.28)
+    0.1 (2021-04-02) TBk core implementation (QGIS adaption from Python/ArcPy scripts)
+
 # Some Plugins don't provide any processing algorithms.
 hasProcessingProvider=yes
 
-# Uncomment the following line and add your changelog:
-# changelog=
-
 # Tags are comma separated with spaces allowed
-tags=python
-
-homepage=http://homepage
-category=Analysis
-icon=resources/icon_tbk.png
-# experimental flag
-experimental=True
+tags=stand-delineation, forest, foret, wald, planung, planning, management, segmentation
 
 # deprecated flag (applies to the whole plugin, not just a single version)
 deprecated=False
@@ -48,4 +61,3 @@ Category of the plugin: Raster, Vector, Database or Web
 server=False
 
 # * * * * * * * * * * * * End of additional metadata   * * * * * * * * * * * * #
-
