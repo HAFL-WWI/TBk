@@ -143,7 +143,7 @@ class TBkPrepareWIS2Export(QgsProcessingAlgorithm):
         if join_layer and join_field:
             feedback.pushInfo(f"{target_field_name}: running spatial join")
             current = processing.run(
-                "TBk:Optimized Spatial Join",
+                "TBk_core:Optimized Spatial Join",
                 {
                     "layer_to_join_attribute_on": current,
                     "attribute_layer": join_layer,
