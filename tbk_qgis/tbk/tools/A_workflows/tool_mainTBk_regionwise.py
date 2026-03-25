@@ -332,7 +332,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     geom = geom.makeValid()
 
                 buffered_feat = QgsFeature()
-                buffered_feat.setGeometry(geom.buffer(10, 5))
+                buffered_feat.setGeometry(geom.buffer(11, 5))
                 buffered_feat.setAttributes(feature.attributes())
 
                 provider.addFeature(buffered_feat)

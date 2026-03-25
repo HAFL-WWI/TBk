@@ -9,7 +9,7 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 """
 
-__authors__ = 'Dominique Weber, Christoph Schaller'
+__authors__ = 'Dominique Weber, Christoph Schaller, Hannes Horneber'
 __copyright__ = '(C) 2024 by Berner Fachhochschule HAFL'
 __date__ = '2020-08-03'
 __email__ = "christian.rosset@bfh.ch"
@@ -54,6 +54,8 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
     SIMPLIFICATION_TOLERANCE = "simplification_tolerance"
     # Min. area to eliminate small stands
     MIN_AREA_M2 = "min_area_m2"
+    # Additional smoothing of stand boundaries with v.generalize (chaiken)
+    SMOOTHING = "smoothing"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
@@ -89,7 +91,6 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                          "from previous steps.",
                                                          behavior=QgsProcessingParameterFile.Folder))
 
-            # Not needed in a modular context: can use the previous algorithm's output directly
             self.addParameter(
                 QgsProcessingParameterFeatureSource(self.INPUT_TO_SIMPLIFY, "Input layer to be simplified",
                                                     [QgsProcessing.TypeVectorPolygon],
@@ -122,6 +123,10 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, "Min. area to eliminate small stands",
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
+        self._add_advanced_parameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean(self.SMOOTHING, "Additional smoothing of stand boundaries with v.generalize (chaiken)",
+                                                  defaultValue=False)
         self._add_advanced_parameter(parameter)
 
         # Additional parameters
@@ -166,7 +171,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         results = post_process(params.input_to_simplify, params.h_max_input,
                                params.stands_simplified, params.stands_highest_tree,
-                               tmp_output_folder, params.min_area_m2,
+                               tmp_output_folder, params.min_area_m2, params.smoothing,
                                params.simplification_tolerance, params.del_tmp)
 
         return {self.OUTPUT_SIMPLIFIED: results["stands_simplified"],

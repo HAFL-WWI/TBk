@@ -39,6 +39,7 @@ def post_process(stands_in,
                  stands_highest_tree_out,
                  tmp_output_folder,
                  min_area,
+                 smoothing,
                  simplification_tolerance=8,
                  del_tmp=True):
     # -------- INIT -------#
@@ -57,6 +58,10 @@ def post_process(stands_in,
         "reduced": "tmp_reduced.gpkg",
         "simplified": "tmp_simplified.gpkg",
         "simplified_error": "tmp_simplified_error.gpkg",
+        "densified": "tmp_densified.gpkg",
+        "smoothed": "tmp_smoothed.gpkg",
+        "smoothed_error": "tmp_smoothed_error.gpkg",
+        "simplified_final": "tmp_simplified_final.gpkg",
     }
 
     # Dictionary containing the path to temp files
@@ -106,24 +111,34 @@ def post_process(stands_in,
     # --- Simplify
     print("simplifying polygons...")
 
+    # simplify douglas method
+    algo_output_path = tmp_files['simplified']
     param = {'input': tmp_files['reduced'], 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
              'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
              'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
-             '-t': False, '-l': True, 'output': 'TEMPORARY_OUTPUT', 'error': tmp_files['simplified_error'],
+             '-t': False, '-l': True, 'output': algo_output_path, 'error': tmp_files['simplified_error'],
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-    algo_output = processing.run("grass7:v.generalize", param)
+    algo_output = processing.run("grass:v.generalize", param)
 
-    # a second simplify pass, since the first pass leaves some stands unchanged
-    param = {'input': algo_output['output'], 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 0,
-             'threshold': simplification_tolerance, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
-             'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
-             '-t': False, '-l': True, 'output': tmp_files['simplified'], 'error': tmp_files['simplified_error'],
-             'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
-             'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-    processing.run("grass7:v.generalize", param)
+    # a second simplify pass, further smoothing stands
+    if(smoothing):
+        print("smoothing polygons...")
+        # processing.run("native:densifygeometries", {
+        #     'INPUT': algo_output_path,
+        #     'VERTICES': 1, 'OUTPUT': tmp_files['densified']})
+        # algo_output_path = tmp_files['densified']
 
-    tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified'], "stand_boundaries_reduced", "ogr")
+        param = {'input': algo_output_path, 'type': [0, 1, 2], 'cats': '', 'where': '', 'method': 8,
+                 'threshold': 0.5, 'look_ahead': 7, 'reduction': 50, 'slide': 0.5, 'angle_thresh': 3,
+                 'degree_thresh': 0, 'closeness_thresh': 0, 'betweeness_thresh': 0, 'alpha': 1, 'beta': 1, 'iterations': 1,
+                 '-t': False, '-l': True, 'output':  tmp_files['smoothed'], 'error': tmp_files['smoothed_error'],
+                 'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
+                 'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
+        algo_output = processing.run("grass:v.generalize", param)
+        algo_output_path = tmp_files['smoothed']
+
+    tmp_simplified_layer = QgsVectorLayer(algo_output_path, "stand_boundaries_reduced", "ogr")
 
     # Delete unimportant fields
     # apparently these are some dummy fields created by grass
@@ -133,7 +148,7 @@ def post_process(stands_in,
     ########################################
     # --- Recalculate area
     print("recalculating area...")
-    param = {'INPUT': tmp_files['simplified'], 'OUTPUT': 'memory:'}
+    param = {'INPUT': algo_output_path, 'OUTPUT': 'memory:'}
     algo_output = processing.run("native:fixgeometries", param)
 
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
@@ -142,7 +157,7 @@ def post_process(stands_in,
 
     del tmp_simplified_layer
 
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['simplified'], ctc,
+    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['simplified_final'], ctc,
                                               getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
@@ -152,7 +167,7 @@ def post_process(stands_in,
     # and simplification also alters polygon area
 
     # Create tmp layer
-    tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified'], "stand_boundaries_simplified", "ogr")
+    tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified_final'], "stand_boundaries_simplified", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
     print("selecting small polygons...")
     tmp_simplified_layer.selectByExpression(expression)
@@ -164,8 +179,8 @@ def post_process(stands_in,
     param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
     algo_output = processing.run("qgis:eliminateselectedpolygons", param)
 
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['reduced'], ctc,
-                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    # QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['reduced_final'], ctc,
+    #                                           getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # --- Recalculate area
