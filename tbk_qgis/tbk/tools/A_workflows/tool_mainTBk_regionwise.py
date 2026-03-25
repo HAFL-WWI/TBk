@@ -219,8 +219,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         region_ID_prefix = []
 
-
-
         print(f"Sorting with region attribute")
         log.info(f"Sorting with region attribute")
         # create list and sort after attribute region
@@ -566,7 +564,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'NODATA_OUTPUT': 0,  # Define NoData value in output raster
                         'DATA_TYPE': 4,  # Use the same data type as inputs
                         'SEPARATE': False,  # False ensures layers are merged, not stacked
-                        'PREFERRED': 'FIRST'  # Keeps the first valid data (prevents overwriting)
+                        'PREFERRED': 'FIRST',  # Keeps the first valid data (prevents overwriting)
+                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9' # compression
                     })
 
         # *************************************** #
