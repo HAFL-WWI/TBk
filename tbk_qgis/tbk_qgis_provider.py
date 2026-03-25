@@ -138,7 +138,7 @@ class TBkProvider(QgsProcessingProvider):
         This string should be short (e.g. "Lastools") and localised.
         """
         # return self.tr('TBk')
-        return self.tr('TBk for QGIS 3.40')
+        return self.tr('TBk [v0.5.0]')
 
     def icon(self):
         """
@@ -159,4 +159,4 @@ class TBkProvider(QgsProcessingProvider):
         (version 2.2.1)". This string should be localised. The default
         implementation returns the same string as name() [return self.name()].
         """
-        return 'TBk: Toolkit Bestandeskarte v0.4.1'
+        return 'TBk: Toolkit Bestandeskarte v0.5.0'
