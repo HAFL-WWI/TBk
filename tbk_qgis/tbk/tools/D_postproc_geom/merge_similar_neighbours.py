@@ -172,6 +172,10 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
     print("Do actual merger of similar neighbours ...")
     start_time = time.time()
 
+    # make sure we have numeric values
+    df["src_hdom"] = pd.to_numeric(df["src_hdom"], errors="coerce")
+    df["nbr_hdom"] = pd.to_numeric(df["nbr_hdom"], errors="coerce")
+
     # select small polygons with possible neighbour to dissolve
     df["hdom_diff_rel"] = (df.src_hdom - df.nbr_hdom).abs() / df.src_hdom
     i_dissolve = ((df.src_area_m2 < min_area_m2) &

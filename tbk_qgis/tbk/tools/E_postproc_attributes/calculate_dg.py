@@ -112,14 +112,21 @@ def calculate_dg(working_root,
         print("calculating DG limits...")
 
         for f in stands_layer.getFeatures():
+            # ensure numeric type
+            hdom = f["hdom"]
+            hmax = f["hmax"]
+
+            hdom = float(hdom) if hdom not in (None, NULL) else None
+            hmax = float(hmax) if hmax not in (None, NULL) else None
+
             f["dg_ks_max"] = max_height_ks
             f["dg_us_min"] = min_height_us
-            f["dg_ms_min"] = f["hdom"] * min_height_hdom_factor_ms
-            f["dg_os_min"] = f["hdom"] * min_height_hdom_factor_os
-            f["dg_ueb_min"] = f["hmax"] * min_height_hmax_factor_ueb
-            if f["hdom"] < 14:
+            f["dg_ms_min"] = hdom * min_height_hdom_factor_ms
+            f["dg_os_min"] = hdom * min_height_hdom_factor_os
+            f["dg_ueb_min"] = hmax * min_height_hmax_factor_ueb
+            if hdom < 14:
                 # fix small stands issue
-                f["dg_min"] = f["hdom"] * min_height_hdom_factor_ms
+                f["dg_min"] = hdom * min_height_hdom_factor_ms
             else:
                 f["dg_min"] = f["dg_os_min"]
 
