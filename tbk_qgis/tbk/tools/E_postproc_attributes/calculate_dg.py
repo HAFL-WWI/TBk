@@ -50,7 +50,8 @@ def calculate_dg(working_root,
                  tmp_output_folder,
                  dg_dir,
                  vhm,
-                 del_tmp=True):
+                 del_tmp=True,
+                 gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
     print("--------------------------------------------")
     print("START DG calculation...")
 
@@ -166,7 +167,7 @@ def calculate_dg(working_root,
                 'INPUT_B': dg_files["ueb"],
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
-                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': gdal_create_options, 'EXTRA': '',
                 'OUTPUT': dg_layer_file})
         else:
             # create an empty DG layer based on vhm extents for each layer
@@ -184,7 +185,7 @@ def calculate_dg(working_root,
                 'INPUT_C': dg_tmp_file_c, 'BAND_C': 1,
                 'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
-                'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '', 'OUTPUT': dg_layer_file})
+                'OPTIONS': gdal_create_options, 'EXTRA': '', 'OUTPUT': dg_layer_file})
 
         # clean up temp files as soon as possible
         if del_tmp:

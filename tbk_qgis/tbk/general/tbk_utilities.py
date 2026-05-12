@@ -135,12 +135,26 @@ def get_raster_metadata(raster):
 
 
 # Function to copy a GeoTIFF raster
-def copy_raster_tiff(in_raster, out_raster):
+def copy_raster_tiff(in_raster, out_raster, gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
     driver = gdal.GetDriverByName('GTiff')
     in_ds = gdal.Open(in_raster)
-    out_ds = driver.CreateCopy(out_raster, in_ds, 0, options=["COMPRESS=ZSTD"])
+    out_ds = driver.CreateCopy(out_raster, in_ds, 0, options=gdal_co_to_list(gdal_create_options))
     in_ds = None
     out_ds = None
+
+
+def gdal_co_to_extra(options_str):
+    """Convert pipe-separated OPTIONS string to -co flags for GDAL EXTRA parameter."""
+    if not options_str:
+        return ''
+    return ' '.join(f'-co {opt}' for opt in options_str.split('|'))
+
+
+def gdal_co_to_list(options_str):
+    """Convert pipe-separated OPTIONS string to list for GDAL Python API options parameter."""
+    if not options_str:
+        return []
+    return options_str.split('|')
 
 # Function to copy a vector file elsewhere
 def copy_vector_file(input_path: str, output_path: str, context: QgsProcessingContext, feedback: QgsProcessingFeedback, is_child_algorithm=True) -> str:

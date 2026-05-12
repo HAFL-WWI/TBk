@@ -220,6 +220,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
+            'gdal_create_options': parameters['gdal_create_options'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': result_dir,
             'stands_clipped_no_gaps': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
@@ -256,6 +257,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             'coniferous_raster': parameters['coniferous_raster'],
             'del_tmp': parameters['del_tmp'],
             'dg_layer': outputs['CalculateCrownCoverage']['dg_layer_main'],
+            'gdal_create_options': parameters['gdal_create_options'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': result_dir,
             'stands_dg': outputs['CalculateCrownCoverage']['stands_dg'],

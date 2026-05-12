@@ -325,6 +325,8 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
         )
         self.addAdvancedParameter(parameter)
 
+        self._add_gdal_create_options_parameter()
+
         # list of relative paths to additional material (matrix as one-dimensional list)
         parameter = QgsProcessingParameterMatrix(
             self.ADDITIONAL_MATERIAL_PATHS,
@@ -362,6 +364,8 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
         # folder same-named as folder with TBk-input placed within output-folder
         path_output = os.path.join(output_root, tbk_folder)
         ensure_dir(path_output)
+
+        gdal_create_options = self.parameterAsString(parameters, self.GDAL_CREATE_OPTIONS, context)
         # print(path_output)
 
         # relative path to TBk-map-file (string)
@@ -695,7 +699,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                         'PROJWIN': extraction_perimeter_raster[str(res_i)].extent(),
                         'OVERCRS': False,
                         'NODATA': None,
-                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                        'OPTIONS': gdal_create_options,
                         'DATA_TYPE': 0, # use input layer data type
                         'EXTRA': '',
                         'OUTPUT': dataset_out
@@ -718,7 +722,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                         'X_RESOLUTION': None,
                         'Y_RESOLUTION': None,
                         'MULTITHREADING': True,
-                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                        'OPTIONS': gdal_create_options,
                         'DATA_TYPE': 0,  # use input layer data type
                         'EXTRA': '',
                         'OUTPUT': dataset_out

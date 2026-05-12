@@ -46,7 +46,8 @@ def add_coniferous_proportion(working_root,
                               coniferous_raster,
                               calc_main_layer,
                               tbk_result_dir,
-                              del_tmp=True):
+                              del_tmp=True,
+                              gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
     print("--------------------------------------------")
     print("START coniferous proportion...")
 
@@ -94,7 +95,7 @@ def add_coniferous_proportion(working_root,
 
         # Resample os layer to 1m to align with 10m raster
         param = {'INPUT': dg_layer_os, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 1, 'NODATA': None,
-                 'TARGET_RESOLUTION': 1, 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'DATA_TYPE': 0,
+                 'TARGET_RESOLUTION': 1, 'OPTIONS': gdal_create_options, 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_1m"]}
         algoOutput = processing.run("gdal:warpreproject", param)
@@ -127,7 +128,7 @@ def add_coniferous_proportion(working_root,
                  'INPUT_E': None, 'BAND_E': -1,
                  'INPUT_F': None, 'BAND_F': -1,
                  'FORMULA': condition_string, 'NO_DATA': None, 'RTYPE': 0,
-                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                 'OPTIONS': gdal_create_options, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_10m_mask"]}
         processing.run("gdal:rastercalculator", param)
 
@@ -140,7 +141,7 @@ def add_coniferous_proportion(working_root,
                  'INPUT_E': None, 'BAND_E': -1,
                  'INPUT_F': None, 'BAND_F': -1,
                  'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
-                 'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9', 'EXTRA': '',
+                 'OPTIONS': gdal_create_options, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_nh"]}
         processing.run("gdal:rastercalculator", param)
 

@@ -117,6 +117,8 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
                                                   defaultValue=True)
         self._add_advanced_parameter(parameter)
 
+        self._add_gdal_create_options_parameter()
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -146,7 +148,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         # --- Calculate DG
         log.info('Starting')
         results = calculate_dg(working_root, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
-                               del_tmp=params.del_tmp)
+                               del_tmp=params.del_tmp, gdal_create_options=params.gdal_create_options)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],
                 self.OUTPUT_DG_LAYER_MAIN: results["dg_layer_main"],

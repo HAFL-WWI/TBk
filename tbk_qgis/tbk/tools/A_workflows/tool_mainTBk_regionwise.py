@@ -355,7 +355,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     'INPUT': parameters["vhm_10m"],
                     'MASK': perimeter_buffered,
                     # 'MASK': buffered_feature_layer,
-                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                    'OPTIONS': parameters['gdal_create_options'],
                     'OUTPUT': vhm_10m_clipped
                 })
 
@@ -364,7 +364,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 processing.run("gdal:cliprasterbymasklayer", {
                     'INPUT': parameters["coniferous_raster_for_classification"],
                     'MASK': perimeter_buffered,
-                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                    'OPTIONS': parameters['gdal_create_options'],
                     'OUTPUT': mg_10m_clipped
                 })
 
@@ -565,7 +565,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'DATA_TYPE': 4,  # Use the same data type as inputs
                         'SEPARATE': False,  # False ensures layers are merged, not stacked
                         'PREFERRED': 'FIRST',  # Keeps the first valid data (prevents overwriting)
-                        'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9' # compression
+                        'OPTIONS': parameters['gdal_create_options']
                     })
 
         # *************************************** #

@@ -11,6 +11,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from qgis.core import (QgsProcessingAlgorithm,
                        QgsProcessingParameterDefinition,
+                       QgsProcessingParameterString,
                        QgsProcessingException)
 from tbk_qgis.tbk.general.persistence_utility import read_dict_from_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import dict_diff, ensure_dir
@@ -20,6 +21,17 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     """
     A base class for the core TBk algorithms. It can be inherited, so that each child algorithm can use its functions.
     """
+
+    GDAL_CREATE_OPTIONS = 'gdal_create_options'
+    _GDAL_CREATE_OPTIONS_DEFAULT = 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'
+
+    def _add_gdal_create_options_parameter(self):
+        parameter = QgsProcessingParameterString(
+            self.GDAL_CREATE_OPTIONS,
+            'GDAL raster creation options (pipe-separated key=value pairs)',
+            defaultValue=self._GDAL_CREATE_OPTIONS_DEFAULT
+        )
+        self._add_advanced_parameter(parameter)
 
     def prepare(self, parameters, context, feedback):
         """

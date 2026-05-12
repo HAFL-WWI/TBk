@@ -75,6 +75,8 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(parameter)
 
+        self._add_gdal_create_options_parameter()
+
     # --- Process Algorithm
     def processAlgorithm(self, parameters, context, model_feedback):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
@@ -82,6 +84,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
         feedback = QgsProcessingMultiStepFeedback(4, model_feedback)
         results = {}
         outputs = {}
+        gdal_create_options = self.parameterAsString(parameters, self.GDAL_CREATE_OPTIONS, context)
 
         feedback.pushInfo("\n#------- Calculate OS change -------#")
         # Raster calculator expression represents a binary table with for cases
@@ -106,7 +109,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
             'INPUT_E': None,
             'INPUT_F': None,
             'NO_DATA': None,
-            'OPTIONS': 'COMPRESS=DEFLATE --co PREDICTOR=2 --co ZLEVEL=9',
+            'OPTIONS': gdal_create_options,
             'PROJWIN': None,
             'RTYPE': 0,  # Byte
             'OUTPUT': parameters['change_DG']
@@ -201,7 +204,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
             'INPUT_E': None,
             'INPUT_F': None,
             'NO_DATA': None,
-            'OPTIONS': 'COMPRESS=DEFLATE --co PREDICTOR=2 --co ZLEVEL=9',
+            'OPTIONS': gdal_create_options,
             'PROJWIN': None,
             'RTYPE': 0,  # Byte
             'OUTPUT': parameters['change_DG_hdom']

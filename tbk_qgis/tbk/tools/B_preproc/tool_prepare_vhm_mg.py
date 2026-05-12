@@ -293,7 +293,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
         )
         self.addAdvancedParameter(parameter)
 
-
+        self._add_gdal_create_options_parameter()
 
     def processAlgorithm(self, parameters, context, feedback):
         """
@@ -322,6 +322,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
         max_lh = self.parameterAsInt(parameters, self.MAX_LH, context)
         min_nh = self.parameterAsInt(parameters, self.MIN_NH, context)
         max_nh = self.parameterAsInt(parameters, self.MAX_NH, context)
+        gdal_create_options = self.parameterAsString(parameters, self.GDAL_CREATE_OPTIONS, context)
 
         # # input
         vhm_input = str(self.parameterAsRasterLayer(parameters, self.VHM_INPUT, context).source())
@@ -509,7 +510,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'TARGET_EXTENT': None,
                     'TARGET_EXTENT_CRS': None,
                     'MULTITHREADING': True,
-                    'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES',
+                    'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_vhm_byte
                 }
                 processing.run("gdal:warpreproject", param)
@@ -532,7 +533,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                 'MULTITHREADING': False,
                 'OPTIONS': '',
                 'DATA_TYPE': 0,
-                'EXTRA': '-multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES  -wo \"CUTLINE_ALL_TOUCHED=TRUE\"',
+                'EXTRA': f'-multi -wm 5000 {gdal_co_to_extra(gdal_create_options)} -co TILED=YES -co BIGTIFF=YES  -wo "CUTLINE_ALL_TOUCHED=TRUE"',
                 'OUTPUT': tmp_vhm_cropped
             }
             processing.run("gdal:cliprasterbymasklayer", param)
@@ -546,7 +547,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
             PreProcessingHelper.reclassify_min_max(vhm_input, vhm_detail, min_value=vMin, max_value=vMax)
         else:
             feedback.pushInfo("copy as vhm detail...")
-            copy_raster_tiff(vhm_input, vhm_detail)
+            copy_raster_tiff(vhm_input, vhm_detail, gdal_create_options)
 
         feedback.pushInfo("aggregate vhm to 150cm...")
         if not os.path.exists(os.path.dirname(vhm_150cm)):
@@ -563,7 +564,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
             'TARGET_EXTENT': extent_150cm,
             'TARGET_EXTENT_CRS': None,
             'MULTITHREADING': False,
-            'EXTRA': '-co COMPRESS=LZW ',
+            'EXTRA': gdal_co_to_extra(gdal_create_options),
             'OUTPUT': vhm_150cm
         }
         processing.run("gdal:warpreproject", param)
@@ -583,7 +584,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
             'TARGET_EXTENT': extent_10m,
             'TARGET_EXTENT_CRS': None,
             'MULTITHREADING': False,
-            'EXTRA': '-co COMPRESS=LZW ',
+            'EXTRA': gdal_co_to_extra(gdal_create_options),
             'OUTPUT': vhm_10m
         }
         processing.run("gdal:warpreproject", param)
@@ -605,7 +606,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'TARGET_EXTENT': get_raster_extent(vhm_10m),
                     'TARGET_EXTENT_CRS': None,
                     'MULTITHREADING': False,
-                    'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES',
+                    'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_mg_aligned
                 }
                 processing.run("gdal:warpreproject", param)
@@ -624,14 +625,14 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'NO_DATA': None,
                     'PROJWIN': None,
                     'RTYPE': 0,
-                    'OPTIONS': 'COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                    'OPTIONS': gdal_create_options,
                     'EXTRA': '',
                     'OUTPUT': mg_10m
                 }
                 processing.run("gdal:rastercalculator", param)
             else:
                 feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
-                copy_raster_tiff(tmp_mg_aligned, mg_10m)
+                copy_raster_tiff(tmp_mg_aligned, mg_10m, gdal_create_options)
 
             if mg_reclassify_values:
                 feedback.pushInfo("reclassify values to coniferous proportion (0-100)...")

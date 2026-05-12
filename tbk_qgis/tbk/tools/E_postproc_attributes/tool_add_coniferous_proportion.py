@@ -108,6 +108,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
                                                   defaultValue=True)
         self._add_advanced_parameter(parameter)
 
+        self._add_gdal_create_options_parameter()
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -139,7 +141,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
                                                  params.coniferous_raster,
                                                  params.calc_mixture_for_main_layer,
                                                  params.result_dir,
-                                                 del_tmp=params.del_tmp)
+                                                 del_tmp=params.del_tmp,
+                                                 gdal_create_options=params.gdal_create_options)
 
         return {self.OUTPUT_STANDS_WITH_CONIFEROUS: stands_dg_nh}
 
