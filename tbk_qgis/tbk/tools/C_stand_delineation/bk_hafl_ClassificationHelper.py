@@ -156,20 +156,69 @@ class ClassificationHelper:
     # Add hmax effective and 80th percentile (zonal stats)
     @staticmethod
     def add_vhm_stats(vector_file_path, vector_stat_file_path, vhm):
-        # get max VHM value and 80 percentile per polygon
-        param = {'map': vector_file_path, 'raster': vhm, 'column_prefix': 'rs', 'method': [2, 12], 'percentile': 80,
-                 'output': vector_stat_file_path, 'GRASS_REGION_PARAMETER': None,
-                 'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1,
-                 'GRASS_MIN_AREA_PARAMETER': 0.0001, 'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '',
-                 'GRASS_VECTOR_LCO': '', 'GRASS_VECTOR_EXPORT_NOCAT': False}
-        algoOutput = processing.run("grass7:v.rast.stats", param)
+        # Compute max and 80th percentile per polygon directly via GDAL/numpy (no GRASS dependency)
+        raster_ds = gdal.Open(vhm)
+        band = raster_ds.GetRasterBand(1)
+        gt = raster_ds.GetGeoTransform()
+        nodata = band.GetNoDataValue()
+        inv_gt = gdal.InvGeoTransform(gt)
 
-        statLayer = QgsVectorLayer(vector_stat_file_path, 'stats', 'ogr')
+        raster_data = band.ReadAsArray().astype(float)
+        if nodata is not None:
+            raster_data[raster_data == nodata] = numpy.nan
+
+        vector_ds = ogr.Open(vector_file_path)
+        src_layer = vector_ds.GetLayer()
+
         stats = {}
-        counter = 0
-        for feature in statLayer.getFeatures():
-            stats[feature["OBJECTID"]] = {"max": feature["rs_maximum"], "percentile_80": feature["rs_percentile_80"]}
-            counter += 1
+        mem_vec_drv = ogr.GetDriverByName('MEM')
+        mem_rast_drv = gdal.GetDriverByName('MEM')
+        for feature in src_layer:
+            fid = feature.GetField("OBJECTID")
+            geom = feature.GetGeometryRef()
+            if geom is None:
+                stats[fid] = {'max': None, 'percentile_80': None}
+                continue
+
+            env = geom.GetEnvelope()  # (minX, maxX, minY, maxY)
+            px0, py0 = gdal.ApplyGeoTransform(inv_gt, env[0], env[3])
+            px1, py1 = gdal.ApplyGeoTransform(inv_gt, env[1], env[2])
+            px_min = max(0, int(min(px0, px1)))
+            py_min = max(0, int(min(py0, py1)))
+            px_max = min(raster_ds.RasterXSize, int(max(px0, px1)) + 1)
+            py_max = min(raster_ds.RasterYSize, int(max(py0, py1)) + 1)
+            w, h = px_max - px_min, py_max - py_min
+
+            if w <= 0 or h <= 0:
+                stats[fid] = {'max': None, 'percentile_80': None}
+                continue
+
+            # Build in-memory mask raster aligned to the raster grid
+            mask_x0 = gt[0] + px_min * gt[1] + py_min * gt[2]
+            mask_y0 = gt[3] + px_min * gt[4] + py_min * gt[5]
+            mask_ds = mem_rast_drv.Create('', w, h, 1, gdal.GDT_Byte)
+            mask_ds.SetGeoTransform((mask_x0, gt[1], gt[2], mask_y0, gt[4], gt[5]))
+            mask_ds.SetProjection(raster_ds.GetProjection())
+            mask_ds.GetRasterBand(1).Fill(0)
+
+            mem_vec = mem_vec_drv.CreateDataSource('')
+            mem_lyr = mem_vec.CreateLayer('', srs=src_layer.GetSpatialRef(), geom_type=ogr.wkbPolygon)
+            mem_feat = ogr.Feature(mem_lyr.GetLayerDefn())
+            mem_feat.SetGeometry(geom)
+            mem_lyr.CreateFeature(mem_feat)
+            gdal.RasterizeLayer(mask_ds, [1], mem_lyr, burn_values=[1])
+
+            mask = mask_ds.GetRasterBand(1).ReadAsArray()
+            valid = raster_data[py_min:py_max, px_min:px_max][mask == 1]
+            valid = valid[~numpy.isnan(valid)]
+
+            if valid.size > 0:
+                stats[fid] = {'max': float(numpy.max(valid)),
+                              'percentile_80': float(numpy.percentile(valid, 80))}
+            else:
+                stats[fid] = {'max': None, 'percentile_80': None}
+
+        vector_ds = None
 
         # open stand polygon file
         dataSource = gdal.OpenEx(vector_file_path, 1)
@@ -185,11 +234,11 @@ class ClassificationHelper:
             fid = feature.GetField("OBJECTID")
             hmax_eff = 0
             if stats[fid].get('max') is not None and stats[fid].get('max') != NULL:
-                hmax_eff = stats[fid].get('max')
+                hmax_eff = int(round(stats[fid].get('max')))
 
             hp80 = 0
             if stats[fid].get('percentile_80') is not None and stats[fid].get('percentile_80') != NULL:
-                hp80 = stats[fid].get('percentile_80')
+                hp80 = int(round(stats[fid].get('percentile_80')))
 
             # set and store hmax_eff
             feature.SetField('hmax_eff', hmax_eff)
