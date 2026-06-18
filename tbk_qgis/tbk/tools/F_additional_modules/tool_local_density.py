@@ -366,6 +366,12 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         grid_cell_size = self.parameterAsDouble(parameters, self.GRID_CELL_SIZE, context)
 
         start_time = time.time()
+        def elapsed():
+            return str(timedelta(seconds=round(time.time() - start_time)))
+        def log(msg):
+            feedback.pushInfo(msg)
+            print(msg)
+        feedback.setProgress(0)
 
         # lump together density classes
         den_classes = []
@@ -390,6 +396,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         path_stands = os.path.join(path_tbk_input, tbk_input_file)
 
+        log(f"[{elapsed()}] load stand map and add fid_stand ...")
         stands_all = QgsVectorLayer(path_stands, 'Stands', 'ogr')
         # add fid (--> fid_stand) as unique identifier for later joins to original stands
         param = {'INPUT': stands_all, 'FIELD_NAME': 'fid_stand', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10,
@@ -397,6 +404,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         algoOutput = processing.run("native:fieldcalculator", param)
         stands_all = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] load DG rasters ...")
         # load dg raster "DG" (Hauptschicht = hs = DG_OS + DG_UEB)
         dg = QgsRasterLayer(path_dg)
 
@@ -421,11 +429,12 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             QgsVectorFileWriter.writeAsVectorFormatV3(input, path_, ctc, getVectorSaveOptions('GPKG', 'utf-8'))
 
         # select stands with min. area size
-        feedback.pushInfo("select stands with area > " + str(min_size_stand) + "m^2 ...")
+        log(f"[{elapsed()}] select stands with area > {min_size_stand} m² ...")
         param = {'INPUT': stands_all, 'EXPRESSION': '$area > ' + str(min_size_stand), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         stands = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] reduce and rename stand attributes ...")
         # reduce attributes
         col_names = ['fid_stand', 'ID', 'DG']
         if calc_all_dg:
@@ -445,6 +454,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             algoOutput = processing.run("native:renametablefield", param)
             stands = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] recalculate stand area ...")
         # recalculate stand area
         param = {'INPUT': stands, 'FIELD_NAME': 'area_stand', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -492,14 +502,17 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         # dict for focal layers (for each unique neighbour size one layer)
         focal_dg_layers = {}
+        n_unique_focal_sizes = len(focal_dg_layers_feedback)
         for i in den_classes:
             if not str(i["size"]) in focal_dg_layers:
-                feedback.pushInfo(focal_dg_layers_feedback[str(i["size"])])
+                n_done = len(focal_dg_layers)
+                log(f"[{elapsed()}] focal statistics {n_done + 1}/{n_unique_focal_sizes}: " + focal_dg_layers_feedback[str(i["size"])])
                 param = {'input': dg, 'selection': dg, 'method': 0, 'size': i["size"], 'gauss': None, 'quantile': '',
                          '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                          'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '', 'GRASS_RASTER_FORMAT_META': ''}
                 algoOutput = processing.run("grass7:r.neighbors", param)
                 focal_dg_layers[str(i["size"])] = QgsRasterLayer(algoOutput["output"])
+                feedback.setProgress(round(len(focal_dg_layers) / n_unique_focal_sizes * 15))
         # check
         # for i in focal_dg_layers:
         #     print(i)
@@ -510,8 +523,9 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # list to gather polygons of oll density classes
         den_polys = []
 
-        for cl in den_classes:
-            feedback.pushInfo("polyognize local densities of class " + str(cl["class"]) + " ...")
+        for cl_idx, cl in enumerate(den_classes):
+            log(f"[{elapsed()}] polygonize density class {cl_idx + 1}/{n_cl} ({cl['class']}) ...")
+            feedback.setProgress(15 + round(cl_idx / n_cl * 20))
             # input / parameters for a certain density class
             min = str(cl["min"] - 0.0001)
             max = str(cl["max"] + 0.0001)
@@ -549,11 +563,12 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             den_polys.append(polys_cl)
 
         # merge listed layers with density polygons of different classes
-        feedback.pushInfo("merge local densities of all classes ...")
+        log(f"[{elapsed()}] merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] assign unique fids to merged density polygons ...")
         # overwrite fid of merged density polygons with unique values ...
         param ={'INPUT': den_polys, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
                 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -564,7 +579,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         # remove holes smaller than threshold
         if holes_thresh > 0:
-            feedback.pushInfo("remove holes < " + str(holes_thresh) + "m^2 ...")
+            log(f"[{elapsed()}] remove holes < {holes_thresh} m² ...")
             param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:deleteholes", param)
             den_polys = algoOutput["OUTPUT"]
@@ -572,17 +587,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
-            feedback.pushInfo(
-                'remove thin parts / “buffer smoothing" (buffer dist. = ' +
-                str(round(buffer_smoothing_dist ,2)) +
-                "m) ..."
-            )
+            log(f'[{elapsed()}] buffer smoothing: shrink (minus buffer {round(buffer_smoothing_dist, 2)}m) ...')
             param = {'INPUT': den_polys, 'DISTANCE': -buffer_smoothing_dist, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:buffer", param)
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_minus_buffered")
+            log(f"[{elapsed()}]   re-expand (plus buffer {round(buffer_smoothing_dist + 1.5, 2)}m) ...")
             param = {'INPUT': den_polys, 'DISTANCE': buffer_smoothing_dist + 1.5, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -590,7 +602,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
-        feedback.pushInfo("fix geometries of local densities and selected stands ...")
+        log(f"[{elapsed()}] fix geometries of local densities and selected stands ...")
         param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fixgeometries", param)
         den_polys = algoOutput["OUTPUT"]
@@ -598,6 +610,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         algoOutput = processing.run("native:fixgeometries", param)
         stands = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] drop zero-area density polygons and cleanup temp attributes ...")
         # drop local densities having zero area
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > 0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
@@ -609,7 +622,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         den_polys = algoOutput["OUTPUT"]
 
         if save_unclipped:
-            feedback.pushInfo("save output: TBk_local_densities_unclipped" + output_suffix + ".gpkg ...")
+            log(f"[{elapsed()}] save output: TBk_local_densities_unclipped{output_suffix}.gpkg ...")
             # save local densities output
             path_local_den_unclipped_out = os.path.join(path_output, "TBk_local_densities_unclipped" + output_suffix + ".gpkg")
             ctc = QgsProject.instance().transformContext()
@@ -617,7 +630,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                                                       getVectorSaveOptions('GPKG', 'utf-8'))
 
         # drop local densities geometries having areas below min. area --> reduce workload for later intersection with stands
-        feedback.pushInfo("before intersection: filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
+        log(f"[{elapsed()}] before intersection: filter out local densities with area < {min_size_clump} m² ...")
         # print("N of local densities geometries before filtering with min. area: " + str(len(den_polys)))
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
@@ -625,7 +638,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # print("N of local densities geometries after filtering with min. area: " + str(len(den_polys)))
         # f_save_as_gpkg(den_polys, "den_polys_larger_before_intersection")
 
-        feedback.pushInfo("intersection of local densities and selected stands ...")
+        log(f"[{elapsed()}] intersection of local densities and selected stands ...")
         # check attribute of selected stands
         # for field in stands.fields(): print(field.name(), field.typeName())
         # list all fields of selected stands (fid is not included!)
@@ -634,6 +647,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             stands_fields.append(field.name())
         # print(stands_fields)
 
+        log(f"[{elapsed()}] group stands by {grid_cell_size} km grid ...")
         # group selected stands by x_min & y_min intersecting with grid cells (attribute group is not exported)
         grid_width = grid_cell_size * 1000  # [km] --> [m]
         formular = ("concat( ceil(  x_min( $geometry ) / " + str(grid_width) +
@@ -645,6 +659,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         stands = algoOutput["OUTPUT"]
         # f_save_as_gpkg(stands, "stands_grouped")
 
+        log(f"[{elapsed()}] build spatial indices ...")
         # creat spatial index for selected stands
         processing.run("native:createspatialindex", {'INPUT': stands})
         # creat spatial index for local densities
@@ -658,7 +673,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         l = [None] * len(group_unique)
 
         # iterate over unique stand groups
+        n_grid_groups = len(group_unique)
+        log(f"[{elapsed()}] intersecting local densities with stands ({n_grid_groups} grid groups) ...")
         for i in range(len(l)):
+            if feedback.isCanceled():
+                return {}
+            if i % max(1, n_grid_groups // 10) == 0:
+                log(f"[{elapsed()}]   intersection group {i + 1}/{n_grid_groups} ...")
+                feedback.setProgress(35 + round(i / n_grid_groups * 30))
             # extract from selected stands those belong to the i-th group
             expression = ' "group"  =  ' + "'" + group_unique[i] + "'"
             # print(expression)
@@ -698,38 +720,41 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # remove None values in list
         l = list(filter(lambda item: item is not None, l))
 
+        log(f"[{elapsed()}] merge groupwise intersections ...")
         # merge groupwise intersections of stands & local densities
         param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:mergevectorlayers", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
 
+        log(f"[{elapsed()}] drop merge attributes (layer, path) ...")
         # drop attribute layer & path (added by native:mergevectorlayers)
         param = {'INPUT': den_polys, 'COLUMN': ['layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:deletecolumn", param)
         den_polys = algoOutput["OUTPUT"]
 
         # multi parts --> single parts
-        feedback.pushInfo("turn local density multi parts into single parts ...")
+        log(f"[{elapsed()}] turn local density multi parts into single parts ...")
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:multiparttosingleparts", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_sigle_parts")
 
         # drop local densities polygons having areas below min. area
-        feedback.pushInfo("filter out local densities with area < " + str(min_size_clump) + "m^2 ...")
+        log(f"[{elapsed()}] filter out local densities with area < {min_size_clump} m² ...")
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
         den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_larger_than_min_area")
 
         # calculate area of local densities
-        feedback.pushInfo("calculate area of local densities and its ratio to area of stand...")
+        log(f"[{elapsed()}] calculate area of local densities ...")
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:fieldcalculator", param)
         den_polys = algoOutput["OUTPUT"]
 
+        log(f"[{elapsed()}] calculate area ratio (area_pct) ...")
         # calculate ratio of area of local density to area of stand
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area_pct', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area / area_stand, 2)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -738,8 +763,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= dg = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
-        feedback.pushInfo("zonal statistic ...")
         if mg_use:
+            log(f"[{elapsed()}] resample MG raster to DG resolution ...")
             param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
                      'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': dg.extent(),
                      'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -755,6 +780,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             rasters_4_stats['NH'] = mg
 
         for raster in rasters_4_stats:
+            log(f"[{elapsed()}] zonal statistics: {raster} ...")
             # actual zonal stats: 'STATISTICS': [2] --> mean
             param = {'INPUT': den_polys, 'INPUT_RASTER': rasters_4_stats[raster], 'RASTER_BAND': 1,
                      'COLUMN_PREFIX': raster + '_', 'STATISTICS': [2], 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -766,7 +792,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             den_polys = algoOutput["OUTPUT"]
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
-        feedback.pushInfo("calculate local density metrics for overlapping stands ...")
+        log(f"[{elapsed()}] group stands and density polygons for metrics calculation ...")
         # group stands in original stands map by using the tmp. id of stands (fid_stand) ...
         group_size = 1000 # (max.) number of stands pick from original stands map for an iterative step
         formular = 'ceil("fid_stand" / ' + str(group_size) + ')'
@@ -839,7 +865,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # print(len(l_stands_all))
 
         # groupwise calculation of local density metrics
+        n_stand_groups = len(fid_stand_group_index_unique)
+        log(f"[{elapsed()}] calculating local density metrics ({n_stand_groups} stand groups) ...")
         for gr in range(len(l_stands_all)):
+            if feedback.isCanceled():
+                return {}
+            if gr % max(1, n_stand_groups // 10) == 0:
+                log(f"[{elapsed()}]   metrics group {gr + 1}/{n_stand_groups} ...")
+                feedback.setProgress(65 + round(gr / n_stand_groups * 25))
             # extract geometries belonging to the i-th group ...
             expression = ' "fid_stand_group"  =  ' + str(fid_stand_group_index_unique[gr])
             # print(expression)
@@ -883,13 +916,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
             l_stands_all[gr] = stands_all_g
 
+        log(f"[{elapsed()}] merge stand groups ...")
         # merge the groups of stands with complemented local density metrics to 1 layer
         param = {'LAYERS': l_stands_all, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:mergevectorlayers", param)
         stands_all = algoOutput["OUTPUT"]
         # f_save_as_gpkg(stands_all, "stands_all_merged")
 
-        feedback.pushInfo("tidy up attributes of local densities ...")
+        log(f"[{elapsed()}] tidy up attributes of local densities ...")
         # sequence fields of local densities for output. note: tmp. id for stands (= fid_stand) is not part of output!
         field_names = ['class', 'ID_stand', 'area', 'area_stand', 'area_pct']
         for raster in rasters_4_stats:
@@ -937,14 +971,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         algoOutput = processing.run("native:refactorfields", param)
         den_polys = algoOutput["OUTPUT"]
 
-        feedback.pushInfo("save output: TBk_local_densities" + output_suffix + ".gpkg ...")
+        log(f"[{elapsed()}] save output: TBk_local_densities{output_suffix}.gpkg ...")
         # save local densities output
         path_local_den_out = os.path.join(path_output, "TBk_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()
         QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
-        feedback.pushInfo("save output: TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg ...")
+        log(f"[{elapsed()}] save output: TBk_Bestandeskarte_local_densities{output_suffix}.gpkg ...")
         # tmp. id (= fid_stand) and its derivative (fid_stand_group) are not part of output, same goes to attributes
         # added by native:mergevectorlayers (layer, path)!
         col_to_delete = ['fid_stand', 'fid_stand_group', 'layer', 'path']
@@ -957,10 +991,11 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         QgsVectorFileWriter.writeAsVectorFormatV3(stands_all, path_stands_out, ctc,
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
-        feedback.pushInfo("====================================================================")
-        feedback.pushInfo("FINISHED")
-        feedback.pushInfo("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
-        feedback.pushInfo("====================================================================")
+        feedback.setProgress(100)
+        log("====================================================================")
+        log("FINISHED")
+        log("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
+        log("====================================================================")
 
         return {self.OUTPUT: path_output}
 
