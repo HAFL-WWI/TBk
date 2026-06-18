@@ -595,23 +595,27 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                                                      'TBk_Bestandeskarte.gpkg')  # out finalize
 
 
-        # --- run remaining algorithms
-        algorithms_attributation = [
-            TBkCalculateCrownCoverageAlgorithm(),
-            TBkAddConiferousProportionAlgorithm(),
-            TBkAppendStandAttributesAlgorithm(),
-            TBkPostprocessHdomDiff(),
-            TBkCreateProject()
-            # cleanup is not included as the region maps are already cleaned up
+        # --- run remaining algorithms (skip if output exists and overwrite = False)
+        attribution_algs_and_outputs = [
+            (TBkCalculateCrownCoverageAlgorithm(), parameters['stands_dg']),
+            (TBkAddConiferousProportionAlgorithm(), parameters['stands_dg_nh']),
+            (TBkAppendStandAttributesAlgorithm(), parameters['stands_dg_nh_vegZone']),
+            (TBkPostprocessHdomDiff(), parameters['diff_hdom_vhm']),
+            (TBkCreateProject(), None),
+            # cleanup tool is not included as the region maps are already cleaned up
         ]
 
-        for alg in algorithms_attributation:
+        for alg, skip_output in attribution_algs_and_outputs:
             # progress info
             processing_step = processing_step + 1
             feedback.setCurrentStep(processing_step)
             feedback.setProgressText(alg.name())
             if feedback.isCanceled():
                 return {}
+            if not overwrite and skip_output and os.path.exists(skip_output):
+                print(f"Skipped {alg.name()}, output already exists (overwrite = False)")
+                feedback.pushInfo(f"Skipped {alg.name()}, output already exists (overwrite = False)")
+                continue
             print("->------------------------------------------")
             print(f"-> run {alg.name()} -")
             feedback.pushInfo("->------------------------------------------")
