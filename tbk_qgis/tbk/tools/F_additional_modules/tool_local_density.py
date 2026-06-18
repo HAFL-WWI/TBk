@@ -906,12 +906,20 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                 pr.addAttributes(new_attributes)
                 stands_all_g.updateFields()
                 # 3) populate new attributes with values from (long) summary table
+                # build lookup dict first to avoid O(n_stats × n_stands) nested scan with per-row transactions
+                lookup = {}
                 for f in statstable_long_g.getFeatures():
-                    with edit(stands_all_g):
-                        for stand in stands_all_g.getFeatures():
-                            if stand["fid_stand"] == f["fid_stand"]:
-                                for v in value_types:
-                                    stand["z" + f["class"] + "_" + v] = f[v]
+                    fid = f["fid_stand"]
+                    if fid not in lookup:
+                        lookup[fid] = {}
+                    for v in value_types:
+                        lookup[fid]["z" + f["class"] + "_" + v] = f[v]
+                with edit(stands_all_g):
+                    for stand in stands_all_g.getFeatures():
+                        fid = stand["fid_stand"]
+                        if fid in lookup:
+                            for field, val in lookup[fid].items():
+                                stand[field] = val
                             stands_all_g.updateFeature(stand)
 
             l_stands_all[gr] = stands_all_g
