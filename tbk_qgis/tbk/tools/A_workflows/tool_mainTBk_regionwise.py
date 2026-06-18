@@ -498,7 +498,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         log.info(f"Layer results per region: \n{regions_stand_map}")
 
         # write to working dir for compatibility with the following tools
-        merged = os.path.join(bk_process_dir, 'stands_clipped.gpkg')
+        merged = os.path.join(bk_process_dir, 'stands_regions_merged.gpkg')
 
         # if True or not os.path.exists(merged): # force overwrite
         if overwrite or not os.path.exists(merged):
@@ -577,7 +577,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         parameters["working_dir"] = bk_process_dir
 
         # set outputs of the individual tools (for toolchain)
-        parameters['stands_clipped_no_gaps'] = os.path.join(parameters["working_dir"], "stands_clipped.gpkg")
+        parameters['stands_clipped_no_gaps'] = os.path.join(parameters["working_dir"], "stands_regions_merged.gpkg")
         parameters['stands_dg'] = os.path.join(parameters["working_dir"], "stands_dg.gpkg")  # out calc_dg > in calc_nh
         parameters['dg_layer'] = os.path.join(parameters["result_dir"], "dg_layers", "dg_layer.tif")  # > in calc_nh
         parameters['stands_dg_nh'] = os.path.join(parameters["working_dir"],
