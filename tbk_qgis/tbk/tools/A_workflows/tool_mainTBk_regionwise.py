@@ -601,7 +601,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             (TBkAddConiferousProportionAlgorithm(), parameters['stands_dg_nh']),
             (TBkAppendStandAttributesAlgorithm(), parameters['stands_dg_nh_vegZone']),
             (TBkPostprocessHdomDiff(), parameters['diff_hdom_vhm']),
-            (TBkCreateProject(), None),
+            (TBkCreateProject(), os.path.join(parameters["result_dir"], 'TBk_Project.qgz')),
             # cleanup tool is not included as the region maps are already cleaned up
         ]
 
@@ -629,7 +629,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         print("\n--- Final cleanup and appends ---")
         feedback.pushInfo("\n--------------------------------------------")
         feedback.pushInfo("\n--- Final cleanup and appends ---")
-        finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
+        if overwrite or not os.path.exists(parameters['final_stand_map']):
+            if os.path.exists(parameters['final_stand_map']):
+                os.remove(parameters['final_stand_map'])
+            finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
+        else:
+            print(f"Skipped final cleanup, output already exists (overwrite = False)")
+            feedback.pushInfo(f"Skipped final cleanup, output already exists (overwrite = False)")
         print("--------------------------------------------")
         feedback.pushInfo("--------------------------------------------")
 
