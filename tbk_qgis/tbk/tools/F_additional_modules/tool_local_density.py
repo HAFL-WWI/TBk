@@ -527,8 +527,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             log(f"[{elapsed()}] polygonize density class {cl_idx + 1}/{n_cl} ({cl['class']}) ...")
             feedback.setProgress(15 + round(cl_idx / n_cl * 20))
             # input / parameters for a certain density class
-            min = str(cl["min"] - 0.0001)
-            max = str(cl["max"] + 0.0001)
+            cl_min = str(cl["min"] - 0.0001)
+            cl_max = str(cl["max"] + 0.0001)
             cl_ = str(cl["class"])
             focal_in_use = focal_dg_layers[str(cl["size"])]
 
@@ -537,11 +537,11 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             focal_min = focal_stats.minimumValue
             focal_max = focal_stats.maximumValue
             # if range of density class does not overlap with range of values of focal layer continue with next class
-            if float(max) <= focal_min or float(min) >= focal_max:
+            if float(cl_max) <= focal_min or float(cl_min) >= focal_max:
                 continue
 
             # reclassify raster: 1 = within density range, else or no data
-            param = {'INPUT_RASTER': focal_in_use, 'RASTER_BAND': 1, 'TABLE': [min, max, '1'], 'NO_DATA': 0,
+            param = {'INPUT_RASTER': focal_in_use, 'RASTER_BAND': 1, 'TABLE': [cl_min, cl_max, '1'], 'NO_DATA': 0,
                      'RANGE_BOUNDARIES': 0, 'NODATA_FOR_MISSING': True, 'DATA_TYPE': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:reclassifybytable", param)
             recl = algoOutput["OUTPUT"]
