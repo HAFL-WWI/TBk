@@ -41,6 +41,7 @@ from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm imp
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_clip_and_patch import TBkClipToPerimeterAndEliminateGapsAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import TBkMergeSimilarNeighboursAlgorithm
+from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_graph import TBkMergeSimilarNeighboursGraphAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import TBkCalculateCrownCoverageAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
@@ -93,6 +94,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkSimplifyAndCleanAlgorithm())
         # [grpID: d]    grpName: Postprocessing Geometry
         self.addAlgorithm(TBkMergeSimilarNeighboursAlgorithm())
+        self.addAlgorithm(TBkMergeSimilarNeighboursGraphAlgorithm())
         self.addAlgorithm(TBkClipToPerimeterAndEliminateGapsAlgorithm())
         # [grpID: e]    grpName: Postprocessing Attributes
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
