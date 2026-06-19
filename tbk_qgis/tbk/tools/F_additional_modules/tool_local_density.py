@@ -733,6 +733,11 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # remove None values in list
         l = list(filter(lambda item: item is not None, l))
 
+        if not l:
+            raise QgsProcessingException(
+                "No local density polygons overlap with any selected stand. "
+                "Check that the stand map and DG rasters cover the same area.")
+
         log(f"[{elapsed()}] merge groupwise intersections ...")
         # merge groupwise intersections of stands & local densities
         param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
@@ -1014,8 +1019,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
 
         feedback.setProgress(100)
         log("====================================================================")
-        log("FINISHED")
-        log("TOTAL PROCESSING TIME: %s (h:min:sec)" % str(timedelta(seconds=(time.time() - start_time))))
+        log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
         log("====================================================================")
 
         return {self.OUTPUT: path_output}
