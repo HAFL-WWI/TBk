@@ -585,6 +585,19 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             den_polys = algoOutput["OUTPUT"]
             # f_save_as_gpkg(den_polys, "den_polys_without_holes")
 
+        # fix geometries before buffering to prevent crashes from polygonize artifacts (self-intersections etc.)
+        log(f"[{elapsed()}] fix geometries before buffer smoothing ...")
+        param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:fixgeometries", param)
+        den_polys = algoOutput["OUTPUT"]
+
+        # filter sub-threshold polygons before buffering: the negative buffer eliminates them anyway,
+        # so filtering first avoids running the buffer over potentially millions of tiny raster fragments
+        log(f"[{elapsed()}] pre-buffer: filter out local densities with area < {min_size_clump} m² ...")
+        param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        algoOutput = processing.run("native:extractbyexpression", param)
+        den_polys = algoOutput["OUTPUT"]
+
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
             log(f'[{elapsed()}] buffer smoothing: shrink (minus buffer {round(buffer_smoothing_dist, 2)}m) ...')
@@ -629,8 +642,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             QgsVectorFileWriter.writeAsVectorFormatV3(den_polys, path_local_den_unclipped_out, ctc,
                                                       getVectorSaveOptions('GPKG', 'utf-8'))
 
-        # drop local densities geometries having areas below min. area --> reduce workload for later intersection with stands
-        log(f"[{elapsed()}] before intersection: filter out local densities with area < {min_size_clump} m² ...")
+        # second size filter: catches polygons that shrank below min. area after the negative buffer
+        log(f"[{elapsed()}] post-buffer: filter out local densities with area < {min_size_clump} m² ...")
         # print("N of local densities geometries before filtering with min. area: " + str(len(den_polys)))
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
         algoOutput = processing.run("native:extractbyexpression", param)
