@@ -33,259 +33,193 @@ from datetime import timedelta
 import time
 
 
-def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel):
+def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel, max_iterations=5):
     """
-    TBk post-process. Prepare polygons to dissolve by specific criterias.
-    Used to combine small polygons with similar neighbours.
+    TBk post-process. Merge small stands into their most similar neighbour.
 
-    :param shape_in_path:
-    :param shape_out_path:
-    :param min_area_m2:
-    :param min_hdom_diff_rel:
-    :param del_tmp:
-    :return:
+    Iterates up to max_iterations times. Each pass:
+      - builds a neighbour table,
+      - selects small stands (< min_area_m2) with a similar classified neighbour
+        (hdom relative difference < min_hdom_diff_rel, shared border length > 0),
+      - when multiple neighbours qualify, picks the one with the longest shared border,
+      - dissolves each selected stand into its chosen neighbour.
+    Stops early when no more candidates are found.
+
+    area_m2 is recalculated after each pass so that subsequent passes use the
+    correct sizes of previously merged stands.
     """
 
     print("--------------------------------------------")
     print("START MERGE similar neighbours...")
-    print("min_area_m2: ", min_area_m2, " min_hdom_diff_rel: ", min_hdom_diff_rel)
+    print("min_area_m2:", min_area_m2, " min_hdom_diff_rel:", min_hdom_diff_rel)
 
-    output_file = {
-        "stands_merged": shape_out_path
-    }
+    output_file = {"stands_merged": shape_out_path}
 
-    # load stands to be merged
-    simplified_layer = QgsVectorLayer(shape_in_path, "stands_to_be_merged", "ogr")
-    # QgsProject.instance().addMapLayer(simplified_layer)
+    layer = QgsVectorLayer(shape_in_path, "stands_to_be_merged", "ogr")
 
-    # add fid_input as unique identifier of input features (simplified stands)
-    param = {'INPUT': simplified_layer, 'FIELD_NAME': 'fid_input', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
-             'FIELD_PRECISION': 0,
-             'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algo_output = processing.run("native:fieldcalculator", param)
-    simplified_layer = algo_output["OUTPUT"]
+    any_merges = False
 
-    ########################################
-    # Approximate the arcpy Neighbours tool
-    # Code basing on https://www.qgistutorials.com/en/docs/find_neighbour_polygons.html
+    for iteration in range(max_iterations):
+        # add fid_input as a stable per-pass unique identifier
+        param = {'INPUT': layer, 'FIELD_NAME': 'fid_input', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
-    print("Make internally used neighbours table...")
-    start_time = time.time()
+        # ---- Build neighbour table ----
+        print(f"Pass {iteration + 1}: building neighbour table...")
+        start_time = time.time()
 
-    # Create memory layer
-    neighbour_layer = QgsVectorLayer('None', 'Neighbours', 'memory')
+        feature_dict = {f.id(): f for f in layer.getFeatures()}
+        index = QgsSpatialIndex()
+        for f in feature_dict.values():
+            index.addFeature(f)
 
-    # Create a dictionary of all features
-    feature_dict = {f.id(): f for f in simplified_layer.getFeatures()}
+        neighbours_tmp = []
+        for f in feature_dict.values():
+            geom = f.geometry()
+            src_fid = f["fid_input"]
+            src_hdom = f["hdom"]
+            src_type = f["type"]
+            src_area_m2 = f["area_m2"]
+            for intersecting_id in index.intersects(geom.boundingBox()):
+                intersecting_f = feature_dict[intersecting_id]
+                if f != intersecting_f and not intersecting_f.geometry().disjoint(geom):
+                    nbr_fid = intersecting_f["fid_input"]
+                    nbr_hdom = intersecting_f["hdom"]
+                    nbr_type = intersecting_f["type"]
+                    nbr_area_m2 = intersecting_f["area_m2"]
+                    length = -1
+                    if intersecting_f.geometry().intersects(geom):
+                        isct = intersecting_f.geometry().intersection(geom)
+                        length = isct.length()
+                    neighbours_tmp.append([-1, src_fid, nbr_fid, src_hdom, nbr_hdom,
+                                           src_type, nbr_type, src_area_m2, nbr_area_m2, length, -1])
 
-    # Build a spatial index
-    index = QgsSpatialIndex()
-    for f in feature_dict.values():
-        index.addFeature(f)
-
-    neighbours_tmp = []
-
-    # Loop through all features and find features that touch each feature
-    for f in feature_dict.values():
-        geom = f.geometry()
-
-        oid = -1
-        src_fid = f["fid_input"]
-        src_hdom = f["hdom"]
-        src_type = f["type"]
-        src_area_m2 = f["area_m2"]
-        node_count = -1
-
-        # Find all features that intersect the bounding box of the current feature.
-        # We use spatial index to find the features intersecting the bounding box
-        # of the current feature. This will narrow down the features that we need
-        # to check neighbouring features.
-        intersecting_ids = index.intersects(geom.boundingBox())
-
-        for intersecting_id in intersecting_ids:
-            # Look up the feature from the dictionary
-            intersecting_f = feature_dict[intersecting_id]
-
-            # For our purpose we consider a feature as 'neighbour' if it touches or
-            # intersects a feature. We use the 'disjoint' predicate to satisfy
-            # these conditions. So if a feature is not disjoint, it is a neighbour.
-            if (f != intersecting_f and
-                    not intersecting_f.geometry().disjoint(geom)):
-                nbr_fid = intersecting_f["fid_input"]
-                nbr_hdom = intersecting_f["hdom"]
-                nbr_type = intersecting_f["type"]
-                nbr_area_m2 = intersecting_f["area_m2"]
-                length = -1
-                if (intersecting_f.geometry().touches(geom) or intersecting_f.geometry().intersects(geom)):
-                    isct = intersecting_f.geometry().intersection(geom)
-                    length = isct.length()
-                # Add a feature with attributes (and without geometry) to populate the 3 fields
-
-                # print([objectid,src_FID, nbr_FID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, length, node_count])
-                neighbours_tmp.append(
-                    [oid, src_fid, nbr_fid, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2,
-                     nbr_area_m2, length, node_count])
-
-    # Begin editing memory layer and create 3 fields
-    neighbour_layer.startEditing()
-    provider = neighbour_layer.dataProvider()
-    provider.addAttributes([
-        QgsField("OID", QMetaType.Int),
-        QgsField("src_FID", QMetaType.Int),
-        QgsField("nbr_FID", QMetaType.Int),
-        QgsField("src_hdom", QMetaType.Int),
-        QgsField("nbr_hdom", QMetaType.Int),
-        QgsField("src_type", QMetaType.QString, len=50),
-        QgsField("nbr_type", QMetaType.QString, len=50),
-        QgsField("src_area_m2", QMetaType.Int),
-        QgsField("nbr_area_m2", QMetaType.Int),
-        QgsField("LENGTH", QMetaType.Double, len=10, prec=3),
-        QgsField("NODE_COUNT", QMetaType.Int),
-    ])
-    neighbour_layer.updateFields()
-
-    for n in neighbours_tmp:
-        attr = neighbour_layer.dataProvider()
-        feat = QgsFeature()
-        # print([objectid,src_FID, nbr_FID, src_hdom, nbr_hdom, src_type, nbr_type, src_area_m2, nbr_area_m2, length, node_count])
-        feat.setAttributes(n)
-        attr.addFeatures([feat])
-        # print(feat)
-
+        neighbour_layer = QgsVectorLayer('None', 'Neighbours', 'memory')
+        neighbour_layer.startEditing()
+        provider = neighbour_layer.dataProvider()
+        provider.addAttributes([
+            QgsField("OID", QMetaType.Int),
+            QgsField("src_FID", QMetaType.Int),
+            QgsField("nbr_FID", QMetaType.Int),
+            QgsField("src_hdom", QMetaType.Int),
+            QgsField("nbr_hdom", QMetaType.Int),
+            QgsField("src_type", QMetaType.QString, len=50),
+            QgsField("nbr_type", QMetaType.QString, len=50),
+            QgsField("src_area_m2", QMetaType.Int),
+            QgsField("nbr_area_m2", QMetaType.Int),
+            QgsField("LENGTH", QMetaType.Double, len=10, prec=3),
+            QgsField("NODE_COUNT", QMetaType.Int),
+        ])
+        neighbour_layer.updateFields()
+        feats = []
+        for n in neighbours_tmp:
+            feat = QgsFeature()
+            feat.setAttributes(n)
+            feats.append(feat)
+        provider.addFeatures(feats)
         neighbour_layer.commitChanges()
 
-    # list all column names of table neighbourLayer
-    cols = [f.name() for f in neighbour_layer.fields()]
-    # print(cols)
-    # a generator to yield one row at a time
-    datagen = ([f[col] for col in cols] for f in neighbour_layer.getFeatures())
-    # make pandas data.frame
-    df = pd.DataFrame.from_records(data=datagen, columns=cols)
-    # print(df.head())
-    # save table neighbourLayer as .csv
-    # df.to_csv(os.path.join(working_root, "neighbour.csv"), index=False)
+        cols = [f.name() for f in neighbour_layer.fields()]
+        datagen = ([f[col] for col in cols] for f in neighbour_layer.getFeatures())
+        df = pd.DataFrame.from_records(data=datagen, columns=cols)
+        print(f"  neighbour table done: {str(timedelta(seconds=(time.time() - start_time)))}")
 
-    # print('Processing neighbours complete.')
-    end_time = time.time()
-    print("Neighbours table execution time: " + str(timedelta(seconds=(end_time - start_time))))
+        # ---- Select merge candidates ----
+        df["src_hdom"] = pd.to_numeric(df["src_hdom"], errors="coerce")
+        df["nbr_hdom"] = pd.to_numeric(df["nbr_hdom"], errors="coerce")
+        df["hdom_diff_rel"] = (df.src_hdom - df.nbr_hdom).abs() / df.src_hdom
 
-    print("Do actual merger of similar neighbours ...")
-    start_time = time.time()
+        i_dissolve = ((df.src_area_m2 < min_area_m2) &
+                      (df.hdom_diff_rel < min_hdom_diff_rel) &
+                      (df.LENGTH > 0) &
+                      (df.nbr_type == "classified"))
+        df_sub = df[i_dissolve]
 
-    # make sure we have numeric values
-    df["src_hdom"] = pd.to_numeric(df["src_hdom"], errors="coerce")
-    df["nbr_hdom"] = pd.to_numeric(df["nbr_hdom"], errors="coerce")
+        # When multiple neighbours qualify, pick the one with the longest shared border
+        if not df_sub.empty:
+            df_sub = df_sub.loc[df_sub.groupby("src_FID")["LENGTH"].idxmax()]
 
-    # select small polygons with possible neighbour to dissolve
-    df["hdom_diff_rel"] = (df.src_hdom - df.nbr_hdom).abs() / df.src_hdom
-    i_dissolve = ((df.src_area_m2 < min_area_m2) &
-                  (df.hdom_diff_rel < min_hdom_diff_rel) &
-                  (df.LENGTH > 0) &
-                  (df.nbr_type == "classified"))
-    df_sub = df[i_dissolve]
+        # Don't merge into a stand that is itself being merged (prevents cascading geometry overlap)
+        df_sub = df_sub[~df_sub["nbr_FID"].isin(df_sub["src_FID"])]
 
-    # remove polygons with multiple dissolve options. Too complicate. Could for example lead to similar and adjcent large polygons -> confusing.
-    df_sub_counts = df_sub.groupby(["src_FID"])["OID"].count().reset_index()
-    df_sub = df_sub[df_sub["src_FID"].isin(df_sub_counts[df_sub_counts["OID"] == 1]["src_FID"])]
+        if df_sub.empty:
+            param = {'INPUT': layer, 'COLUMN': ['fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            layer = processing.run("native:deletecolumn", param)["OUTPUT"]
+            break
 
-    # keep only polygons having polygons as merge partners, which themselves are NOT among the polygons to be merged -->
-    # avoid generating dissolved geometries, which overlap with each other
-    df_sub = df_sub[df_sub["nbr_FID"].isin(df_sub["src_FID"]) == False]
+        any_merges = True
+        nbr_fid_unique = list(df_sub["nbr_FID"].unique())
+        src_fid_unique = list(df_sub["src_FID"].unique())
+        print(f"  Pass {iteration + 1}: merging {len(src_fid_unique)} stands into "
+              f"{len(nbr_fid_unique)} targets...")
+        start_time = time.time()
 
-    if len(df_sub.index) > 0:  # merge stands only if necessary
-        if (len(df_sub) == len(df_sub.src_FID.unique())):
-            print("Merging objects not unique!")
-
-        # unique nbr_FID from subset of neighbours table
-        nbr_fid_unique = list(set(list(df_sub["nbr_FID"])))
-
-        # list with empty placeholder for each merged feature + 1 placeholder for all the other features
+        # ---- Dissolve each target group ----
         l = [None] * (len(nbr_fid_unique) + 1)
-
-        # list with empty placeholder for each merged feature to collect fids of original geometries
         l_fid_merged = [None] * len(nbr_fid_unique)
 
-        # unique scr_FID from subset of neighbours table
-        src_fid_unique = list(set(df_sub["src_FID"]))
-        print(len(src_fid_unique), "polygons to dissolve!")
-
         for i in range(len(nbr_fid_unique)):
-            # select adjacent stands, which will be dissolved into a single surface
             nbr_fid = nbr_fid_unique[i]
             src_fid = list(df_sub[df_sub['nbr_FID'] == nbr_fid]["src_FID"])
             fid_inputs = [nbr_fid] + src_fid
             exp = '"fid_input" IN (' + ', '.join(map(str, fid_inputs)) + ')'
-            param = {'INPUT': simplified_layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algo_output = processing.run("native:extractbyexpression", param)
-            stands_i = algo_output["OUTPUT"]
 
-            # save original fids of stands, which will be merged below, in list
+            param = {'INPUT': layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            stands_i = processing.run("native:extractbyexpression", param)["OUTPUT"]
             l_fid_merged[i] = stands_i.aggregate(QgsAggregateCalculator.ArrayAggregate, "fid")[0]
 
-            # sort selected stands by area (largest 1st) --> 1st feature's attributes are kept when dissolved
+            # sort by area descending so the largest stand's attributes are kept by dissolve
             param = {'INPUT': stands_i, 'EXPRESSION': '$area', 'ASCENDING': False, 'NULLS_FIRST': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algo_output = processing.run("native:orderbyexpression", param)
-            stands_i = algo_output["OUTPUT"]
+            stands_i = processing.run("native:orderbyexpression", param)["OUTPUT"]
 
-            # dissolved into a single surface
             param = {'INPUT': stands_i, 'FIELD': [], 'SEPARATE_DISJOINT': False, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algo_output = processing.run("native:dissolve", param)
-            dissolve_i = algo_output["OUTPUT"]
+            dissolve_i = processing.run("native:dissolve", param)["OUTPUT"]
 
-            # add column merged = 1 (meaning dissolved geometry)
             param = {'INPUT': dissolve_i, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
-                     'FIELD_PRECISION': 0,
-                     'FORMULA': '1', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algo_output = processing.run("native:fieldcalculator", param)
-            l[i] = algo_output["OUTPUT"]  # replace empty placeholder in list
+                     'FIELD_PRECISION': 0, 'FORMULA': '1', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+            l[i] = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
-        # turn nested list with fids of merged simplified into a flat list
         fid_merged = sum(l_fid_merged, [])
-
-        # gather all not dissolved features in a single layer and ...
         exp = '"fid" NOT IN (' + ', '.join(map(str, fid_merged)) + ')'
-        param = {'INPUT': simplified_layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algo_output = processing.run("native:extractbyexpression", param)
+        param = {'INPUT': layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        not_dissolved = processing.run("native:extractbyexpression", param)["OUTPUT"]
 
-        # ... add column merged = 0 (meaning not dissolved geometry) to this layer ...
-        param = {'INPUT': algo_output["OUTPUT"], 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+        param = {'INPUT': not_dissolved, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algo_output = processing.run("native:fieldcalculator", param)
-        l[len(l) - 1] = algo_output["OUTPUT"]  # ... and finally replace last empty placeholder with this layer
+        l[-1] = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
-        # merge listed layers with dissolved and not dissolved features
         param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algo_output = processing.run("native:mergevectorlayers", param)
-        stands_merged = algo_output["OUTPUT"]
+        stands_merged = processing.run("native:mergevectorlayers", param)["OUTPUT"]
 
-        # overwrite fid of with unique values in order make certain that all features are exportable
-        param = {'INPUT': stands_merged, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
-                 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algo_output = processing.run("native:fieldcalculator", param)
-        stands_merged = algo_output["OUTPUT"]
+        # overwrite fid with unique sequential values
+        param = {'INPUT': stands_merged, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        stands_merged = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
-        # drop attribute layer, path (added by native:mergevectorlayers) & and 'fid_input' (unique identifier of input
-        # features / simplified stands) finally save layer
-        param = {'INPUT': stands_merged,
-                 'COLUMN': ['layer', 'path', 'fid_input'],
-                 'OUTPUT': output_file["stands_merged"]}
-        processing.run("native:deletecolumn", param)
+        # drop columns added by mergevectorlayers and the per-pass fid_input
+        param = {'INPUT': stands_merged, 'COLUMN': ['layer', 'path', 'fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        stands_merged = processing.run("native:deletecolumn", param)["OUTPUT"]
 
-    else:  # no stands to merge
+        # recalculate area_m2 so subsequent passes use the correct size of merged stands
+        param = {'INPUT': stands_merged, 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
+
+        print(f"  pass done: {str(timedelta(seconds=(time.time() - start_time)))}")
+
+    # ---- Save final result ----
+    if any_merges:
+        # Update area_m2 one final time and write to output path
+        param = {'INPUT': layer, 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+                 'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': output_file["stands_merged"]}
+        processing.run("native:fieldcalculator", param)
+    else:
         print("No stands to merge")
-
-        # drop 'fid_input' (unique identifier of input features / simplified stands) finally save layer
-        param = {'INPUT': simplified_layer, 'COLUMN': ['fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algo_output = processing.run("native:deletecolumn", param)
-
-        # add column merged = 0 (meaning not dissolved geometry) to all simplified stands ...
-        param = {'INPUT': algo_output["OUTPUT"], 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+        param = {'INPUT': layer, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': output_file["stands_merged"]}
         processing.run("native:fieldcalculator", param)
-        # ... and save them as merged stands
 
-    end_time = time.time()
-    print("Actual merger of similar neighbours execution time: " + str(timedelta(seconds=(end_time - start_time))))
-
+    print("DONE: merge similar neighbours")
     return output_file
