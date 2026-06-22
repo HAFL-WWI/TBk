@@ -28,6 +28,8 @@ from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDi
 from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 
 import gc
+import time
+from datetime import timedelta
 ogr.UseExceptions()  # To avoid warnings, though this isn't necessary in future versions.
 
 
@@ -162,6 +164,17 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         self._configure_logging(bk_process_dir, parameters['logfile_name'])
         log = logging.getLogger(self.name())
 
+        # elapsed time helper — timestamps prefixed [W …] distinguish main-workflow
+        # log lines from sub-algorithm output (which resets to [0:00:00] at each call)
+        start_time = time.time()
+        def elapsed():
+            return str(timedelta(seconds=round(time.time() - start_time)))
+        def wf_log(msg):
+            full = f"[W {elapsed()}] {msg}"
+            log.info(full)
+            print(full)
+            feedback.pushInfo(full)
+
         # *************************************** #
         # --- *  Main Region-wise Processing * ---#
         # *************************************** #
@@ -237,6 +250,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         for i, feature in enumerate(features_sorted, start=1):  # perimeter_layer.getFeatures():
             # --- Create folders for current feature
             region_name = feature[fieldname_region]  # Adjust attribute name if different
+            region_start = time.time()
             region_root_dir = os.path.join(regions_dir, str(region_name))
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
             region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
@@ -470,6 +484,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             log.info(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
             log.info(f"-----------------------------------------------------")
             log.info(f"\n")
+            region_elapsed = str(timedelta(seconds=round(time.time() - region_start)))
+            wf_log(f"Region {region_name} ({i}/{len(features_sorted)}) done — region: {region_elapsed}, total: {elapsed()}")
 
             # --- cleanup after each loop iteration
 
@@ -616,14 +632,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 print(f"Skipped {alg.name()}, output already exists (overwrite = False)")
                 feedback.pushInfo(f"Skipped {alg.name()}, output already exists (overwrite = False)")
                 continue
-            print("->------------------------------------------")
-            print(f"-> run {alg.name()} -")
-            feedback.pushInfo("->------------------------------------------")
-            feedback.pushInfo(f"-> run {alg.name()} -")
+            wf_log(f"-> {alg.name()}")
+            alg_start = time.time()
             result = processing.run(alg, parameters, context=context, feedback=feedback)
-            print(f"{result}")
-            print("----------------------------------------->|-\n")
-            feedback.pushInfo("----------------------------------------->|-\n")
+            alg_elapsed = str(timedelta(seconds=round(time.time() - alg_start)))
+            wf_log(f"<- {alg.name()} done ({alg_elapsed})")
 
         print("\n--------------------------------------------")
         print("\n--- Final cleanup and appends ---")
@@ -639,10 +652,6 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         print("--------------------------------------------")
         feedback.pushInfo("--------------------------------------------")
 
-        print("\n--------------------------------------------")
-        print("\n--- Run Local Densities ---")
-        feedback.pushInfo("\n--------------------------------------------")
-        feedback.pushInfo("\n--- Run Local Densities ---")
         # progress info
         processing_step = processing_step + 1
         feedback.setCurrentStep(processing_step)
@@ -650,6 +659,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if feedback.isCanceled():
             return {}
 
+        wf_log("-> local density")
+        ld_start = time.time()
         processing.run("TBk:TBk postprocess local density", {
             'path_tbk_input': result_dir,
             'mg_use': True,
@@ -660,15 +671,12 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
             'buffer_smoothing': True,
             'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
-        print("--------------------------------------------")
-        feedback.pushInfo("--------------------------------------------")
+        ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
+        wf_log(f"<- local density done ({ld_elapsed})")
 
-        print(f"\n---------------------------------")
-        print(f"--- COMPLETED REGION-WISE TBk ---")
-        print(f"---------------------------------\n")
-        feedback.pushInfo("====================================================================")
-        feedback.pushInfo("--- COMPLETED REGION-WISE TBk ---")
-        feedback.pushInfo("====================================================================")
+        wf_log("====================================================================")
+        wf_log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
+        wf_log("====================================================================")
         return {}
 
     def createInstance(self):
