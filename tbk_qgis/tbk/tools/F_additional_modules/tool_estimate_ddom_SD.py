@@ -148,10 +148,10 @@ class TBkDdomSDEstimate(TBkProcessingAlgorithmToolF):
                 'if("hdom" = 0, 0, '
                 'if("NH">50, '
                 'if("BonClass" = 1, 3.6303*ln("hdom")^5 - 30.318*ln("hdom")^4 + 90.489*ln("hdom")^3 - 110.26*ln("hdom")^2 + 49.747*ln("hdom") + 1.3889, '
-                'if("BonClass" = 2, -0.00004*"hdom"^4 + 0.0047*"hdom"^3 -0.1489*"hdom"^2 + 2.934*"hdom" - 2.295, '
+                'if("BonClass" = 2 OR "BonClass" IS NULL, -0.00004*"hdom"^4 + 0.0047*"hdom"^3 -0.1489*"hdom"^2 + 2.934*"hdom" - 2.295, '
                 '1.4611*ln("hdom")^4 - 8.7695*ln("hdom")^3 + 19.05*ln("hdom")^2 - 8.5983*ln("hdom"))), '
                 'if("BonClass" = 1, 5.6023*ln("hdom")^3 - 21.583*ln("hdom")^2 + 24.945*ln("hdom") + 0.8036, '
-                'if("BonClass" = 2, 4.4724*ln("hdom")^3 - 17.999*ln("hdom")^2 + 23.043*ln("hdom") + 0.5375, '
+                'if("BonClass" = 2 OR "BonClass" IS NULL, 4.4724*ln("hdom")^3 - 17.999*ln("hdom")^2 + 23.043*ln("hdom") + 0.5375, '
                 '3.7027*ln("hdom")^3 - 15.203*ln("hdom")^2 + 21.037*ln("hdom") + 0.3938))))'
             ),
             'INPUT': outputs['JoinAttributesByFieldValue']['OUTPUT'],
