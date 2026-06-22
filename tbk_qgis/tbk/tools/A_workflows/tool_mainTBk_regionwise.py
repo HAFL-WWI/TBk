@@ -659,9 +659,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if feedback.isCanceled():
             return {}
 
-        wf_log("-> local density")
-        ld_start = time.time()
-        processing.run("TBk:TBk postprocess local density", {
+        local_density_output = os.path.join(result_dir, "local_densities", "TBk_local_densities.gpkg")
+        if overwrite or not os.path.exists(local_density_output):
+            wf_log("-> local density")
+            ld_start = time.time()
+            processing.run("TBk:TBk postprocess local density", {
             'path_tbk_input': result_dir,
             'mg_use': True,
             'mg_input': parameters["coniferous_raster"],
@@ -671,8 +673,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
             'buffer_smoothing': True,
             'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
-        ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
-        wf_log(f"<- local density done ({ld_elapsed})")
+            ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
+            wf_log(f"<- local density done ({ld_elapsed})")
+        else:
+            wf_log(f"Skipped local density, output already exists (overwrite = False)")
 
         wf_log("====================================================================")
         wf_log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
