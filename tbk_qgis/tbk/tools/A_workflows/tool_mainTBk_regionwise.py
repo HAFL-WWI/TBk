@@ -1,4 +1,4 @@
-# todo: set header
+﻿# todo: set header
 
 import processing
 import logging
@@ -10,7 +10,7 @@ from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, 
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
     QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
 
-from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff)
+from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff, finalize_TBk)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
 from tbk_qgis.tbk.general.qgis_processing_utility import QgsUtility
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
@@ -707,59 +707,6 @@ def _write_single_feature_gpkg(source_layer, geometry, attributes, layer_name, o
     written_layer = QgsVectorLayer(output_path, layer_name, "ogr")
     if not written_layer.isValid() or written_layer.featureCount() == 0:
         raise QgsProcessingException(f"Wrote {output_path} but it contains no features")
-
-
-def finalize_TBk(input_layer, output_layer):
-    # remove unnecessary fields and change order
-    processingResult = processing.run("native:refactorfields", {
-        'INPUT': input_layer,
-        'FIELDS_MAPPING': [
-            {'alias': '', 'comment': '', 'expression': '"fid"', 'length': 0, 'name': 'fid', 'precision': 0,
-             'sub_type': 0, 'type': 4, 'type_name': 'int8'},
-            {'alias': '', 'comment': '', 'expression': '"ID"', 'length': 0, 'name': 'ID', 'precision': 0, 'sub_type': 0,
-             'type': 10, 'type_name': 'text'},
-            {'alias': '', 'comment': '', 'expression': '"hmax"', 'length': 0, 'name': 'hmax', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"hdom"', 'length': 0, 'name': 'hdom', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG"', 'length': 0, 'name': 'DG', 'precision': 0, 'sub_type': 0,
-             'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"NH"', 'length': 0, 'name': 'NH', 'precision': 0, 'sub_type': 0,
-             'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"area_m2"', 'length': 0, 'name': 'area_m2', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"type"', 'length': 1000, 'name': 'type', 'precision': 0,
-             'sub_type': 0, 'type': 10, 'type_name': 'text'},
-            {'alias': '', 'comment': '', 'expression': '"DG_ks"', 'length': 0, 'name': 'DG_ks', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG_us"', 'length': 0, 'name': 'DG_us', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG_ms"', 'length': 0, 'name': 'DG_ms', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG_os"', 'length': 0, 'name': 'DG_os', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"DG_ueb"', 'length': 0, 'name': 'DG_ueb', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"NH_OS"', 'length': 0, 'name': 'NH_OS', 'precision': 0,
-             'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"VegZone_Code"', 'length': 0, 'name': 'VegZone_Code',
-             'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
-            {'alias': '', 'comment': '', 'expression': '"ID_meta"', 'length': 0, 'name': 'ID_meta', 'precision': 0,
-             'sub_type': 0, 'type': 10, 'type_name': 'text'},
-            {'alias': '', 'comment': '', 'expression': '"ID_pre_merge"', 'length': 0, 'name': 'ID_pre_merge',
-             'precision': 0, 'sub_type': 0, 'type': 4, 'type_name': 'int8'}], 'OUTPUT': 'TEMPORARY_OUTPUT'})
-
-    processingResult = processing.run("native:fieldcalculator", {
-        'INPUT': processingResult['OUTPUT'],
-        'FIELD_NAME': 'PH_STRUCTURE', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
-        'FORMULA': 'if("VegZone_Code" IN (-1, 0, 1, 2, 4, 5), \r\n    if("NH">50,\r\n        if("hdom">=26, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n                5\r\n            ), \r\n            if("hdom">18,\r\n                -1, \r\n                if("hdom">10,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        ),\r\n        if("hdom">=23, \r\n            if("DG_os" + "DG_ueb" >= 45, \r\n                if("DG_ms" >= 35,\r\n                    4,\r\n                    if("DG_ms">=25,\r\n                        if("DG_us" >=20,\r\n                            3,\r\n                            2\r\n                        ),\r\n                        if("DG_ms">=15,\r\n                            if("DG_us">=10,\r\n                                2,\r\n                                1\r\n                            ),\r\n                            if("DG_us">=10,\r\n                                1,\r\n                                0\r\n                            )\r\n                        )\r\n                    )\r\n                ),\r\n            5), \r\n            if("hdom">16,\r\n                -1, \r\n                if("hdom">9,\r\n                    -2,\r\n                    -3\r\n                )\r\n            )\r\n        )\r\n    ),\r\n    if ("VegZone_Code" IN (6, 7),\r\n        if("NH">50,\r\n            if("hdom">=23, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                    4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                    5\r\n                ), \r\n                if("hdom">16,\r\n                    -1, \r\n                    if("hdom">9,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            ),\r\n            if("hdom">=19, \r\n                if("DG_os" + "DG_ueb" >= 45, \r\n                    if("DG_ms" >= 35,\r\n                        4,\r\n                        if("DG_ms">=25,\r\n                            if("DG_us" >=20,\r\n                                3,\r\n                                2\r\n                            ),\r\n                            if("DG_ms">=15,\r\n                                if("DG_us">=10,\r\n                                    2,\r\n                                    1\r\n                                ),\r\n                                if("DG_us">=10,\r\n                                    1,\r\n                                    0\r\n                                )\r\n                            )\r\n                        )\r\n                    ),\r\n                5), \r\n                if("hdom">13,\r\n                    -1, \r\n                    if("hdom">7,\r\n                        -2,\r\n                        -3\r\n                    )\r\n                )\r\n            )\r\n        ),\r\n        if("VegZone_Code" IN (8),\r\n            if("NH">50,\r\n                if("hdom">=19, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">13,\r\n                        -1, \r\n                        if("hdom">7,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            ),\r\n            if("NH">50,\r\n                if("hdom">=16, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                        4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                        5\r\n                    ), \r\n                    if("hdom">11,\r\n                        -1, \r\n                        if("hdom">6,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                ),\r\n                if("hdom">=13, \r\n                    if("DG_os" + "DG_ueb" >= 45, \r\n                        if("DG_ms" >= 35,\r\n                            4,\r\n                            if("DG_ms">=25,\r\n                                if("DG_us" >=20,\r\n                                    3,\r\n                                    2\r\n                                ),\r\n                                if("DG_ms">=15,\r\n                                    if("DG_us">=10,\r\n                                        2,\r\n                                        1\r\n                                    ),\r\n                                    if("DG_us">=10,\r\n                                        1,\r\n                                        0\r\n                                    )\r\n                                )\r\n                            )\r\n                        ),\r\n                    5), \r\n                    if("hdom">9,\r\n                        -1, \r\n                        if("hdom">5,\r\n                            -2,\r\n                            -3\r\n                        )\r\n                    )\r\n                )\r\n            )\r\n        )\r\n    )\r\n)\r\n\r\n',
-        'OUTPUT': 'TEMPORARY_OUTPUT'})
-
-    processing.run("native:fieldcalculator", {
-        'INPUT': processingResult['OUTPUT'],
-        'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
-        'FORMULA': '$area',
-        'OUTPUT': output_layer})
 
 
 def merge_layers_with_composite_id(vector_paths, region_ids, output_path):

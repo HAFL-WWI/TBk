@@ -5,6 +5,7 @@ from collections import ChainMap
 
 from qgis._core import QgsProcessingParameterBoolean
 from qgis.core import QgsProcessingMultiStepFeedback
+from tbk_qgis.tbk.general.tbk_utilities import finalize_TBk
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import \
@@ -17,6 +18,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import \
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.G_utility.tool_postprocess_cleanup import TBkPostprocessCleanup
+from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
 from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 
@@ -35,7 +37,6 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         TBkAddConiferousProportionAlgorithm(),
         TBkAppendStandAttributesAlgorithm(),
         TBkPostprocessCleanup(),
-        TBkCreateProject(),
     ]
 
     def initAlgorithm(self, config=None):
@@ -70,13 +71,17 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         parameter = QgsProcessingParameterBoolean('create_subdir_time', "Create subfolder with timestamp", defaultValue=True)
         self._add_advanced_parameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean('calc_local_density', "Calculate local densities (can take a while)",
+                                                  defaultValue=False)
+        self.addParameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
         """
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
-        feedback = QgsProcessingMultiStepFeedback(7, feedback)
+        feedback = QgsProcessingMultiStepFeedback(12, feedback)
         intermediate_results = {}
         main_results = {}
         outputs = {}
@@ -86,7 +91,8 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             result_dir = self._get_result_dir(parameters['output_root'])
         else: result_dir = parameters['output_root']
         bk_process_dir = self._get_bk_output_dir(result_dir)
-        parameters['final_stand_map_clean'] = os.path.join(result_dir, "TBk_Bestandeskarte.gpkg")
+        parameters['stands_clean'] = os.path.join(bk_process_dir, "stands_clean.gpkg")
+        parameters['final_stand_map'] = os.path.join(result_dir, "TBk_Bestandeskarte.gpkg")
 
         # --- 1 Delineate Stand
 
@@ -142,6 +148,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'min_area_m2': parameters['min_area_m2'],
             'simplification_tolerance': parameters['simplification_tolerance'],
+            'smoothing': parameters['smoothing'],
             'working_root': result_dir,
             'stands_simplified': parameters['stands_simplified'],
             'stands_highest_tree': parameters['stands_highest_tree'],
@@ -303,15 +310,74 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         # compile params and run tool
         alg_params = {
             'input_to_clean': outputs['AppendStandAttributes']['stands_dg_nh_vegZone'],
-            'output_stand_map_clean': parameters['final_stand_map_clean'],
+            'output_stand_map_clean': parameters['stands_clean'],
             'result_dir': result_dir,
             'logfile_name': parameters['logfile_name'],
         }
         outputs['TbkPostprocessCleanup'] = processing.run('TBk:TBk postprocess Cleanup', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
 
-        # store outputs in dict
-        main_results['TBk_Bestandeskarte'] = outputs['TbkPostprocessCleanup']['OUTPUT']
+        feedback.setCurrentStep(8)
+        if feedback.isCanceled():
+            return {}
+
+        # --- TBk postprocess Hdom diff
+
+        alg_params = {
+            'tbk_bestandesgrenzen': outputs['TbkPostprocessCleanup']['OUTPUT'],
+            'vhm_10m': parameters['vhm_10m'],
+            'diff_hdom_vhm': os.path.join(bk_process_dir, "diff_hdom_vhm.tif"),
+            'vhm_10m_points': os.path.splitext(parameters['vhm_10m'])[0] + "_points.gpkg",
+        }
+        outputs['PostprocessHdomDiff'] = processing.run(TBkPostprocessHdomDiff(), alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
+
+        feedback.setCurrentStep(9)
+        if feedback.isCanceled():
+            return {}
+
+        # --- TBk create QGIS Project (.qgz)
+
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'result_dir': result_dir,
+            'vhm_10m': parameters['vhm_10m'],
+            'vhm_150cm': parameters['vhm_150cm'],
+            'coniferous_raster_for_classification': parameters['coniferous_raster_for_classification'],
+            'coniferous_raster': parameters['coniferous_raster'],
+        }
+        outputs['CreateProject'] = processing.run(TBkCreateProject(), alg_params, context=context,
+                              feedback=feedback, is_child_algorithm=True)
+
+        feedback.setCurrentStep(10)
+        if feedback.isCanceled():
+            return {}
+
+        # --- Finalize: normalize field schema, calculate PH_STRUCTURE, recalculate area_m2
+
+        finalize_TBk(outputs['TbkPostprocessCleanup']['OUTPUT'], parameters['final_stand_map'])
+        main_results['TBk_Bestandeskarte'] = parameters['final_stand_map']
+
+        feedback.setCurrentStep(11)
+        if feedback.isCanceled():
+            return {}
+
+        # --- Calculate local densities (optional)
+
+        if parameters['calc_local_density']:
+            processing.run("TBk:TBk postprocess local density", {
+                'path_tbk_input': result_dir,
+                'mg_use': True,
+                'mg_input': parameters["coniferous_raster"],
+                'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
+                'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
+                                          100, 14],
+                'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
+                'buffer_smoothing': True,
+                'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3
+            }, context=context, feedback=feedback, is_child_algorithm=True)
+
+        feedback.setCurrentStep(12)
 
         # return { 'intermediate_results': intermediate_results, 'main_results': main_results }
         return main_results
