@@ -284,36 +284,12 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 if os.path.exists(output_vector):
                     os.remove(output_vector)
 
-                options = QgsVectorFileWriter.SaveVectorOptions()
-                options.driverName = "GPKG"
-                options.fileEncoding = "UTF-8"
-                options.layerName = "perimeter"
-                options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+                geom = feature.geometry()
+                if not geom.isGeosValid():
+                    geom = geom.makeValid()
 
-                # Create EMPTY file first
-                QgsVectorFileWriter.writeAsVectorFormatV3(
-                    perimeter_layer,  # schema source
-                    output_vector,
-                    QgsProject.instance().transformContext(),
-                    options
-                )
-
-                # Reopen and write ONLY the feature you want
-                layer_out = QgsVectorLayer(output_vector, "perimeter", "ogr")
-                provider = layer_out.dataProvider()
-
-                feat = QgsFeature()
-                feat.setGeometry(feature.geometry())
-                feat.setAttributes(feature.attributes())
-
-                provider.truncate()  # remove all features written by default export
-                provider.addFeature(feat)
-
-                layer_out.updateExtents()
-
-                # delete provide and layer objects to avoid memory accumulation in QGIS UI
-                del provider
-                del layer_out
+                _write_single_feature_gpkg(perimeter_layer, geom, feature.attributes(),
+                                            "perimeter", output_vector)
                 print(f"Successfully saved perimeter {region_name} to {output_vector}")
 
             if overwrite or not os.path.exists(perimeter_buffered):
@@ -321,41 +297,13 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 if os.path.exists(perimeter_buffered):
                     os.remove(perimeter_buffered)
 
-                options = QgsVectorFileWriter.SaveVectorOptions()
-                options.driverName = "GPKG"
-                options.fileEncoding = "UTF-8"
-                options.layerName = "perimeter_buffered"
-                options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
-
-                # Create EMPTY file with correct schema
-                QgsVectorFileWriter.writeAsVectorFormatV3(
-                    perimeter_layer,
-                    perimeter_buffered,
-                    QgsProject.instance().transformContext(),
-                    options
-                )
-
-                layer_out = QgsVectorLayer(perimeter_buffered, "perimeter_buffered", "ogr")
-                provider = layer_out.dataProvider()
-
-                provider.truncate()
-
                 # Safe geometry handling
                 geom = feature.geometry()
                 if not geom.isGeosValid():
                     geom = geom.makeValid()
 
-                buffered_feat = QgsFeature()
-                buffered_feat.setGeometry(geom.buffer(11, 5))
-                buffered_feat.setAttributes(feature.attributes())
-
-                provider.addFeature(buffered_feat)
-
-                layer_out.updateExtents()
-
-                # delete provide and layer objects to avoid memory accumulation in QGIS UI
-                del provider
-                del layer_out
+                _write_single_feature_gpkg(perimeter_layer, geom.buffer(11, 5), feature.attributes(),
+                                            "perimeter_buffered", perimeter_buffered)
                 print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
 
             # Construct output file path for the clipped rasters
@@ -372,6 +320,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     'OPTIONS': parameters['gdal_create_options'],
                     'OUTPUT': vhm_10m_clipped
                 })
+                if not os.path.exists(vhm_10m_clipped):
+                    raise QgsProcessingException(
+                        f"Clipping VHM raster for region {region_name} produced no output file "
+                        f"({vhm_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
+                        f"may be empty or not overlap the input VHM raster.")
 
             if overwrite or not os.path.exists(mg_10m_clipped):
                 # Clip Coniferous raster with buffered perimeter
@@ -381,6 +334,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     'OPTIONS': parameters['gdal_create_options'],
                     'OUTPUT': mg_10m_clipped
                 })
+                if not os.path.exists(mg_10m_clipped):
+                    raise QgsProcessingException(
+                        f"Clipping coniferous raster for region {region_name} produced no output file "
+                        f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
+                        f"may be empty or not overlap the input raster.")
 
             # --- Configure parameters for region
 
@@ -710,6 +668,45 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 import os
 from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField
 from PyQt5.QtCore import QVariant
+
+
+def _write_single_feature_gpkg(source_layer, geometry, attributes, layer_name, output_path):
+    """
+    Write a single feature to a new GeoPackage in one pass.
+
+    Avoids the write-full-layer / reopen / truncate / addFeature pattern, which can
+    silently leave an empty file if the reopened GPKG isn't fully committed yet
+    (observed on Windows). Raises QgsProcessingException if the write fails or the
+    resulting file ends up without the feature, instead of failing silently.
+    """
+    single_layer = QgsVectorLayer(
+        f"{QgsWkbTypes.displayString(source_layer.wkbType())}?crs={source_layer.crs().authid()}",
+        layer_name, "memory")
+    provider = single_layer.dataProvider()
+    provider.addAttributes(source_layer.fields())
+    single_layer.updateFields()
+
+    feat = QgsFeature(single_layer.fields())
+    feat.setGeometry(geometry)
+    feat.setAttributes(attributes)
+    if not provider.addFeature(feat):
+        raise QgsProcessingException(f"Failed to add feature to in-memory layer for {output_path}")
+
+    options = QgsVectorFileWriter.SaveVectorOptions()
+    options.driverName = "GPKG"
+    options.fileEncoding = "UTF-8"
+    options.layerName = layer_name
+    options.actionOnExistingFile = QgsVectorFileWriter.CreateOrOverwriteFile
+
+    write_result = QgsVectorFileWriter.writeAsVectorFormatV3(
+        single_layer, output_path, QgsProject.instance().transformContext(), options)
+    error, error_msg = write_result[0], write_result[1]
+    if error != QgsVectorFileWriter.NoError:
+        raise QgsProcessingException(f"Failed to write {output_path}: {error_msg}")
+
+    written_layer = QgsVectorLayer(output_path, layer_name, "ogr")
+    if not written_layer.isValid() or written_layer.featureCount() == 0:
+        raise QgsProcessingException(f"Wrote {output_path} but it contains no features")
 
 
 def finalize_TBk(input_layer, output_layer):
