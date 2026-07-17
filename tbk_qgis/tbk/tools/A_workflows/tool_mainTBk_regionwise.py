@@ -279,7 +279,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             print(f"Creating Vector Masks")
 
             # --- Create perimeter feature layer
-            if overwrite or not os.path.exists(output_vector):
+            if overwrite or not _step_output_done(output_vector):
                 # Delete existing file
                 if os.path.exists(output_vector):
                     os.remove(output_vector)
@@ -290,9 +290,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
                 _write_single_feature_gpkg(perimeter_layer, geom, feature.attributes(),
                                             "perimeter", output_vector)
+                _mark_step_output_done(output_vector)
                 print(f"Successfully saved perimeter {region_name} to {output_vector}")
 
-            if overwrite or not os.path.exists(perimeter_buffered):
+            if overwrite or not _step_output_done(perimeter_buffered):
                 # --- Create buffered perimeter feature layer
                 if os.path.exists(perimeter_buffered):
                     os.remove(perimeter_buffered)
@@ -304,6 +305,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
                 _write_single_feature_gpkg(perimeter_layer, geom.buffer(11, 5), feature.attributes(),
                                             "perimeter_buffered", perimeter_buffered)
+                _mark_step_output_done(perimeter_buffered)
                 print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
 
             # Construct output file path for the clipped rasters
@@ -311,7 +313,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             mg_10m_clipped = os.path.join(region_base_data_dir, 'MG_10m.tif')
             print(f"Clipping VHM10m / Coniferous raster with buffered perimeter")
 
-            if overwrite or not os.path.exists(vhm_10m_clipped):
+            if overwrite or not _step_output_done(vhm_10m_clipped):
                 # Clip VHM with buffered mask
                 processing.run("gdal:cliprasterbymasklayer", {
                     'INPUT': parameters["vhm_10m"],
@@ -325,8 +327,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         f"Clipping VHM raster for region {region_name} produced no output file "
                         f"({vhm_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
                         f"may be empty or not overlap the input VHM raster.")
+                _mark_step_output_done(vhm_10m_clipped)
 
-            if overwrite or not os.path.exists(mg_10m_clipped):
+            if overwrite or not _step_output_done(mg_10m_clipped):
                 # Clip Coniferous raster with buffered perimeter
                 processing.run("gdal:cliprasterbymasklayer", {
                     'INPUT': parameters["coniferous_raster_for_classification"],
@@ -339,6 +342,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         f"Clipping coniferous raster for region {region_name} produced no output file "
                         f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
                         f"may be empty or not overlap the input raster.")
+                _mark_step_output_done(mg_10m_clipped)
 
             # --- Configure parameters for region
 
@@ -377,41 +381,46 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             parameters_region['final_stand_map_clean'] = os.path.join(region_bk_process_dir, "TBk_Bestandeskarte.gpkg")
 
             # --- Run Stand Delineation
-            if overwrite or not os.path.exists(parameters_region["output_stand_boundaries"]):
+            if overwrite or not _step_output_done(parameters_region["output_stand_boundaries"]):
                 print(f"STAND DELINEATION: \n{parameters_region['perimeter']}")
                 results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
                                                            context=context, feedback=feedback)
+                _mark_step_output_done(parameters_region["output_stand_boundaries"])
             else:
                 print(f"Skipped STAND DELINEATION, file already exists (overwrite = False)")
 
             # --- Simplify and eliminate
-            if overwrite or not os.path.exists(parameters_region['stands_simplified']):
+            if overwrite or not _step_output_done(parameters_region['stands_simplified']):
                 print(f"SIMPLIFY & CLEAN: \n{parameters_region['output_stand_boundaries']}")
                 results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
                                                   context=context, feedback=feedback)
+                _mark_step_output_done(parameters_region['stands_simplified'])
             else:
                 print(f"Skipped SIMPLIFY & CLEAN, file already exists (overwrite = False)")
 
             # --- Clip & Singlepart
-            if overwrite or not os.path.exists(parameters_region["stands_clipped_no_gaps"]):
+            if overwrite or not _step_output_done(parameters_region["stands_clipped_no_gaps"]):
                 print(f"CLIP: \n{parameters_region['input_to_clip']}")
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
                                                  context=context, feedback=feedback)
+                _mark_step_output_done(parameters_region["stands_clipped_no_gaps"])
             else:
                 print(f"Skipped CLIP, file already exists (overwrite = False)")
 
             # --- Merge
-            if overwrite or not os.path.exists(parameters_region["stands_merged"]):
+            if overwrite or not _step_output_done(parameters_region["stands_merged"]):
                 print(f"MERGE: \n{parameters_region['input_to_merge']}")
                 algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
                                            context=context, feedback=feedback)
+                _mark_step_output_done(parameters_region["stands_merged"])
             else:
                 print(f"Skipped MERGE, file already exists (overwrite = False)")
 
             # --- Cleanup
-            if overwrite or not os.path.exists(parameters_region["output_stand_map_clean"]):
+            if overwrite or not _step_output_done(parameters_region["output_stand_map_clean"]):
                 algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
                                            context=context, feedback=feedback)
+                _mark_step_output_done(parameters_region["output_stand_map_clean"])
             else:
                 print(f"Skipped cleanup, file already exists (overwrite = False)")
 
@@ -475,7 +484,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         merged = os.path.join(bk_process_dir, 'stands_regions_merged.gpkg')
 
         # if True or not os.path.exists(merged): # force overwrite
-        if overwrite or not os.path.exists(merged):
+        if overwrite or not _step_output_done(merged):
             print(f"Now merging into one single Stand Map")
             processing.run("TBk:TBk postprocess merge stand maps", {
                 'tbk_map_layers': regions_stand_map,
@@ -483,6 +492,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
                 'OUTPUT': merged
             })
+            _mark_step_output_done(merged)
 
         else:
             print(f"Skipped Region merge, file already exists (overwrite = False)")
@@ -512,7 +522,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 merged = os.path.join(bk_process_dir, f'{list_name}.gpkg')
 
                 # Check if we need to overwrite or if the file doesn't exist
-                if overwrite or not os.path.exists(merged):
+                if overwrite or not _step_output_done(merged):
                     print(f"Now merging {list_name} regions into one single vector file")
                     processing.run("TBk:TBk postprocess merge stand maps", {
                         'tbk_map_layers': region_list_item,  # List of vector layers to merge
@@ -520,6 +530,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
                         'OUTPUT': merged  # Output path for the merged vector file
                     })
+                    _mark_step_output_done(merged)
 
             # Handle raster data
             for list_name, region_list_item in raster_to_merge.items():
@@ -527,7 +538,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 merged_raster = os.path.join(bk_process_dir, f'{list_name}.tif')
 
                 # Check if we need to overwrite or if the file doesn't exist
-                if overwrite or not os.path.exists(merged_raster):
+                if overwrite or not _step_output_done(merged_raster):
                     print(f"Now merging {list_name} regions into one single raster file")
 
                     # Run raster merging using GDAL (or appropriate processing tool for rasters)
@@ -541,6 +552,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'PREFERRED': 'FIRST',  # Keeps the first valid data (prevents overwriting)
                         'OPTIONS': parameters['gdal_create_options']
                     })
+                    _mark_step_output_done(merged_raster)
 
         # *************************************** #
         # ---   ***  TBk Attributierung    *** ---#
@@ -586,13 +598,15 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             feedback.setProgressText(alg.name())
             if feedback.isCanceled():
                 return {}
-            if not overwrite and skip_output and os.path.exists(skip_output):
+            if not overwrite and skip_output and _step_output_done(skip_output):
                 print(f"Skipped {alg.name()}, output already exists (overwrite = False)")
                 feedback.pushInfo(f"Skipped {alg.name()}, output already exists (overwrite = False)")
                 continue
             wf_log(f"-> {alg.name()}")
             alg_start = time.time()
             result = processing.run(alg, parameters, context=context, feedback=feedback)
+            if skip_output:
+                _mark_step_output_done(skip_output)
             alg_elapsed = str(timedelta(seconds=round(time.time() - alg_start)))
             wf_log(f"<- {alg.name()} done ({alg_elapsed})")
 
@@ -600,10 +614,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         print("\n--- Final cleanup and appends ---")
         feedback.pushInfo("\n--------------------------------------------")
         feedback.pushInfo("\n--- Final cleanup and appends ---")
-        if overwrite or not os.path.exists(parameters['final_stand_map']):
+        if overwrite or not _step_output_done(parameters['final_stand_map']):
             if os.path.exists(parameters['final_stand_map']):
                 os.remove(parameters['final_stand_map'])
             finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
+            _mark_step_output_done(parameters['final_stand_map'])
         else:
             print(f"Skipped final cleanup, output already exists (overwrite = False)")
             feedback.pushInfo(f"Skipped final cleanup, output already exists (overwrite = False)")
@@ -618,7 +633,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             return {}
 
         local_density_output = os.path.join(result_dir, "local_densities", "TBk_local_densities.gpkg")
-        if overwrite or not os.path.exists(local_density_output):
+        if overwrite or not _step_output_done(local_density_output):
             wf_log("-> local density")
             ld_start = time.time()
             processing.run("TBk:TBk postprocess local density", {
@@ -631,10 +646,18 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
             'buffer_smoothing': True,
             'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
+            _mark_step_output_done(local_density_output)
             ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
             wf_log(f"<- local density done ({ld_elapsed})")
         else:
             wf_log(f"Skipped local density, output already exists (overwrite = False)")
+
+        # Run finished successfully end-to-end: the .done markers used to resume an
+        # interrupted run have no further purpose and would otherwise clutter the
+        # deliverable (some sit right next to TBk_Bestandeskarte.gpkg/TBk_Project.qgz
+        # in result_dir). Only reached on full success — a cancelled/failed run must
+        # keep them so the next resume attempt can tell what's genuinely done.
+        _cleanup_step_markers(result_dir)
 
         wf_log("====================================================================")
         wf_log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
@@ -707,6 +730,38 @@ def _write_single_feature_gpkg(source_layer, geometry, attributes, layer_name, o
     written_layer = QgsVectorLayer(output_path, layer_name, "ogr")
     if not written_layer.isValid() or written_layer.featureCount() == 0:
         raise QgsProcessingException(f"Wrote {output_path} but it contains no features")
+
+
+def _step_output_done(output_path):
+    """
+    True only if output_path exists AND a companion ".done" marker exists.
+
+    A bare os.path.exists() on a step's output is not a reliable "step is fully done"
+    signal for resuming an interrupted run: several TBk sub-algorithms write/commit their
+    main output incrementally (e.g. calculate_dg.py commits stands_dg.gpkg before any of
+    its six dg_layer_*.tif byproducts exist, and again after), so a process killed mid-step
+    can leave an output file that exists but is incomplete. The marker is only ever written
+    by _mark_step_output_done(), immediately after the step's processing.run() call returned
+    without raising — it can't be left behind by a step that got killed mid-way.
+    """
+    return bool(output_path) and os.path.exists(output_path) and os.path.exists(output_path + ".done")
+
+
+def _mark_step_output_done(output_path):
+    open(output_path + ".done", 'w').close()
+
+
+def _cleanup_step_markers(root_dir):
+    """
+    Remove all ".done" resume markers under root_dir. Call only once the whole workflow
+    has finished successfully — the markers exist solely to let an interrupted run resume
+    correctly, and are meaningless (and visible clutter, some sitting next to the final
+    deliverables) once the run is complete.
+    """
+    for dirpath, _dirnames, filenames in os.walk(root_dir):
+        for filename in filenames:
+            if filename.endswith(".done"):
+                os.remove(os.path.join(dirpath, filename))
 
 
 def merge_layers_with_composite_id(vector_paths, region_ids, output_path):
