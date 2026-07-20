@@ -509,7 +509,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                 log(f"[{elapsed()}] focal statistics {n_done + 1}/{n_unique_focal_sizes}: " + focal_dg_layers_feedback[str(i["size"])])
                 param = {'input': dg, 'selection': dg, 'method': 0, 'size': i["size"], 'gauss': None, 'quantile': '',
                          '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
-                         'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': '', 'GRASS_RASTER_FORMAT_META': ''}
+                         'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': 'COMPRESS=DEFLATE,PREDICTOR=2',
+                         'GRASS_RASTER_FORMAT_META': ''}
                 algoOutput = processing.run("grass7:r.neighbors", param)
                 focal_dg_layers[str(i["size"])] = QgsRasterLayer(algoOutput["output"])
                 feedback.setProgress(round(len(focal_dg_layers) / n_unique_focal_sizes * 15))
@@ -541,8 +542,10 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                 continue
 
             # reclassify raster: 1 = within density range, else or no data
+            # compress: reclassified raster is mostly 0/nodata, so DEFLATE shrinks it drastically
             param = {'INPUT_RASTER': focal_in_use, 'RASTER_BAND': 1, 'TABLE': [cl_min, cl_max, '1'], 'NO_DATA': 0,
-                     'RANGE_BOUNDARIES': 0, 'NODATA_FOR_MISSING': True, 'DATA_TYPE': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+                     'RANGE_BOUNDARIES': 0, 'NODATA_FOR_MISSING': True, 'DATA_TYPE': 1,
+                     'CREATION_OPTIONS': self._GDAL_CREATE_OPTIONS_DEFAULT, 'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("native:reclassifybytable", param)
             recl = algoOutput["OUTPUT"]
 
@@ -784,8 +787,9 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         if mg_use:
             log(f"[{elapsed()}] resample MG raster to DG resolution ...")
             param = {'INPUT': mg_input, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 0, 'NODATA': None,
-                     'TARGET_RESOLUTION': 1, 'OPTIONS': '', 'DATA_TYPE': 0, 'TARGET_EXTENT': dg.extent(),
-                     'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '', 'OUTPUT': 'TEMPORARY_OUTPUT'}
+                     'TARGET_RESOLUTION': 1, 'OPTIONS': self._GDAL_CREATE_OPTIONS_DEFAULT, 'DATA_TYPE': 0,
+                     'TARGET_EXTENT': dg.extent(), 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
+                     'OUTPUT': 'TEMPORARY_OUTPUT'}
             algoOutput = processing.run("gdal:warpreproject", param)
             mg = algoOutput["OUTPUT"]
 
