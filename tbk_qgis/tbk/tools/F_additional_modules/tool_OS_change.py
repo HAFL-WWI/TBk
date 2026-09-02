@@ -64,14 +64,25 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
                                                     'Output change_DG_hdom: \nRaster indicating whether upper layer or hdom has changed (upper layer cleared) in stands >= hdom',
                                                     createByDefault=True, defaultValue=None))
 
-        parameter = QgsProcessingParameterNumber('thresh_hdom', 'hdom: Stands >= hdom are considered for TBk change',
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=25.0)
+        parameter = QgsProcessingParameterNumber('thresh_hdom_split',
+                                                 'hdom: threshold (in m) separating tall (Baumholz) from low (Jungwuchs) '
+                                                 'stands for clearing classification',
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=14.0)
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(parameter)
 
-        parameter = QgsProcessingParameterNumber('thresh_hdiff',
-                                                 'Negative height difference (in m) after which an area is considered cleared.',
-                                                 type=QgsProcessingParameterNumber.Double, defaultValue=7.0)
+        parameter = QgsProcessingParameterNumber('frac_full',
+                                                 'Stands where new hdom drops below this fraction of old hdom are '
+                                                 'considered fully cleared.',
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=1.0 / 3)
+        parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
+        self.addParameter(parameter)
+
+        parameter = QgsProcessingParameterNumber('frac_partial',
+                                                 'Stands (with old hdom above thresh_hdom_split) where new hdom drops '
+                                                 'below this fraction (but stays above frac_full) of old hdom are '
+                                                 'considered partially cleared.',
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=2.0 / 3)
         parameter.setFlags(parameter.flags() | QgsProcessingParameterDefinition.FlagAdvanced)
         self.addParameter(parameter)
 
@@ -173,21 +184,25 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
             return {}
 
         feedback.pushInfo("\n#------- Calculate cleared areas (change_OS_hdom) -------#")
-        # Raster calculator expression represents five cases
-        # cases C see change_DG (1, 2, 11, 12)
-        # case 100: hdom_old >= hdom_thresh AND hdom_diff >= thresh_diff
+        # Raster calculator distinguishes three clearing cases based on old hdom (A) and new hdom (B),
+        # relative to the old hdom, falling back to the change_DG cases (C: 1, 2, 11, 12) otherwise.
+        # 99  = partially cleared: A > thresh_hdom_split AND new hdom retains between frac_full and frac_partial of A
+        # 100 = fully cleared (Baumholz): A > thresh_hdom_split AND new hdom drops below frac_full of A
+        # 101 = fully cleared (Jungwuchs): A < thresh_hdom_split AND new hdom drops below frac_full of A
         #
-        # Expression breakdown: inner part X = (C + (100 * D)) * E)
-        # C: change_DG cases (1, 2, 11, 12) for all non cleared stands (higher than thresh_hdom)
-        # add 100 (= case 100) multiplied with condition D (hdom_old - hdom_new >= thresh_hdiff)
-        # multiplied with condition E (hdom_old >= thresh_hdom), whole term gets to 0 if hdom_old < thresh_hdom
-        # min(X,100) : floors values to 100 since results of term X can be > 100
-        #
-        # examples: with thresh_hdom = 25 and thresh_diff = 7
-        # hdom_old = 40, hdom_new = 12, DG_dev = xy -> case 100, cleared since strong reduction of hdom in large stand
-        # hdom_old = 25, hdom_new = 19, DG_dev = xy -> case change_DG xy, not sufficient reduction to be considered cleared
-        # hdom_old = 24, hdom_new = x, DG_dev = y -> 0, (old) stand not high enough to be considered
-        alg_formula = f"minimum((C + (100 * ((A - B) >= {parameters['thresh_hdiff']}))) * (A >= {parameters['thresh_hdom']}), 100)"
+        # examples: with thresh_hdom_split = 14, frac_full = 1/3, frac_partial = 2/3
+        # hdom_old = 40, hdom_new = 10 -> case 100, fully cleared tall stand
+        # hdom_old = 40, hdom_new = 20 -> case 99, partially cleared tall stand (dropped to half)
+        # hdom_old = 10, hdom_new = 2  -> case 101, fully cleared low stand
+        # hdom_old = 40, hdom_new = 35 -> case change_DG, not sufficient reduction to be considered cleared
+        thresh_hdom_split = parameters['thresh_hdom_split']
+        frac_full = parameters['frac_full']
+        frac_partial = parameters['frac_partial']
+        cond_partial = f"(A>{thresh_hdom_split})*(B>=({frac_full})*A)*(B<({frac_partial})*A)"
+        cond_full_tall = f"(A>{thresh_hdom_split})*(B<({frac_full})*A)"
+        cond_full_low = f"(A<{thresh_hdom_split})*(B<({frac_full})*A)"
+        alg_formula = (f"({cond_partial}*99 + {cond_full_tall}*100 + {cond_full_low}*101"
+                       f" + (1-({cond_partial}+{cond_full_tall}+{cond_full_low}))*C)")
         alg_params = {
             'BAND_A': 1,  # hdom_old
             'BAND_B': 1,  # hdom_new
