@@ -171,7 +171,10 @@ class ClassificationHelper:
         src_layer = vector_ds.GetLayer()
 
         stats = {}
-        mem_vec_drv = ogr.GetDriverByName('MEM')
+        # OGR's in-memory vector driver was named 'Memory' before GDAL 3.11 and merged
+        # into the unified 'MEM' name from GDAL 3.11 onwards ('Memory' still works there
+        # as a deprecated alias). Try both so this works across GDAL versions.
+        mem_vec_drv = ogr.GetDriverByName('MEM') or ogr.GetDriverByName('Memory')
         mem_rast_drv = gdal.GetDriverByName('MEM')
         for feature in src_layer:
             fid = feature.GetField("OBJECTID")
