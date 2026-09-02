@@ -31,6 +31,9 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
+import shutil
+from pathlib import Path
+
 from PyQt5.QtCore import QCoreApplication
 from qgis._core import QgsProcessingParameterNumber, QgsProcessingParameterDefinition
 from qgis.core import QgsProcessing
@@ -39,11 +42,49 @@ from qgis.core import QgsProcessingParameterVectorLayer
 from qgis.core import QgsProcessingParameterRasterLayer
 from qgis.core import QgsProcessingParameterRasterDestination
 from qgis.core import QgsProcessingParameterFeatureSink
+from qgis.core import QgsProcessingLayerPostProcessorInterface
 import processing
 from tbk_qgis.tbk.tools.F_additional_modules.tbk_qgis_processing_algorithm_toolsF import TBkProcessingAlgorithmToolF
 
+# Bundled default styles (.qml), applied to each output raster
+STYLES_DIR = Path(__file__).resolve().parents[2] / "resources" / "styles"
+
+
+class _TBkStylePostProcessor(QgsProcessingLayerPostProcessorInterface):
+    """Applies a bundled .qml to the layer QGIS creates when adding an algorithm output to the canvas.
+
+    A plain <output>.qml sidecar next to the raster is not reliably picked up by Processing's own
+    layer loading (a known QGIS quirk), so the style is instead pushed directly onto the layer object
+    via the documented load-on-completion post-processor hook.
+    """
+
+    def __init__(self, style_path):
+        super().__init__()
+        self.style_path = str(style_path)
+
+    def postProcessLayer(self, layer, context, feedback):
+        layer.loadNamedStyle(self.style_path)
+        layer.triggerRepaint()
+
 
 class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
+
+    def _apply_default_style(self, output_path, style_filename, context, feedback):
+        """Copy a bundled .qml next to output_path (for manual/later loads) and register a post-processor
+        so QGIS applies it immediately if this output gets added to the canvas on completion."""
+        style_path = STYLES_DIR / style_filename
+        if not style_path.exists():
+            feedback.pushInfo(f"Default style not found, skipping: {style_path}")
+            return
+
+        qml_path = Path(output_path).with_suffix('.qml')
+        shutil.copyfile(style_path, qml_path)
+        feedback.pushInfo(f"Copied default style: {qml_path}")
+
+        if context.willLoadLayerOnCompletion(output_path):
+            postprocessor = _TBkStylePostProcessor(style_path)
+            context.layerToLoadOnCompletionDetails(output_path).setPostProcessor(postprocessor)
+            self._style_postprocessors.append(postprocessor)  # keep alive until QGIS invokes it
 
     # --- Init Algorithm: Add Parameters
     def initAlgorithm(self, config=None):
@@ -95,6 +136,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
         feedback = QgsProcessingMultiStepFeedback(4, model_feedback)
         results = {}
         outputs = {}
+        self._style_postprocessors = []  # keep post-processor instances alive until QGIS invokes them
         gdal_create_options = self.parameterAsString(parameters, self.GDAL_CREATE_OPTIONS, context)
 
         feedback.pushInfo("\n#------- Calculate OS change -------#")
@@ -128,6 +170,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
         outputs['change_DG'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                               feedback=feedback, is_child_algorithm=True)
         results['change_DG'] = outputs['change_DG']['OUTPUT']
+        self._apply_default_style(results['change_DG'], 'tbk_change_DG_color_style.qml', context, feedback)
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
@@ -227,6 +270,7 @@ class TBkPostprocessOSChange(TBkProcessingAlgorithmToolF):
         outputs['change_DG_hdom'] = processing.run('gdal:rastercalculator', alg_params, context=context,
                                                    feedback=feedback, is_child_algorithm=True)
         results['change_DG_hdom'] = outputs['change_DG_hdom']['OUTPUT']
+        self._apply_default_style(results['change_DG_hdom'], 'tbk_change_DG_hdom_color_style.qml', context, feedback)
 
         feedback.pushInfo("\n#------- DONE -------#\n")
         return results
