@@ -110,8 +110,8 @@ class TBkUpdateStandAttributesAlgorithm(TBkProcessingAlgorithmToolY):
         # Define the file output path
         shape_out = os.path.join(bk_dir, "stands_dg_nh.gpkg")
 
-        # Set the logger
-        self._configure_logging(params.result_dir, params.logfile_name)
+        # Set the logger (log lives in bk_process/, matching every other TBk tool)
+        self._configure_logging(bk_dir, params.logfile_name)
         log = logging.getLogger(self.name())
 
         # --- Calc specific attributes
