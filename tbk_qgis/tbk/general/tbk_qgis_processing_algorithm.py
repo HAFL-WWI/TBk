@@ -38,6 +38,34 @@ class _TBkDynamicConsoleHandler(logging.StreamHandler):
         super().emit(record)
 
 
+class _TBkFileFormatter(logging.Formatter):
+    """
+    Log file formatter that prints the source file's basename (not the full plugin-install
+    path, which is 100+ characters of noise) as a one-line separator only when it changes from
+    the previous record - not on every single line. Without this, a tight loop logging many
+    times from the same call site (e.g. classification progress) repeats the exact same
+    "{C:\\Users\\...\\tool_x.py:501}" tag dozens of times in a row, making the file unreadable.
+    """
+    def __init__(self):
+        super().__init__(datefmt='%H:%M:%S')
+        self._last_basename = None
+
+    def format(self, record):
+        timestamp = self.formatTime(record, self.datefmt)
+        basename = os.path.basename(record.pathname)
+        header = ''
+        if basename != self._last_basename:
+            self._last_basename = basename
+            header = f'[{timestamp}] --- {basename} ---\n'
+
+        text = header + f'[{timestamp}] {record.levelname} - {record.getMessage()}'
+        if record.exc_info:
+            if not record.exc_text:
+                record.exc_text = self.formatException(record.exc_info)
+            text += '\n' + record.exc_text
+        return text
+
+
 class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     """
     A base class for the core TBk algorithms. It can be inherited, so that each child algorithm can use its functions.
@@ -170,13 +198,10 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
                 handler.close()
 
         # Set up logging to file
-        log_format = '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s'
-        date_format = '%H:%M:%S'
-        file_handler_formatter = logging.Formatter(log_format, date_format)
         # The log is appended to the existing log or a new file is created if file does not exist (mode = 'a')
         file_handler = logging.FileHandler(logfile_tmp_path, mode='a')
         file_handler.setLevel(logging.DEBUG)
-        file_handler.setFormatter(file_handler_formatter)
+        file_handler.setFormatter(_TBkFileFormatter())
         file_handler._tbk_managed_file = True
         logger.addHandler(file_handler)
 
