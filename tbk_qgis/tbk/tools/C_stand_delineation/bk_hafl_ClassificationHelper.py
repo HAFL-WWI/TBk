@@ -26,6 +26,7 @@
 
 from osgeo.gdalconst import *
 from collections import Counter
+import logging
 import math
 import numpy
 # from rasterstats import zonal_stats
@@ -34,6 +35,10 @@ import numpy
 import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
+
+# Substep narration only (file/console at DEBUG); joins the "1 Delineate Stand" logger stream
+# set up by tool_stand_delineation_algorithm.py, the only caller of these helpers.
+log = logging.getLogger('1 Delineate Stand')
 
 
 class ClassificationHelper:
@@ -105,7 +110,7 @@ class ClassificationHelper:
         # polygonize raster data to shape layer
         # gdal.Polygonize(band, mask_band, dst_layer, dst_field, callback=gdal.TermProgress)
         gdal.Polygonize(band, mask_band, dst_layer, dst_field, callback=None)
-        print("File %s saved" % output_file)
+        log.debug("File %s saved" % output_file)
 
     ################################################
     # Add stand attributes to polygon shapefile
@@ -150,7 +155,7 @@ class ClassificationHelper:
             #TODO : check if gdal actually needs close and/or how this is properly handled
             dataSource.Close()
         except:
-            print(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
+            log.debug(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
 
     ################################################
     # Add hmax effective and 80th percentile (zonal stats)
@@ -254,7 +259,7 @@ class ClassificationHelper:
             #TODO : check if gdal actually needs close and/or how this is properly handled
             dataSource.Close()
         except:
-            print(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
+            log.debug(f"Closing dataSource >> {dataSource} << failed with exception (origin: \n {vector_file_path}")
 
     ################################################
     # get hmax by stand ID
@@ -293,7 +298,7 @@ class ClassificationHelper:
     # sieveFilter -> see online description gdal_sieve.bat
     @staticmethod
     def sieveFilter(raster_file, output_file):
-        print("starting with sieve filter")
+        log.debug("starting with sieve filter")
         # Opening the raster file
         src_ds = gdal.Open(raster_file, GA_ReadOnly)
         # Getting Band 1
@@ -317,7 +322,7 @@ class ClassificationHelper:
         result = gdal.SieveFilter(srcband, maskband, dstband, 10, 4,
                                   callback=prog_func)  # min. 10 cells for a valid polygon
 
-        print("File %s saved" % output_file)
+        log.debug("File %s saved" % output_file)
 
         # Clean up
         srcband = None

@@ -163,7 +163,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
 
         # --- Simplify & Clean
 
-        log.info('Starting')
+        self._log_milestone(feedback, log, 'Starting simplify & clean')
         # todo: also log the key:
         log.debug(f"used parameters: {params.input_to_simplify}, {params.h_max_input,},"
                   f"{params.stands_simplified}, {params.stands_highest_tree}, {tmp_output_folder}, "

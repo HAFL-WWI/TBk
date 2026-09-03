@@ -26,6 +26,7 @@
  ***************************************************************************/
 """
 
+import logging
 import processing
 from PyQt5.QtCore import QMetaType
 
@@ -34,6 +35,11 @@ import pandas as pd
 from datetime import timedelta
 import time
 from collections import defaultdict, deque
+
+# Substep narration only (file/console at DEBUG); joins the "Merge similar neighbours
+# (graph-based)" logger stream set up by tool_merge_similar_neighbours_graph.py, the only
+# caller of this function.
+log = logging.getLogger('Merge similar neighbours (graph-based)')
 
 
 def _find_connected_components(edges):
@@ -86,9 +92,9 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
     (hdom, type, etc.). area_m2 is recalculated from the merged geometry.
     """
 
-    print("--------------------------------------------")
-    print("START MERGE similar neighbours (graph-based)...")
-    print("min_area_m2:", min_area_m2, " min_hdom_diff_rel:", min_hdom_diff_rel)
+    log.debug("--------------------------------------------")
+    log.debug("START MERGE similar neighbours (graph-based)...")
+    log.debug(f"min_area_m2: {min_area_m2}  min_hdom_diff_rel: {min_hdom_diff_rel}")
 
     output_file = {"stands_merged": shape_out_path}
 
@@ -100,7 +106,7 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
     layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
     # ---- Build neighbour table ----
-    print("Building neighbour table...")
+    log.debug("Building neighbour table...")
     start_time = time.time()
 
     feature_dict = {f.id(): f for f in layer.getFeatures()}
@@ -157,7 +163,7 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
     cols = [f.name() for f in neighbour_layer.fields()]
     datagen = ([f[col] for col in cols] for f in neighbour_layer.getFeatures())
     df = pd.DataFrame.from_records(data=datagen, columns=cols)
-    print(f"  neighbour table done: {str(timedelta(seconds=(time.time() - start_time)))}")
+    log.debug(f"  neighbour table done: {str(timedelta(seconds=(time.time() - start_time)))}")
 
     # ---- Filter merge candidates ----
     df["src_hdom"] = pd.to_numeric(df["src_hdom"], errors="coerce")
@@ -171,7 +177,7 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
     df_sub = df[i_dissolve]
 
     if df_sub.empty:
-        print("No stands to merge")
+        log.debug("No stands to merge")
         param = {'INPUT': layer, 'COLUMN': ['fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
         layer = processing.run("native:deletecolumn", param)["OUTPUT"]
         param = {'INPUT': layer, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
@@ -184,8 +190,8 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
     components = _find_connected_components(edges)
     # every component returned has >= 2 members (only nodes with edges are included)
 
-    print(f"  found {len(components)} merge components "
-          f"({sum(len(c) for c in components)} stands total)")
+    log.debug(f"  found {len(components)} merge components "
+              f"({sum(len(c) for c in components)} stands total)")
     start_time = time.time()
 
     l = [None] * (len(components) + 1)
@@ -237,6 +243,6 @@ def merge_similar_neighbours_graph(shape_in_path, shape_out_path, min_area_m2, m
              'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': output_file["stands_merged"]}
     processing.run("native:fieldcalculator", param)
 
-    print(f"  dissolve done: {str(timedelta(seconds=(time.time() - start_time)))}")
-    print("DONE: merge similar neighbours (graph-based)")
+    log.debug(f"  dissolve done: {str(timedelta(seconds=(time.time() - start_time)))}")
+    log.debug("DONE: merge similar neighbours (graph-based)")
     return output_file

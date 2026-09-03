@@ -136,9 +136,6 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         """
         Here is where the processing itself takes place.
         """
-        print("--------------------------------------------")
-        print("START Appending attributes...")
-
         # --- Extract input parameters
         params = self._extract_context_params(parameters, context)
 
@@ -152,6 +149,8 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         # Set the logger
         self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger(self.name())
+        log.debug("--------------------------------------------")
+        log.debug("START Appending attributes...")
 
         # Check that the necessary files are provided
         if params.vegZoneLayer and not params.vegZoneLayerField:
@@ -163,10 +162,10 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         stands_file_join = params.input_to_attribute
 
         # --- Append attributes from join layers
-        log.info('Append attributes from join layers')
+        self._log_milestone(feedback, log, 'Append attributes from join layers')
         # join VegZone if layer is provided
         if params.vegZoneLayer:
-            print(f"Joining {params.vegZoneLayer}::FIELD:{params.vegZoneLayerField} for vegZone_Code")
+            log.debug(f"Joining {params.vegZoneLayer}::FIELD:{params.vegZoneLayerField} for vegZone_Code")
             joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone1_joined.gpkg")
             renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone2_renamed.gpkg")
             stands_file_join = self.join_and_rename(joined_path,
@@ -177,7 +176,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                     'VegZone',
                                                     'VegZone_Code')
         else:
-            print(f"Fill vegZone_Code with default value: {params.vegZoneLayerField}")
+            log.debug(f"Fill vegZone_Code with default value: {params.vegZoneLayerField}")
 
         # create field VegZone_Code (if not already existent through join) and fill (NULL values) with default
         stands_file_appended = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_VegZone3.gpkg")
@@ -190,7 +189,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         # join forestSite if layer is provided
         if params.forestSiteLayer:
-            print(f"Joining {params.forestSiteLayer}::FIELD:{params.forestSiteLayerField} for ForestSite")
+            log.debug(f"Joining {params.forestSiteLayer}::FIELD:{params.forestSiteLayerField} for ForestSite")
             joined_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite1_joined.gpkg")
             renamed_path = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite2_renamed.gpkg")
             stands_file_join = self.join_and_rename(joined_path,
@@ -202,7 +201,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                     'ForestSite')
 
         if (params.forestSiteDefault is not None) and params.forestSiteDefault != "":
-            print(f"Fill ForestSite with default value: {params.forestSiteDefault}")
+            log.debug(f"Fill ForestSite with default value: {params.forestSiteDefault}")
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
             stands_file_forest_site = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
             formula = f'if("ForestSite","ForestSite", \'{params.forestSiteDefault}\')'
@@ -214,8 +213,8 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
 
         output_path = params.stands_dg_nh_vegZone
         copy_vector_file(stands_file_join, output_path, context, feedback)
-        print("DONE!")
-        print(f"Output: {output_path}")
+        log.debug("DONE!")
+        log.debug(f"Output: {output_path}")
         return {self.OUTPUT_ATTRIBUTED: output_path}
 
     def join_and_rename(self,

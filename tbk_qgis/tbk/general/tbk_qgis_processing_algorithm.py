@@ -222,6 +222,23 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         # logging.getLogger().addHandler(console)
 
     @staticmethod
+    def _log_milestone(feedback, log, message):
+        """
+        A milestone-level message: a sub-tool starting/finishing, or a major phase transition on
+        a genuinely long-running step. Goes to both the Processing Log panel (feedback) and the
+        file/console (logging), unlike fine-grained substep narration, which should just call
+        log.debug()/log.info() directly without this helper - that keeps the panel to progress
+        on longer tasks rather than every little subtask, while the file/console still see both.
+
+        stacklevel=2 makes the log record attribute to the caller's source location rather than
+        this helper's - otherwise every milestone would show a "--- tbk_qgis_processing_algorithm.py
+        ---" file-change header in the log file (see _TBkFileFormatter) immediately followed by
+        one switching right back to the calling tool's own file, adding noise instead of removing it.
+        """
+        feedback.pushInfo(message)
+        log.info(message, stacklevel=2)
+
+    @staticmethod
     def _check_tif_extension(file, input_name):
         """
         Check if the file has a .tiff/tif extension.

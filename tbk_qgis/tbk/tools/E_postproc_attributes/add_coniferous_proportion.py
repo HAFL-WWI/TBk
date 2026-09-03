@@ -25,6 +25,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
+import logging
 import sys
 import os
 import shutil
@@ -38,6 +39,10 @@ import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
 
+# Substep narration only (file/console at DEBUG); joins the "6 Add coniferous proportion"
+# logger stream set up by tool_add_coniferous_proportion.py, the only caller of this function.
+log = logging.getLogger('6 Add coniferous proportion')
+
 
 def add_coniferous_proportion(working_root,
                               tmp_output_folder,
@@ -48,15 +53,15 @@ def add_coniferous_proportion(working_root,
                               tbk_result_dir,
                               del_tmp=True,
                               gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
-    print("--------------------------------------------")
-    print("START coniferous proportion...")
+    log.debug("--------------------------------------------")
+    log.debug("START coniferous proportion...")
 
-    print("loading files...")
+    log.debug("loading files...")
     if coniferous_raster == 'null' or coniferous_raster == None:
-        print("No coniferous raster found.")
+        log.debug("No coniferous raster found.")
         return
 
-    print("calc mean coniferous proportion...")
+    log.debug("calc mean coniferous proportion...")
 
     zonal_statistics(coniferous_raster, stands_dg_copy, 'nh_', [2])
 
@@ -75,7 +80,7 @@ def add_coniferous_proportion(working_root,
 
     # NH OS
     if calc_main_layer:
-        print("calc mean coniferous proportion for main layer...")
+        log.debug("calc mean coniferous proportion for main layer...")
         # dg raster layer
         # todo: variable name refers to the upper layer(os) file but the main layer file is used since at least 2023. Not sure if wanted
         dg_layer_os = dg_layer
@@ -183,7 +188,7 @@ def add_coniferous_proportion(working_root,
             delete_raster(tmp_files["dg_layer_os_nh"])
             delete_raster(tmp_files["dg_layer_os_10m_mask"])
 
-    print("DONE!")
+    log.debug("DONE!")
     return stands_dg_copy
 
 

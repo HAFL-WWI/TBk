@@ -36,6 +36,7 @@
  ***************************************************************************/
 """
 
+import logging
 import processing
 from datetime import timedelta
 import time
@@ -43,6 +44,10 @@ import time
 from PyQt5.QtCore import QMetaType
 
 from tbk_qgis.tbk.general.tbk_utilities import *
+
+# Substep narration only (file/console at DEBUG); joins the "Calculate crown coverage" logger
+# stream set up by tool_calc_crown_coverage.py, the only caller of this function.
+log = logging.getLogger('Calculate crown coverage')
 
 
 def calculate_dg(working_root,
@@ -52,8 +57,8 @@ def calculate_dg(working_root,
                  vhm,
                  del_tmp=True,
                  gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
-    print("--------------------------------------------")
-    print("START DG calculation...")
+    log.debug("--------------------------------------------")
+    log.debug("START DG calculation...")
 
     # Create dg layer output directory
     if not os.path.exists(dg_dir):
@@ -110,7 +115,7 @@ def calculate_dg(working_root,
         stands_layer.updateFields()
 
         # Calculate DG limits per stand
-        print("calculating DG limits...")
+        log.debug("calculating DG limits...")
 
         for f in stands_layer.getFeatures():
             # ensure numeric type
@@ -149,7 +154,7 @@ def calculate_dg(working_root,
     # Produce final "1" / "0" raster for each layer
     # iterate over the list above
     # CreateCopy > rasterize over > calc/compress
-    print("classify stand layers...")
+    log.debug("classify stand layers...")
     for column_prefix, \
             dg_lim_field, \
             dg_tmp_file_b, \
@@ -196,10 +201,10 @@ def calculate_dg(working_root,
                     os.remove(dg_tmp_file_c + ".aux.xml")
 
         end_time = time.time()
-        print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
+        log.debug(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # Calculate DG per stand and per layer
-    print("zonal statistics...")
+    log.debug("zonal statistics...")
     for column_prefix, x, x, x, dg_layer_file, x in field_file_pairs:
         start_time = time.time()
 
@@ -211,7 +216,7 @@ def calculate_dg(working_root,
         processing.run("qgis:zonalstatistics", param)
 
         end_time = time.time()
-        print(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
+        log.debug(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # re-read the input, as it was modified by zonal statistics
     stands_layer = QgsVectorLayer(stands_dg, "stands", "ogr")
@@ -249,7 +254,7 @@ def calculate_dg(working_root,
                        "dg_min", "dg_mean", 'dg_count', 'dg_sum',
                        "dissolve",])
 
-    print("DONE!")
+    log.debug("DONE!")
 
     # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
     results = {f"dg_layer_{key}": value for key, value in dg_files.items()}

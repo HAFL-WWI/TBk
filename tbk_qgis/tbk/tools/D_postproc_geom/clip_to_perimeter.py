@@ -23,10 +23,15 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
+import logging
 import os
 import processing
 from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, edit
 from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopackage, getVectorSaveOptions, delete_fields
+
+# Substep narration only (file/console at DEBUG); joins the "Clip to perimeter and eliminate
+# gaps" logger stream set up by tool_clip_and_patch.py, the only caller of these functions.
+log = logging.getLogger('Clip to perimeter and eliminate gaps')
 
 
 def clip_to_perimeter(working_root,
@@ -34,8 +39,8 @@ def clip_to_perimeter(working_root,
                       tmp_output_folder,
                       perimeter,
                       del_tmp=True):
-    print("--------------------------------------------")
-    print("START Clip to perimeter...")
+    log.debug("--------------------------------------------")
+    log.debug("START Clip to perimeter...")
 
     # Clip stand and convert to singlepart
     tmp_stands_clipped_path = os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg")
@@ -58,8 +63,8 @@ def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT') -> Qg
 
 
 def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
-    print("--------------------------------------------")
-    print("START Clip VHM to perimeter...")
+    log.debug("--------------------------------------------")
+    log.debug("START Clip VHM to perimeter...")
 
     # Clip to forest mask
     vhm_clipped_path = os.path.join(working_root, vhm_output_name)
@@ -87,8 +92,8 @@ def eliminate_gaps(in_shape_path,
     exactly match the perimeter and therefore remove small gap
     """
 
-    print("--------------------------------------------")
-    print("START Eliminate gaps...")
+    log.debug("--------------------------------------------")
+    log.debug("START Eliminate gaps...")
 
     # File names
     gaps_tmp_path = os.path.join(tmp_output_folder, "gaps_tmp.gpkg")
@@ -98,20 +103,20 @@ def eliminate_gaps(in_shape_path,
 
     ########################################
     # Find gaps
-    print("finding gaps...")
+    log.debug("finding gaps...")
     param = {'INPUT': perimeter_shape, 'OVERLAY': in_shape_path, 'OUTPUT': gaps_tmp_path}
     processing.run("native:difference", param)
 
     ########################################
     # Transform gaps to single part
-    print("transform gaps to single part")
+    log.debug("transform gaps to single part")
     param = {'INPUT': gaps_tmp_path, 'OUTPUT': gaps_single_tmp_path}
     processing.run("native:multiparttosingleparts", param)
 
     ########################################
     # Union with stand layer
     # todo remove Union and replace with a different workflow
-    print("union gaps with stands...")
+    log.debug("union gaps with stands...")
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 1)
     param = {'INPUT': in_shape_path, 'OVERLAY': gaps_single_tmp_path, 'OVERLAY_FIELDS_PREFIX': '',
              'OUTPUT': union_tmp_path}
@@ -124,7 +129,7 @@ def eliminate_gaps(in_shape_path,
 
     ########################################
     # Eliminate gaps
-    print("eliminate gaps...")
+    log.debug("eliminate gaps...")
     expression = 'ID IS NULL AND to_int(area($geometry))>0'
 
     union_layer = QgsVectorLayer(union_tmp_path, "union_tmp", "ogr")
@@ -140,7 +145,7 @@ def eliminate_gaps(in_shape_path,
 
     ########################################
     # Delete gaps not possible to eliminate
-    print("delete remaining gaps completely...")
+    log.debug("delete remaining gaps completely...")
     expression = 'ID IS NULL OR to_int(area($geometry))=0'
 
     # Delete Fields and keep only major ones
@@ -161,7 +166,7 @@ def eliminate_gaps(in_shape_path,
     # Delete fields
     delete_fields(out_layer, fields_to_delete)
 
-    print("DONE!")
+    log.debug("DONE!")
 
     # Delete layers
     if del_tmp:

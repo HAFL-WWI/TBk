@@ -24,6 +24,7 @@
  ***************************************************************************/
 """
 
+import logging
 import processing
 from PyQt5.QtCore import QMetaType
 
@@ -31,6 +32,10 @@ from tbk_qgis.tbk.general.tbk_utilities import *
 import pandas as pd
 from datetime import timedelta
 import time
+
+# Substep narration only (file/console at DEBUG); joins the "Merge similar neighbours" logger
+# stream set up by tool_merge_similar_neighbours.py, the only caller of this function.
+log = logging.getLogger('Merge similar neighbours')
 
 
 def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel, max_iterations=5):
@@ -49,9 +54,9 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
     correct sizes of previously merged stands.
     """
 
-    print("--------------------------------------------")
-    print("START MERGE similar neighbours...")
-    print("min_area_m2:", min_area_m2, " min_hdom_diff_rel:", min_hdom_diff_rel)
+    log.debug("--------------------------------------------")
+    log.debug("START MERGE similar neighbours...")
+    log.debug(f"min_area_m2: {min_area_m2}  min_hdom_diff_rel: {min_hdom_diff_rel}")
 
     output_file = {"stands_merged": shape_out_path}
 
@@ -66,7 +71,7 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
         layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
         # ---- Build neighbour table ----
-        print(f"Pass {iteration + 1}: building neighbour table...")
+        log.debug(f"Pass {iteration + 1}: building neighbour table...")
         start_time = time.time()
 
         feature_dict = {f.id(): f for f in layer.getFeatures()}
@@ -123,7 +128,7 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
         cols = [f.name() for f in neighbour_layer.fields()]
         datagen = ([f[col] for col in cols] for f in neighbour_layer.getFeatures())
         df = pd.DataFrame.from_records(data=datagen, columns=cols)
-        print(f"  neighbour table done: {str(timedelta(seconds=(time.time() - start_time)))}")
+        log.debug(f"  neighbour table done: {str(timedelta(seconds=(time.time() - start_time)))}")
 
         # ---- Select merge candidates ----
         df["src_hdom"] = pd.to_numeric(df["src_hdom"], errors="coerce")
@@ -151,8 +156,8 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
         any_merges = True
         nbr_fid_unique = list(df_sub["nbr_FID"].unique())
         src_fid_unique = list(df_sub["src_FID"].unique())
-        print(f"  Pass {iteration + 1}: merging {len(src_fid_unique)} stands into "
-              f"{len(nbr_fid_unique)} targets...")
+        log.debug(f"  Pass {iteration + 1}: merging {len(src_fid_unique)} stands into "
+                  f"{len(nbr_fid_unique)} targets...")
         start_time = time.time()
 
         # ---- Dissolve each target group ----
@@ -207,7 +212,7 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
                  'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': 'TEMPORARY_OUTPUT'}
         layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
 
-        print(f"  pass done: {str(timedelta(seconds=(time.time() - start_time)))}")
+        log.debug(f"  pass done: {str(timedelta(seconds=(time.time() - start_time)))}")
 
     # ---- Save final result ----
     if any_merges:
@@ -216,10 +221,10 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
                  'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': output_file["stands_merged"]}
         processing.run("native:fieldcalculator", param)
     else:
-        print("No stands to merge")
+        log.debug("No stands to merge")
         param = {'INPUT': layer, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': output_file["stands_merged"]}
         processing.run("native:fieldcalculator", param)
 
-    print("DONE: merge similar neighbours")
+    log.debug("DONE: merge similar neighbours")
     return output_file

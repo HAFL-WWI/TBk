@@ -233,7 +233,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # ------- TBk Processing --------#
         # --- Stand delineation (Main)
-        log.info('Starting')
+        self._log_milestone(feedback, log, 'Starting stand delineation')
 
         # None correspond to the zone_raster_file that is not used yet
         params_args = {
@@ -259,7 +259,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         results = self.run_stand_delineation(**params_args)
 
         log.debug(f"Results: {results}")
-        log.info("Finished")
+        self._log_milestone(feedback, log, "Finished stand delineation")
 
         results = {
             self.OUTPUT_CLASSIFIED_RAW: results["raw_classified"],

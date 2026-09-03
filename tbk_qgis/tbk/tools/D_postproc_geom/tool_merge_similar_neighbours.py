@@ -130,7 +130,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         log = logging.getLogger('Merge similar neighbours')
 
         # --- Merge similar neighbours
-        log.info('Starting')
+        self._log_milestone(feedback, log, 'Starting merge similar neighbours')
         # todo: also log the keys
         log.debug(f"Used parameters: {params.input_to_merge}, {params.stands_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")

@@ -24,6 +24,7 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
  ***************************************************************************/
 """
+import logging
 import os
 
 # Import system modules
@@ -31,6 +32,10 @@ import os
 import processing
 from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
 from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile
+
+# Substep narration only (file/console at DEBUG); joins the "Simplify & Clean" logger stream
+# set up by tool_simplify_and_clean.py, the only caller of post_process().
+log = logging.getLogger('Simplify & Clean')
 
 
 def post_process(stands_in,
@@ -43,8 +48,8 @@ def post_process(stands_in,
                  simplification_tolerance=8,
                  del_tmp=True):
     # -------- INIT -------#
-    print("--------------------------------------------")
-    print("START post processing...")
+    log.debug("--------------------------------------------")
+    log.debug("START post processing...")
 
     # Expression to eliminate small polygons
     expression = "area_m2 < " + str(min_area)
@@ -93,11 +98,11 @@ def post_process(stands_in,
 
     stand_boundaries_layer = QgsVectorLayer(tmp_files['stands_buf'], "stand_boundaries", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
-    print("selecting small polygons...")
+    log.debug("selecting small polygons...")
     stand_boundaries_layer.selectByExpression(expression)
 
     # Execute Eliminate
-    print("eliminating small polygons...")
+    log.debug("eliminating small polygons...")
 
     # Does not persist results when writing directly to file
     param = {'INPUT': stand_boundaries_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
@@ -109,7 +114,7 @@ def post_process(stands_in,
 
     ########################################
     # --- Simplify
-    print("simplifying polygons...")
+    log.debug("simplifying polygons...")
 
     # simplify douglas method
     algo_output_path = tmp_files['simplified']
@@ -123,7 +128,7 @@ def post_process(stands_in,
 
     # a second simplify pass, further smoothing stands
     if(smoothing):
-        print("smoothing polygons...")
+        log.debug("smoothing polygons...")
         # processing.run("native:densifygeometries", {
         #     'INPUT': algo_output_path,
         #     'VERTICES': 1, 'OUTPUT': tmp_files['densified']})
@@ -147,7 +152,7 @@ def post_process(stands_in,
 
     ########################################
     # --- Recalculate area
-    print("recalculating area...")
+    log.debug("recalculating area...")
     param = {'INPUT': algo_output_path, 'OUTPUT': 'memory:'}
     algo_output = processing.run("native:fixgeometries", param)
 
@@ -169,11 +174,11 @@ def post_process(stands_in,
     # Create tmp layer
     tmp_simplified_layer = QgsVectorLayer(tmp_files['simplified_final'], "stand_boundaries_simplified", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
-    print("selecting small polygons...")
+    log.debug("selecting small polygons...")
     tmp_simplified_layer.selectByExpression(expression)
 
     # Execute Eliminate
-    print("eliminating small polygons...")
+    log.debug("eliminating small polygons...")
 
     # Does not persist results when writing directly to file
     param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
@@ -184,7 +189,7 @@ def post_process(stands_in,
 
     ########################################
     # --- Recalculate area
-    print("recalculating area...")
+    log.debug("recalculating area...")
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': area_expression, 'OUTPUT': 'memory:'}
     algo_output = processing.run("qgis:fieldcalculator", param)
@@ -194,7 +199,7 @@ def post_process(stands_in,
 
     ########################################
     # --- Update hmax and hdom for remainders
-    print("filling in hmax and hdom for remainders...")
+    log.debug("filling in hmax and hdom for remainders...")
     # Create tmp layer
     # tmp_simplified_layer = QgsVectorLayer(tmp_simplified_path, "stand_boundaries_simplified", "ogr")
     tmp_simplified_layer = algo_output['OUTPUT']
@@ -247,7 +252,7 @@ def post_process(stands_in,
         delete_shapefile(tmp_files['reduced'])
         delete_shapefile(tmp_files['stands_buf'])
 
-    print("DONE!")
+    log.debug("DONE!")
 
     # Return final result
     return output_files

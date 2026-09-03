@@ -133,7 +133,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         stands_dg_copy = copy_vector_file(params.stands_dg, params.stands_dg_nh, context, feedback)
 
         # --- Add coniferous proportion
-        log.info('Add coniferous proportion')
+        self._log_milestone(feedback, log, 'Add coniferous proportion')
         stands_dg_nh = add_coniferous_proportion(working_root,
                                                  tmp_output_folder,
                                                  params.dg_layer,

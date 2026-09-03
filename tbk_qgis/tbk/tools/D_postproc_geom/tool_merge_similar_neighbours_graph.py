@@ -100,7 +100,7 @@ class TBkMergeSimilarNeighboursGraphAlgorithm(TBkProcessingAlgorithmToolD):
         self._configure_logging(working_root, params.logfile_name)
         log = logging.getLogger('Merge similar neighbours (graph-based)')
 
-        log.info('Starting')
+        self._log_milestone(feedback, log, 'Starting merge similar neighbours (graph-based)')
         log.debug(f"Used parameters: {params.input_to_merge}, {params.stands_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
