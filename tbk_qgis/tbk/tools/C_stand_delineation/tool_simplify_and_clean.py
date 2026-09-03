@@ -121,7 +121,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=8)
         self._add_advanced_parameter(parameter)
 
-        parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, "Min. area to eliminate small stands",
+        parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2, "Min. area to eliminate small stands (unconditional)",
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=1000)
         self._add_advanced_parameter(parameter)
 
@@ -198,4 +198,7 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         Returns a localised short help string for the algorithm.
         """
         return ('Processing of the "raw" TBk classification. This Algorithm eliminates small stands polygons inferior '
-                'to the minimum area and simplifies the stand boundaries using the simplification tolerance.')
+                'to the minimum area and simplifies the stand boundaries using the simplification tolerance. Unlike '
+                'the hdom-based merge in "Merge similar neighbours", elimination here is unconditional: a stand '
+                'smaller than "Min. area to eliminate small stands" is always merged into the neighbour with which '
+                'it shares the largest boundary, regardless of hdom similarity.')

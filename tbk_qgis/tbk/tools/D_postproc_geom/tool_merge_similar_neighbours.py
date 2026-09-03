@@ -89,7 +89,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
 
         # --- Advanced Parameters
         parameter = QgsProcessingParameterNumber(self.SIMILAR_NEIGHBOURS_MIN_AREA_M2,
-                                                 "Min. area to merge similar stands",
+                                                 "Min. area to merge into similar neighbour (hdom-based)",
                                                  type=QgsProcessingParameterNumber.Integer, defaultValue=2000)
         self._add_advanced_parameter(parameter)
 
@@ -159,9 +159,12 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         """
         return '3 Merge similar neighbours (FM)'
 
-    # todo
     def shortHelpString(self):
         """
         Returns a localised short help string for the algorithm.
         """
-        return ('')
+        return ('Merges small stands into a neighbouring stand of similar dominant height (hdom), unlike the '
+                'unconditional elimination in "Simplify and Clean". A stand smaller than "Min. area to merge into '
+                'similar neighbour" is merged only if a neighbour\'s hdom differs by less than the relative '
+                'tolerance below; dissimilar small stands are left untouched. Iterates until no more candidates '
+                'qualify.')
