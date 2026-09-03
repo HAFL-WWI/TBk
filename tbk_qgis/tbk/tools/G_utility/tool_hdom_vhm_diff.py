@@ -129,19 +129,24 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             return {}
 
         # Raster pixels to points
-        if not os.path.exists(params.vhm_10m_points):
+        # Note: vhm_10m_points is a QgsProcessingParameterFeatureSink, which asMap()/
+        # _extract_context_params() does not resolve to a concrete destination path (unlike
+        # the diff_hdom_vhm raster destination above) - it must be read via
+        # parameterAsOutputLayer(), matching the working pattern in tool_merge_stand_maps.py.
+        vhm_10m_points_path = self.parameterAsOutputLayer(parameters, 'vhm_10m_points', context)
+        if not os.path.exists(vhm_10m_points_path):
             alg_params = {
                 'FIELD_NAME': 'VHM_10m',
                 'INPUT_RASTER': parameters['vhm_10m'],
                 'RASTER_BAND': 1,
-                'OUTPUT': params.vhm_10m_points
+                'OUTPUT': vhm_10m_points_path
             }
             outputs['RasterPixelsToPoints'] = processing.run('native:pixelstopoints', alg_params, context=context,
                                                          feedback=feedback, is_child_algorithm=True)
             results['vhm_10m_points'] = outputs['RasterPixelsToPoints']['OUTPUT']
         else:
-            feedback.pushWarning(f"Output already exists: {params.vhm_10m_points}. Skipping.")
-            results['vhm_10m_points'] = params.vhm_10m_points
+            feedback.pushWarning(f"Output already exists: {vhm_10m_points_path}. Skipping.")
+            results['vhm_10m_points'] = vhm_10m_points_path
         return results
 
     def name(self):
