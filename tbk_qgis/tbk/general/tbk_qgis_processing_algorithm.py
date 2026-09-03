@@ -7,6 +7,7 @@
 
 import logging
 import os
+import sys
 from datetime import datetime
 from types import SimpleNamespace
 from qgis.core import (QgsProcessingAlgorithm,
@@ -15,6 +16,26 @@ from qgis.core import (QgsProcessingAlgorithm,
                        QgsProcessingException)
 from tbk_qgis.tbk.general.persistence_utility import read_dict_from_toml_file
 from tbk_qgis.tbk.general.tbk_utilities import dict_diff, ensure_dir
+
+
+class _TBkDynamicConsoleHandler(logging.StreamHandler):
+    """
+    A console log handler that resolves sys.stderr fresh on every emit(), instead of binding
+    to whatever stream (if any) was live when the handler was created.
+
+    QGIS only installs a real stdout/stderr writer once its Python Console panel has been
+    opened; before that (and possibly between separate algorithm runs), sys.stderr can be
+    None. A plain logging.StreamHandler binds its stream once at construction, so if it grabs
+    a None/dead stream it stays silently broken for the rest of the session - every log call
+    then prints "Logging error: 'NoneType' object has no attribute 'write'" instead of the
+    actual message. This handler just looks up sys.stderr again each time and skips quietly
+    if it's still unavailable, so it starts working the moment a real console appears.
+    """
+    def emit(self, record):
+        self.stream = sys.stderr
+        if self.stream is None:
+            return
+        super().emit(record)
 
 
 class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
@@ -106,17 +127,47 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
     @staticmethod
     def _configure_logging(output_folder_path, logfile_name):
         """
-        Configure logging
+        Configure logging.
+
+        The root logger persists for the whole QGIS session, so a naive "only configure once"
+        guard makes every run after the first silently log to the FIRST run's file/folder
+        (see GitHub issue #6). Instead, the TBk-managed handlers are (re)created whenever a new
+        run starts (i.e. the requested log file differs from the currently configured one), and
+        left untouched for repeated calls within the same run.
+
+        See _TBkDynamicConsoleHandler for why the console handler also needs to resolve its
+        stream dynamically rather than just being recreated here.
+
+        Also disables logging.raiseExceptions: even with the TBk-managed handlers fixed, QGIS/
+        Processing itself (or another already-loaded plugin) can leave its own, non-TBk-managed
+        handler attached to the root logger with a dead stream from very early startup - one we
+        don't own and can't fix, and which survives even a full QGIS restart. Every log call
+        still reaches our own handler correctly (confirmed: the properly formatted message is
+        printed right after the noise), but that foreign handler's failure otherwise prints a
+        "Logging error" traceback for every single message. Disabling raiseExceptions is the
+        standard way to silence a logging handler's own internal errors without touching
+        handlers this plugin doesn't own.
         """
-        # The output folder must exist
+        logging.raiseExceptions = False
+
         logfile_tmp_path = str(os.path.join(output_folder_path, logfile_name))
 
         # Get the root logger
         logger = logging.getLogger()
+        logger.setLevel(logging.DEBUG)
 
-        # Check if the logger already has handlers. If it does, return to avoid duplicated log messages
-        if logger.hasHandlers():
-            return
+        existing_file_handler = next(
+            (h for h in logger.handlers if getattr(h, '_tbk_managed_file', False)), None)
+        if existing_file_handler and \
+                os.path.abspath(existing_file_handler.baseFilename) == os.path.abspath(logfile_tmp_path):
+            return  # already configured for this exact run
+
+        # Starting a new run: drop any previously-attached TBk handlers (stale file path and/or
+        # stale console stream) before (re)creating both.
+        for handler in list(logger.handlers):
+            if getattr(handler, '_tbk_managed_file', False) or getattr(handler, '_tbk_managed_console', False):
+                logger.removeHandler(handler)
+                handler.close()
 
         # Set up logging to file
         log_format = '[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s'
@@ -126,17 +177,17 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         file_handler = logging.FileHandler(logfile_tmp_path, mode='a')
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(file_handler_formatter)
+        file_handler._tbk_managed_file = True
+        logger.addHandler(file_handler)
 
-        # Set up logging to console
+        # Set up logging to console (see _TBkDynamicConsoleHandler for why a plain
+        # logging.StreamHandler is not used here)
         console_formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
-        console = logging.StreamHandler()
+        console = _TBkDynamicConsoleHandler()
         console.setLevel(logging.DEBUG)
         console.setFormatter(console_formatter)
-
-        # Create logger and add the handlers to it
-        logger.setLevel(logging.DEBUG)
+        console._tbk_managed_console = True
         logger.addHandler(console)
-        logger.addHandler(file_handler)
 
         # todo: The QgisHandler messages are not displayed in the QGIS log.
         # # set up logging to QGIS feedback

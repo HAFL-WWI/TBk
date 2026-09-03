@@ -2,6 +2,7 @@
 
 import processing
 import logging
+import traceback
 from collections import ChainMap
 from osgeo import ogr
 
@@ -90,6 +91,17 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         """
         Here is where the processing itself takes place.
         """
+        try:
+            return self._processAlgorithm(parameters, context, feedback)
+        except Exception:
+            # Many child steps only report progress via print()/logging, which can be silently
+            # invisible depending on QGIS version/session state (GitHub issue #5/#6). Make sure
+            # a failure always surfaces its real traceback in the Processing log, not just a bare
+            # "Execution failed".
+            feedback.reportError(traceback.format_exc(), fatalError=True)
+            raise
+
+    def _processAlgorithm(self, parameters, context, feedback):
         # --- OVERWRITE FLAG for testing/debugging
 
         overwrite = False

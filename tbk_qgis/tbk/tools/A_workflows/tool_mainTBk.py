@@ -1,6 +1,7 @@
 # todo: set header
 import processing
 import os
+import traceback
 from collections import ChainMap
 
 from qgis._core import QgsProcessingParameterBoolean
@@ -82,6 +83,17 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         # Use a multi-step feedback, so that individual child algorithm progress reports are adjusted for the
         # overall progress through the model
         feedback = QgsProcessingMultiStepFeedback(12, feedback)
+        try:
+            return self._processAlgorithm(parameters, context, feedback)
+        except Exception:
+            # Many child steps only report progress via print()/logging, which can be silently
+            # invisible depending on QGIS version/session state (GitHub issue #5/#6). Make sure
+            # a failure always surfaces its real traceback in the Processing log, not just a bare
+            # "Execution failed".
+            feedback.reportError(traceback.format_exc(), fatalError=True)
+            raise
+
+    def _processAlgorithm(self, parameters, context, feedback):
         intermediate_results = {}
         main_results = {}
         outputs = {}
