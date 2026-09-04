@@ -68,7 +68,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
 
         # Coniferous raster to calculate stand mean
         self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER,
-                                                            "Coniferous raster to calculate stand mean (.tif)",
+                                                            "MG 10m: Coniferous raster to calculate stand mean (.tif)",
                                                             optional=True))
         if is_standalone_context:
             # Stand raster where the coniferous proportion will be computed

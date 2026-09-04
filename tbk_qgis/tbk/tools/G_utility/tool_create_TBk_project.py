@@ -105,13 +105,13 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
 
         # Coniferous raster
         self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER_FOR_CLASSIFICATION,
-                                                            "Coniferous raster to be used during stand "
+                                                            "MG 10m binary: Coniferous raster used during stand "
                                                             "delineation (.tif)\nA simplified binarized "
                                                             "raster may achieve better results",
                                                             optional=True))
         # Coniferous raster to calculate stand mean
         self.addParameter(QgsProcessingParameterRasterLayer(self.CONIFEROUS_RASTER,
-                                                            "Coniferous raster to calculate stand mean (.tif)",
+                                                            "MG 10m: Coniferous raster to calculate stand mean (.tif)",
                                                             optional=True))
 
 
