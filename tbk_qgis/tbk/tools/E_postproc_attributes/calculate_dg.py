@@ -56,9 +56,11 @@ def calculate_dg(working_root,
                  dg_dir,
                  vhm,
                  del_tmp=True,
-                 gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
-    log.debug("--------------------------------------------")
-    log.debug("START DG calculation...")
+                 gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                 feedback=None):
+    # feedback=None still gets the Start/step/Finished lines in the log file via
+    # SubprocessTimer(log=log) - only the Processing feedback panel is skipped.
+    timer = SubprocessTimer(feedback, "Calculate crown coverage", "C", log=log)
 
     # Create dg layer output directory
     if not os.path.exists(dg_dir):
@@ -115,7 +117,7 @@ def calculate_dg(working_root,
         stands_layer.updateFields()
 
         # Calculate DG limits per stand
-        log.debug("calculating DG limits...")
+        timer.step("calculating DG limits...")
 
         for f in stands_layer.getFeatures():
             # ensure numeric type
@@ -154,7 +156,7 @@ def calculate_dg(working_root,
     # Produce final "1" / "0" raster for each layer
     # iterate over the list above
     # CreateCopy > rasterize over > calc/compress
-    log.debug("classify stand layers...")
+    timer.step("classify stand layers...")
     for column_prefix, \
             dg_lim_field, \
             dg_tmp_file_b, \
@@ -204,7 +206,7 @@ def calculate_dg(working_root,
         log.debug(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
     # Calculate DG per stand and per layer
-    log.debug("zonal statistics...")
+    timer.step("zonal statistics...")
     for column_prefix, x, x, x, dg_layer_file, x in field_file_pairs:
         start_time = time.time()
 
@@ -254,7 +256,7 @@ def calculate_dg(working_root,
                        "dg_min", "dg_mean", 'dg_count', 'dg_sum',
                        "dissolve",])
 
-    log.debug("DONE!")
+    timer.finish()
 
     # Add "output_dg_layer_" as a prefix to keys to improve clarity when reusing the output.
     results = {f"dg_layer_{key}": value for key, value in dg_files.items()}

@@ -27,8 +27,6 @@
 # This will get replaced with a git SHA1 when you do a git archive
 __revision__ = '$Format:%H$'
 
-import time
-from datetime import timedelta
 from pathlib import Path
 import shutil
 
@@ -43,7 +41,7 @@ from qgis.core import (
 
 from qgis.PyQt.QtCore import QCoreApplication
 
-from tbk_qgis.tbk.general.tbk_utilities import get_raster_metadata
+from tbk_qgis.tbk.general.tbk_utilities import get_raster_metadata, SubprocessTimer
 from tbk_qgis.tbk.tools.G_utility.tbk_qgis_processing_algorithm_toolsG import TBkProcessingAlgorithmToolG
 
 class TBkCreateProject(TBkProcessingAlgorithmToolG):
@@ -121,10 +119,7 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         """
         Here is where the processing itself takes place.
         """
-        feedback.pushInfo("----------------------------")
-        feedback.pushInfo("Start CreateProject")
-        feedback.pushInfo("----------------------------")
-        start_time = time.time()
+        timer = SubprocessTimer(feedback, "CreateProject", "C")
 
         # --- Read parameters properly
         result_dir = Path(self.parameterAsString(parameters, self.RESULT_DIR, context))
@@ -143,7 +138,7 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         tbk_result_dir.mkdir(parents=True, exist_ok=True)
 
         # --- Locate template (relative to plugin)
-        feedback.pushInfo(f"Resolved parameters: {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Resolved parameters")
         template_path = Path(__file__).resolve().parents[2] / "resources" / "TBk_Template.qgz"
 
         if not template_path.exists():
@@ -156,12 +151,12 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         shutil.copyfile(template_path, project_copy_path)
 
         # --- Load project (independent!)
-        feedback.pushInfo(f"Start loading project: {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Start loading project")
         project = QgsProject()
         project.read(str(project_copy_path))
 
         # --- Raster metadata
-        feedback.pushInfo(f"Reading raster metadata:  {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Reading raster metadata")
         meta_data = get_raster_metadata(vhm_10m)
 
         epsg = meta_data["epsg"]
@@ -169,15 +164,14 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         feedback.pushInfo(f"CRS: EPSG:{epsg}, xmin, ymin, xmax, ymax {xmin, ymin, xmax, ymax}")
 
         # --- Set “last zoomed extent” for the project map canvas
-        feedback.pushInfo(
-            f"Set project map canvas extent to raster extent: {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Set project map canvas extent to raster extent")
         project.writeEntry("ProjectSettings", "/MapCanvasExtentXMin", str(xmin))
         project.writeEntry("ProjectSettings", "/MapCanvasExtentXMax", str(xmax))
         project.writeEntry("ProjectSettings", "/MapCanvasExtentYMin", str(ymin))
         project.writeEntry("ProjectSettings", "/MapCanvasExtentYMax", str(ymax))
 
         # --- CRS
-        feedback.pushInfo(f"Apply CRS to project and all layers:  {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Apply CRS to project and all layers")
         crs = QgsCoordinateReferenceSystem(f"EPSG:{epsg}")
         project.setCrs(crs)
 
@@ -204,7 +198,7 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
                 files[k] = str(f.resolve())
 
         # --- Replace layer sources
-        feedback.pushInfo(f"Replace layer sources:  {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Replace layer sources")
 
         def replace_layer(layer_name, new_path):
             if not new_path:
@@ -229,7 +223,7 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
         replace_layer("Differenz hdom <> VHM 10m", files["diff_hdom_vhm"])
 
         # --- Layout extent
-        feedback.pushInfo(f"Update layout extents:  {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Update layout extents")
         bb = QgsRectangle(xmin, ymin, xmax, ymax)
 
         def set_layout_extent(layout_name):
@@ -253,13 +247,10 @@ class TBkCreateProject(TBkProcessingAlgorithmToolG):
             set_layout_extent(l)
 
         # --- Save
-        feedback.pushInfo(f"Writing project:  {timedelta(seconds=(time.time() - start_time))}")
+        timer.step("Writing project")
         project.write(str(project_copy_path))
 
-        feedback.pushInfo("----------------------------")
-        feedback.pushInfo("Finished CreateProject")
-        feedback.pushInfo(f"TOTAL TIME: {timedelta(seconds=(time.time() - start_time))}")
-        feedback.pushInfo("----------------------------")
+        timer.finish()
 
         return {"OUTPUT_PROJECT": str(project_copy_path)}
 

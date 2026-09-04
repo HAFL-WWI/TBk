@@ -366,12 +366,18 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         grid_cell_size = self.parameterAsDouble(parameters, self.GRID_CELL_SIZE, context)
 
         start_time = time.time()
+        # elapsed() bakes in the "L" tag distinguishing this subprocess's own timeline (see
+        # SubprocessTimer) from the enclosing workflow's [W …] one, so every existing
+        # log(f"[{elapsed()}] ...") call below renders as "[L H:MM:SS] ..." unchanged.
         def elapsed():
-            return str(timedelta(seconds=round(time.time() - start_time)))
+            return f"L {timedelta(seconds=round(time.time() - start_time))}"
         def log(msg):
             feedback.pushInfo(msg)
             print(msg)
         feedback.setProgress(0)
+
+        log("Start LocalDensities")
+        log("----------------------------")
 
         # lump together density classes
         den_classes = []
@@ -1022,9 +1028,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                                                   getVectorSaveOptions('GPKG', 'utf-8'))
 
         feedback.setProgress(100)
-        log("====================================================================")
-        log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
-        log("====================================================================")
+        log(f"Finished LocalDensities ({timedelta(seconds=round(time.time() - start_time))})")
+        log("----------------------------")
 
         return {self.OUTPUT: path_output}
 

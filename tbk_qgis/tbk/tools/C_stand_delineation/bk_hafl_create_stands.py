@@ -35,6 +35,10 @@ import logging
 import os
 import sys
 
+# Substep narration only (file/console at DEBUG); joins the "1 Delineate Stand" logger stream
+# set up by tool_stand_delineation_algorithm.py, the only caller of these functions.
+log = logging.getLogger('1 Delineate Stand')
+
 # TBk version, update this string manually
 version = "0.9"
 
@@ -75,8 +79,8 @@ def run_stand_classification(workingRoot,
 
     # -------- INIT --------#
 
-    print("--------------------------------------------")
-    print("START stand delineation...")
+    log.debug("--------------------------------------------")
+    log.debug("START stand delineation...")
 
     # Get time for testing performance
     start_time = time.time()
@@ -120,9 +124,9 @@ def run_stand_classification(workingRoot,
     # Get and print main input raster information
     geotransform = ds.GetGeoTransform()
     projectionfrom = ds.GetProjection()
-    print("VHM raster info: %s bands, %s rows x %s cols, %s resolution, X: %s, Y: %s, CRS: %s"
-          % (ds.RasterCount, data.shape[0], data.shape[1], geotransform[1], round(geotransform[0], 2),
-             round(geotransform[3], 2), osr.SpatialReference(wkt=projectionfrom).GetAttrValue('projcs')))
+    log.debug("VHM raster info: %s bands, %s rows x %s cols, %s resolution, X: %s, Y: %s, CRS: %s"
+             % (ds.RasterCount, data.shape[0], data.shape[1], geotransform[1], round(geotransform[0], 2),
+                round(geotransform[3], 2), osr.SpatialReference(wkt=projectionfrom).GetAttrValue('projcs')))
 
     # get NoData value
     nodata_value = band.GetNoDataValue()
@@ -164,7 +168,7 @@ def run_stand_classification(workingRoot,
         if not CH.compare_raster(inputRasterFile, zoneRasterFile):
             logging.warning("VHM and ZONE raster have different extents and/or projections!")
 
-    print("--- %s minutes, input data loaded---" % round((time.time() - start_time) / 60, 2))
+    log.debug("--- %s minutes, input data loaded---" % round((time.time() - start_time) / 60, 2))
 
     # ------- STAND CLASSIFICATION -------#
 
@@ -172,21 +176,21 @@ def run_stand_classification(workingRoot,
     standNbr = 1
 
     if coniferous is not None:
-        print("pre-classification with mixture information...")
+        log.debug("pre-classification with mixture information...")
         stand, standNbr, standList, hdom, hmax = classify_pixels(data, dataList, standNbr,
                                                                  min_tol, max_tol, min_corr, max_corr, min_valid_cells,
                                                                  min_cells_per_pure_stand,
                                                                  zone, coniferous,
                                                                  stand, standList, hdom, hmax)
 
-    print("classification without mixture information...")
+    log.debug("classification without mixture information...")
     stand, standNbr, standList, hdom, hmax = classify_pixels(data, dataList, standNbr,
                                                              min_tol, max_tol, min_corr, max_corr, min_valid_cells,
                                                              min_cells_per_stand,
                                                              zone, None,
                                                              stand, standList, hdom, hmax)
 
-    print("--- %s minutes, classification finished ---" % round((time.time() - start_time) / 60, 2))
+    log.debug("--- %s minutes, classification finished ---" % round((time.time() - start_time) / 60, 2))
 
     # classify all value not classified till now (assign standNbr - is last stand +1)
     m_tmp = (data >= 0) & (stand == 0)
@@ -194,15 +198,15 @@ def run_stand_classification(workingRoot,
 
     # Save raw classification file
     CH.store_raster(stand, outputRawFilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" % outputRawFilePath)
+    log.debug("File %s saved" % outputRawFilePath)
 
     # Save hmax raster
     CH.store_raster(hmax, outputHmaxPath, projectionfrom, geotransform, gdal.GDT_Byte)
-    print("File %s saved" % outputHmaxPath)
+    log.debug("File %s saved" % outputHmaxPath)
 
     # Save hdom raster
     CH.store_raster(hdom, outputHdomPath, projectionfrom, geotransform, gdal.GDT_Byte)
-    print("File %s saved" % outputHdomPath)
+    log.debug("File %s saved" % outputHdomPath)
 
     # ------- SMOOTHING -------#
 
@@ -210,32 +214,32 @@ def run_stand_classification(workingRoot,
     stand = CH.focal_majority(stand, 3, standNbr, 0)
     # save file after reclassify
     CH.store_raster(stand, outputSmooth1FilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" % outputSmooth1FilePath)
+    log.debug("File %s saved" % outputSmooth1FilePath)
 
     # focal majority for all pixels
     stand = CH.focal_majority(stand, 3, None, 0)
     # save file after reclassify
     CH.store_raster(stand, outputSmooth2FilePath, projectionfrom, geotransform, gdal.GDT_UInt32)
-    print("File %s saved" % outputSmooth2FilePath)
-    print("--- %s minutes, raster smoothed and saved  ---" % round((time.time() - start_time) / 60, 2))
+    log.debug("File %s saved" % outputSmooth2FilePath)
+    log.debug("--- %s minutes, raster smoothed and saved  ---" % round((time.time() - start_time) / 60, 2))
 
     # ------- POLYGONIZE, ADD ATTRIBUTES -------#
 
     # polygonize the raster -> to vector file
     CH.polygonize(outputSmooth2FilePath, outputVectorFilePath)
-    print("--- %s minutes, vector file saved ---" % round((time.time() - start_time) / 60, 2))
+    log.debug("--- %s minutes, vector file saved ---" % round((time.time() - start_time) / 60, 2))
 
     # add stand information to polygon vector file
     CH.add_stand_attributes(outputVectorFilePath, standList, standNbr)
-    print("--- %s minutes, stand attributes added ---" % round((time.time() - start_time) / 60, 2))
+    log.debug("--- %s minutes, stand attributes added ---" % round((time.time() - start_time) / 60, 2))
 
     # zonal statistics for vhm per polygon, which is later used to calculate remainder hmax & hdom
-    print("stats input file path", inputRasterFile)
+    log.debug("stats input file path %s", inputRasterFile)
     CH.add_vhm_stats(outputVectorFilePath, inputRasterFile)
-    print("--- %s minutes, vhm stats calculated ---" % round((time.time() - start_time) / 60, 2))
+    log.debug("--- %s minutes, vhm stats calculated ---" % round((time.time() - start_time) / 60, 2))
 
     # DONE
-    print('DONE ! ')
+    log.debug('DONE ! ')
 
     # Return output directory
     return out_path
@@ -263,10 +267,11 @@ def classify_pixels(data,
         # get value, row and col of current pixel
         v, r, c = dataList[i]
 
-        # print every 10 % of pixel processed
+        # terse one-line-per-10% progress, GDAL-style ("10%..", "20%.." etc.), spread across
+        # log lines rather than accumulated on one - the Processing feedback panel/log file
+        # has no shared buffer to append an in-place progress meter to
         if i > przPrint:
-            print("%s%% pixels classified --> (%s from %s), value %s, standNbr %s" % (
-                round(przPrint / prz10) * 10, i, len(dataList), round(v, 1), standNbr))
+            log.debug(f"{round(przPrint / prz10) * 10}%..")
             przPrint += prz10
 
         # proceed if not already classified

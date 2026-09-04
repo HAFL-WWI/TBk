@@ -38,10 +38,55 @@ import os
 import sys
 import logging
 import processing
+import time
+from datetime import timedelta
 
 from osgeo import ogr
 from osgeo import gdal
 from osgeo import osr
+
+
+class SubprocessTimer:
+    """
+    Timed, indented "Start <label> / ---- / [<tag> elapsed] step ... / Finished <label>
+    (elapsed) / ----" block for a verbose subprocess, printed to `feedback` (Processing panel)
+    and, if given, a Python `log`ger - so a long-running subprocess (e.g. CreateProject, local
+    density, a region within Generate BK Regionwise) reads as a distinct, self-contained block
+    within the enclosing workflow's own [W ...]-tagged timeline, rather than an undifferentiated
+    stream of messages. `tag` distinguishes this block's own elapsed-time lines from the
+    workflow's and from other subprocesses' (e.g. "R" for a region, "C" for CreateProject).
+    """
+    WRAP = "-" * 28
+
+    def __init__(self, feedback, label, tag, log=None, indent=''):
+        self.feedback = feedback
+        self.log = log
+        self.label = label
+        self.tag = tag
+        self.indent = indent
+        self._start = time.time()
+        self._emit("")  # blank line separates this block's start from whatever precedes it
+        self._emit(f"Start {self.label}")
+        self._emit(self.WRAP)
+
+    def _elapsed(self):
+        return str(timedelta(seconds=round(time.time() - self._start)))
+
+    def _emit(self, msg):
+        line = f"{self.indent}{msg}"
+        if self.feedback is not None:
+            self.feedback.pushInfo(line)
+        if self.log is not None:
+            self.log.info(line)
+
+    def step(self, msg):
+        """Logs one tagged, elapsed-time-stamped line within this subprocess block."""
+        self._emit(f"[{self.tag} {self._elapsed()}] {msg}")
+
+    def finish(self):
+        """Closes the block with a "Finished <label> (elapsed)" line and a trailing wrap."""
+        self._emit(f"Finished {self.label} ({self._elapsed()})")
+        self._emit(self.WRAP)
 
 
 def ensure_dir(path):

@@ -146,9 +146,11 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         stands_clipped_copy = copy_vector_file(params.stands_clipped_no_gaps, params.stands_dg, context, feedback)
 
         # --- Calculate DG
-        self._log_milestone(feedback, log, 'Starting crown coverage (DG) calculation')
+        # (calculate_dg() logs its own "Start/Finished Calculate crown coverage" milestone
+        # block via SubprocessTimer, given feedback - no separate _log_milestone here)
         results = calculate_dg(working_root, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
-                               del_tmp=params.del_tmp, gdal_create_options=params.gdal_create_options)
+                               del_tmp=params.del_tmp, gdal_create_options=params.gdal_create_options,
+                               feedback=feedback)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],
                 self.OUTPUT_DG_LAYER_MAIN: results["dg_layer_main"],

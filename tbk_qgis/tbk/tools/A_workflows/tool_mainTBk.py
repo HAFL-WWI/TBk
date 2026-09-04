@@ -1,8 +1,11 @@
 # todo: set header
 import processing
 import os
+import time
+import logging
 import traceback
 from collections import ChainMap
+from datetime import timedelta
 
 from qgis._core import QgsProcessingParameterBoolean
 from qgis.core import QgsProcessingMultiStepFeedback
@@ -106,7 +109,28 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         parameters['stands_clean'] = os.path.join(bk_process_dir, "stands_clean.gpkg")
         parameters['final_stand_map'] = os.path.join(result_dir, "TBk_Bestandeskarte.gpkg")
 
+        # set logger
+        self._configure_logging(bk_process_dir, parameters['logfile_name'], context)
+        log = logging.getLogger(self.name())
+
+        # elapsed time helper — timestamps prefixed [W …] distinguish main-workflow
+        # log lines from sub-algorithm output (which resets to [0:00:00] at each call)
+        start_time = time.time()
+        def elapsed():
+            return str(timedelta(seconds=round(time.time() - start_time)))
+        def wf_log(msg):
+            full = f"[W {elapsed()}] {msg}"
+            log.info(full)
+            feedback.pushInfo(full)
+
+        wf_log("====================================================================")
+        wf_log(f"START WORKFLOW: {self.name()}")
+        wf_log("====================================================================")
+
         # --- 1 Delineate Stand
+
+        wf_log("-> 1 Delineate Stand")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['output_stand_boundaries'] = os.path.join(bk_process_dir, "stand_boundaries.gpkg")
@@ -140,12 +164,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         intermediate_results['classified_smooth_1'] = outputs['DelineateStand']['classified_smooth_1']
         intermediate_results['classified_smooth_2'] = outputs['DelineateStand']['classified_smooth_2']
         intermediate_results['stand_boundaries'] = outputs['DelineateStand']['output_stand_boundaries']
+        wf_log(f"<- 1 Delineate Stand done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(1)
         if feedback.isCanceled():
             return {}
 
         # --- 2 Simplify and Clean
+
+        wf_log("-> 2 Simplify and Clean")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_simplified'] = os.path.join(bk_process_dir, "stands_simplified.gpkg")
@@ -171,12 +199,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         # store outputs in dict
         intermediate_results['stands_simplified'] = outputs['SimplifyAndClean']['stands_simplified']
         intermediate_results['stands_highest_tree'] = outputs['SimplifyAndClean']['stands_highest_tree']
+        wf_log(f"<- 2 Simplify and Clean done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(2)
         if feedback.isCanceled():
             return {}
 
         # --- 3 Merge similar neighbours (FM)
+
+        wf_log("-> 3 Merge similar neighbours (FM)")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_merged'] = os.path.join(bk_process_dir, "stands_merged.gpkg")
@@ -198,12 +230,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
 
         # store outputs in dict
         intermediate_results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
+        wf_log(f"<- 3 Merge similar neighbours (FM) done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(3)
         if feedback.isCanceled():
             return {}
 
         # --- 4 Clip to perimeter and eliminate gaps
+
+        wf_log("-> 4 Clip to perimeter and eliminate gaps")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_clipped_no_gaps'] = os.path.join(bk_process_dir, "stands_clipped.gpkg")
@@ -225,12 +261,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
 
         # store outputs in dict
         intermediate_results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
+        wf_log(f"<- 4 Clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(4)
         if feedback.isCanceled():
             return {}
 
         # --- 5 Calculate crown coverage
+
+        wf_log("-> 5 Calculate crown coverage")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_dg'] = os.path.join(bk_process_dir, "stands_dg.gpkg")
@@ -259,12 +299,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         main_results['dg_layer_ms'] = outputs['CalculateCrownCoverage']['dg_layer_ms']
         main_results['dg_layer_os'] = outputs['CalculateCrownCoverage']['dg_layer_os']
         main_results['dg_layer_ueb'] = outputs['CalculateCrownCoverage']['dg_layer_ueb']
+        wf_log(f"<- 5 Calculate crown coverage done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(5)
         if feedback.isCanceled():
             return {}
 
         # --- 6 Add coniferous proportion
+
+        wf_log("-> 6 Add coniferous proportion")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_dg_nh'] = os.path.join(bk_process_dir, "stands_dg_nh.gpkg")
@@ -285,12 +329,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         outputs['AddConiferousProportion'] =  processing.run('TBk:6 Add coniferous proportion', alg_params,
                               context=context, feedback=feedback,
                               is_child_algorithm=True)
+        wf_log(f"<- 6 Add coniferous proportion done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(6)
         if feedback.isCanceled():
             return {}
 
         # --- Append stand attributes
+
+        wf_log("-> Append stand attributes")
+        step_start = time.time()
 
         # create output filename parameters
         parameters['stands_dg_nh_vegZone'] = os.path.join(bk_process_dir, "stands_dg_nh_vegZone.gpkg")
@@ -312,12 +360,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         }
         outputs['AppendStandAttributes'] =  processing.run('TBk:Append stand attributes', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
+        wf_log(f"<- Append stand attributes done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(7)
         if feedback.isCanceled():
             return {}
 
         # --- TBk postprocess Cleanup
+
+        wf_log("-> TBk postprocess Cleanup")
+        step_start = time.time()
 
         # compile params and run tool
         alg_params = {
@@ -328,12 +380,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         }
         outputs['TbkPostprocessCleanup'] = processing.run('TBk:TBk postprocess Cleanup', alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
+        wf_log(f"<- TBk postprocess Cleanup done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(8)
         if feedback.isCanceled():
             return {}
 
         # --- TBk postprocess Hdom diff
+
+        wf_log("-> TBk postprocess Hdom diff")
+        step_start = time.time()
 
         alg_params = {
             'tbk_bestandesgrenzen': outputs['TbkPostprocessCleanup']['OUTPUT'],
@@ -343,12 +399,16 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         }
         outputs['PostprocessHdomDiff'] = processing.run(TBkPostprocessHdomDiff(), alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
+        wf_log(f"<- TBk postprocess Hdom diff done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(9)
         if feedback.isCanceled():
             return {}
 
         # --- TBk create QGIS Project (.qgz)
+
+        wf_log("-> TBk create QGIS Project (.qgz)")
+        step_start = time.time()
 
         alg_params = {
             'config_file': parameters['config_file'],
@@ -360,6 +420,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         }
         outputs['CreateProject'] = processing.run(TBkCreateProject(), alg_params, context=context,
                               feedback=feedback, is_child_algorithm=True)
+        wf_log(f"<- TBk create QGIS Project (.qgz) done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(10)
         if feedback.isCanceled():
@@ -377,6 +438,8 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         # --- Calculate local densities (optional)
 
         if parameters['calc_local_density']:
+            wf_log("-> local density")
+            step_start = time.time()
             processing.run("TBk:TBk postprocess local density", {
                 'path_tbk_input': result_dir,
                 'mg_use': True,
@@ -388,8 +451,15 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
                 'buffer_smoothing': True,
                 'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3
             }, context=context, feedback=feedback, is_child_algorithm=True)
+            wf_log(f"<- local density done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+        else:
+            wf_log("Skipped local density (calc_local_density = False)")
 
         feedback.setCurrentStep(12)
+
+        wf_log("====================================================================")
+        wf_log(f"FINISHED — total processing time: {elapsed()} (h:min:sec)")
+        wf_log("====================================================================")
 
         # return { 'intermediate_results': intermediate_results, 'main_results': main_results }
         return main_results

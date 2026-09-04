@@ -11,7 +11,7 @@ from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, 
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
     QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
 
-from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff, finalize_TBk)
+from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff, finalize_TBk, SubprocessTimer)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
 from tbk_qgis.tbk.general.qgis_processing_utility import QgsUtility
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
@@ -191,6 +191,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             print(full)
             feedback.pushInfo(full)
 
+        wf_log("====================================================================")
+        wf_log(f"START WORKFLOW: {self.name()}")
+        wf_log("====================================================================")
+
         # *************************************** #
         # --- *  Main Region-wise Processing * ---#
         # *************************************** #
@@ -280,14 +284,23 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             feedback.setProgressText(f"Process region {region_name} :: ({i:>2} / {len(features_sorted)})")
             if feedback.isCanceled():
                 return {}
-            log.info(f"\n")
-            log.info(f"-----------------------------------------------------")
-            log.info(f"--- Processing Region {region_name} :: ({i:>2} / {len(features_sorted)}) ---")
-            log.info(f"-----------------------------------------------------")
-            print(f"\n-----------------------------------------------------")
-            print(f"--- Processing Region {region_name} :: ({i:>2} / {len(features_sorted)}) ---")
-            print(f"-----------------------------------------------------")
-            print(f"to {region_base_data_dir}")
+
+            # region-scoped, indented sub-timeline: [R …] resets to 0:00:00 for each region,
+            # distinguishing it from the workflow's own [W …] timeline and other regions' output
+            wf_log(f"-> Region {region_name} ({i}/{len(features_sorted)})")
+            region_indent = '    '
+            def region_log(msg):
+                line = f"{region_indent}{msg}"
+                log.info(line)
+                print(line)
+                feedback.pushInfo(line)
+            def region_step(msg):
+                region_log(f"[R {str(timedelta(seconds=round(time.time() - region_start)))}] {msg}")
+
+            # (no region_log() header here - setProgressText() above already echoed
+            # "Process region ..." and wf_log() above already logged the "-> Region ..." entry)
+            region_log("-------------------------------")
+            region_log(f"to {region_base_data_dir}")
 
             # Construct the output path for the vector files (GeoPackage)
             output_vector = os.path.join(region_base_data_dir, f'perimeter_{region_name}.gpkg')
@@ -398,47 +411,58 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
             # --- Run Stand Delineation
             if overwrite or not _step_output_done(parameters_region["output_stand_boundaries"]):
-                print(f"STAND DELINEATION: \n{parameters_region['perimeter']}")
+                region_step("-> stand delineation")
+                step_start = time.time()
                 results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
                                                            context=context, feedback=feedback)
                 _mark_step_output_done(parameters_region["output_stand_boundaries"])
+                region_step(f"<- stand delineation done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
-                print(f"Skipped STAND DELINEATION, file already exists (overwrite = False)")
+                region_log(f"Skipped stand delineation, file already exists (overwrite = False)")
 
             # --- Simplify and eliminate
             if overwrite or not _step_output_done(parameters_region['stands_simplified']):
-                print(f"SIMPLIFY & CLEAN: \n{parameters_region['output_stand_boundaries']}")
+                region_step("-> simplify & clean")
+                step_start = time.time()
                 results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
                                                   context=context, feedback=feedback)
                 _mark_step_output_done(parameters_region['stands_simplified'])
+                region_step(f"<- simplify & clean done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
-                print(f"Skipped SIMPLIFY & CLEAN, file already exists (overwrite = False)")
+                region_log(f"Skipped simplify & clean, file already exists (overwrite = False)")
 
             # --- Clip & Singlepart
             if overwrite or not _step_output_done(parameters_region["stands_clipped_no_gaps"]):
-                print(f"CLIP: \n{parameters_region['input_to_clip']}")
+                region_step("-> clip to perimeter and eliminate gaps")
+                step_start = time.time()
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
                                                  context=context, feedback=feedback)
                 _mark_step_output_done(parameters_region["stands_clipped_no_gaps"])
+                region_step(f"<- clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
-                print(f"Skipped CLIP, file already exists (overwrite = False)")
+                region_log(f"Skipped clip, file already exists (overwrite = False)")
 
             # --- Merge
             if overwrite or not _step_output_done(parameters_region["stands_merged"]):
-                print(f"MERGE: \n{parameters_region['input_to_merge']}")
+                region_step("-> merge similar neighbours")
+                step_start = time.time()
                 algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
                                            context=context, feedback=feedback)
                 _mark_step_output_done(parameters_region["stands_merged"])
+                region_step(f"<- merge similar neighbours done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
-                print(f"Skipped MERGE, file already exists (overwrite = False)")
+                region_log(f"Skipped merge, file already exists (overwrite = False)")
 
             # --- Cleanup
             if overwrite or not _step_output_done(parameters_region["output_stand_map_clean"]):
+                region_step("-> postprocess cleanup")
+                step_start = time.time()
                 algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
                                            context=context, feedback=feedback)
                 _mark_step_output_done(parameters_region["output_stand_map_clean"])
+                region_step(f"<- postprocess cleanup done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
-                print(f"Skipped cleanup, file already exists (overwrite = False)")
+                region_log(f"Skipped cleanup, file already exists (overwrite = False)")
 
             # --- Collect regions and ID/name
             regions_stand_map.append(parameters_region["output_stand_map_clean"])
@@ -460,15 +484,9 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     os.path.join(region_root_dir, 'bk_process', 'stands_highest_tree.gpkg'))
 
             region_ID_prefix.append(feature[fieldname_region])
-            print(f"-----------------------------------------------------")
-            print(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
-            print(f"-----------------------------------------------------\n")
-            log.info(f"-----------------------------------------------------")
-            log.info(f"--- completed {region_ID_prefix} :: ({i:>2} / {len(features_sorted)})  ---")
-            log.info(f"-----------------------------------------------------")
-            log.info(f"\n")
+            region_log("-------------------------------")
             region_elapsed = str(timedelta(seconds=round(time.time() - region_start)))
-            wf_log(f"Region {region_name} ({i}/{len(features_sorted)}) done — region: {region_elapsed}, total: {elapsed()}")
+            wf_log(f"<- Region {region_name} ({i}/{len(features_sorted)}) done — region: {region_elapsed}, total: {elapsed()}")
 
             # --- cleanup after each loop iteration
 
@@ -608,10 +626,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         ]
 
         for alg, skip_output in attribution_algs_and_outputs:
-            # progress info
+            # progress info (no setProgressText() here - it echoes into the Processing log as
+            # a bare duplicate of the wf_log "-> alg.name()" line right below it)
             processing_step = processing_step + 1
             feedback.setCurrentStep(processing_step)
-            feedback.setProgressText(alg.name())
             if feedback.isCanceled():
                 return {}
             if not overwrite and skip_output and _step_output_done(skip_output):

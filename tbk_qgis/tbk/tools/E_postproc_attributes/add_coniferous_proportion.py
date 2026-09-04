@@ -52,16 +52,19 @@ def add_coniferous_proportion(working_root,
                               calc_main_layer,
                               tbk_result_dir,
                               del_tmp=True,
-                              gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9'):
-    log.debug("--------------------------------------------")
-    log.debug("START coniferous proportion...")
+                              gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                              feedback=None):
+    # feedback=None (e.g. Y_legacy callers) still gets the Start/step/Finished lines in the
+    # log file via SubprocessTimer(log=log) - only the Processing feedback panel is skipped.
+    timer = SubprocessTimer(feedback, "Add coniferous proportion", "A", log=log)
 
-    log.debug("loading files...")
+    timer.step("loading files...")
     if coniferous_raster == 'null' or coniferous_raster == None:
-        log.debug("No coniferous raster found.")
+        timer.step("No coniferous raster found.")
+        timer.finish()
         return
 
-    log.debug("calc mean coniferous proportion...")
+    timer.step("calc mean coniferous proportion...")
 
     zonal_statistics(coniferous_raster, stands_dg_copy, 'nh_', [2])
 
@@ -80,7 +83,7 @@ def add_coniferous_proportion(working_root,
 
     # NH OS
     if calc_main_layer:
-        log.debug("calc mean coniferous proportion for main layer...")
+        timer.step("calc mean coniferous proportion for main layer...")
         # dg raster layer
         # todo: variable name refers to the upper layer(os) file but the main layer file is used since at least 2023. Not sure if wanted
         dg_layer_os = dg_layer
@@ -188,7 +191,7 @@ def add_coniferous_proportion(working_root,
             delete_raster(tmp_files["dg_layer_os_nh"])
             delete_raster(tmp_files["dg_layer_os_10m_mask"])
 
-    log.debug("DONE!")
+    timer.finish()
     return stands_dg_copy
 
 

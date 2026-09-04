@@ -133,7 +133,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         stands_dg_copy = copy_vector_file(params.stands_dg, params.stands_dg_nh, context, feedback)
 
         # --- Add coniferous proportion
-        self._log_milestone(feedback, log, 'Add coniferous proportion')
+        # (add_coniferous_proportion() logs its own "Start/Finished Add coniferous proportion"
+        # milestone block via SubprocessTimer, given feedback - no separate _log_milestone here)
         stands_dg_nh = add_coniferous_proportion(working_root,
                                                  tmp_output_folder,
                                                  params.dg_layer,
@@ -142,7 +143,8 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
                                                  params.calc_mixture_for_main_layer,
                                                  params.result_dir,
                                                  del_tmp=params.del_tmp,
-                                                 gdal_create_options=params.gdal_create_options)
+                                                 gdal_create_options=params.gdal_create_options,
+                                                 feedback=feedback)
 
         return {self.OUTPUT_STANDS_WITH_CONIFEROUS: stands_dg_nh}
 
