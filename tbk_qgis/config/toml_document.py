@@ -72,6 +72,12 @@ class TOMLKeyValue:
             # If the string is surrounded by double quotes or single quotes, remove them.
             if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
                 value = value[1:-1]
+            # Handle the unquoted null literal ("null"/"None"/"NULL", case insensitive - TOML
+            # itself has no null type, but write_toml() emits bare "null" for Python None, and
+            # some hand-written/legacy config values use "NULL"). A *quoted* "None"/"null" above
+            # is left as the literal string it names - only the bareword form means "no value".
+            elif value.lower() in ("null", "none"):
+                value = None
             # Handle boolean values ('true' or 'false', case insensitive).
             elif value.lower() == "true":
                 value = True

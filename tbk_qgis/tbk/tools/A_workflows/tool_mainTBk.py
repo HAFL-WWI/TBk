@@ -10,6 +10,7 @@ from datetime import timedelta
 from qgis._core import QgsProcessingParameterBoolean
 from qgis.core import QgsProcessingMultiStepFeedback
 from tbk_qgis.tbk.general.tbk_utilities import finalize_TBk
+from tbk_qgis.tbk.general.persistence_utility import write_dict_to_toml_file
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_simplify_and_clean import TBkSimplifyAndCleanAlgorithm
 from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours import \
@@ -31,6 +32,10 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
     """
     todo
     """
+    # required by the inherited prepare(), which reads this parameter to merge config_file
+    # overrides into `parameters` before processAlgorithm() runs
+    CONFIG_FILE = "config_file"
+
     # array containing the algorithms to use
     algorithms = [
         TBkStandDelineationAlgorithm(),
@@ -97,6 +102,10 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             raise
 
     def _processAlgorithm(self, parameters, context, feedback):
+        # merges config_file overrides into `parameters` (in place) before anything below reads
+        # from it, matching every individual TBk tool's own behavior
+        self.prepare(parameters, context, feedback)
+
         intermediate_results = {}
         main_results = {}
         outputs = {}
@@ -108,6 +117,19 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         bk_process_dir = self._get_bk_output_dir(result_dir)
         parameters['stands_clean'] = os.path.join(bk_process_dir, "stands_clean.gpkg")
         parameters['final_stand_map'] = os.path.join(result_dir, "TBk_Bestandeskarte.gpkg")
+
+        # Write the resolved workflow parameters (including any config_file overrides, and with
+        # layer parameters resolved to their source paths) as a TOML file in the run's
+        # bk_process_dir, so the full run - not just individual steps - has a persisted record
+        # of what was actually used. Named distinctly from "input_config.txt" - several child
+        # steps (stand delineation, simplify & clean) share this same bk_process_dir as their
+        # own working_root and write *their* own input_config.txt into it later in the run,
+        # which would otherwise silently overwrite this one with just that step's subset.
+        try:
+            write_dict_to_toml_file(self._extract_context_params(parameters, context).__dict__, bk_process_dir,
+                                    file_name="workflow_input_config.txt")
+        except Exception:
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
 
         # set logger
         self._configure_logging(bk_process_dir, parameters['logfile_name'], context)

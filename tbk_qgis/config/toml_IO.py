@@ -132,7 +132,12 @@ class TomlIO:
         cls._write_comments(kv.comments, file)
 
         value = kv.value
-        if isinstance(value, str):
+        if value is None:
+            # Bare, unquoted "null" - matches what _check_value_to_add() reads back as None.
+            # Do NOT write Python's None as the bareword "None": read back, that's
+            # indistinguishable from a real string value "None" written elsewhere.
+            value = "null"
+        elif isinstance(value, str):
             if value not in ("true", "false"):
                 value = f'"{value}"'
 

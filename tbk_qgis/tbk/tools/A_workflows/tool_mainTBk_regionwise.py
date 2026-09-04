@@ -12,7 +12,7 @@ from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, 
     QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff, finalize_TBk, SubprocessTimer)
-from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file)
+from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
 from tbk_qgis.tbk.general.qgis_processing_utility import QgsUtility
 from tbk_qgis.tbk.tools.A_workflows.tbk_qgis_processing_algorithm_toolsA import TBkProcessingAlgorithmToolA
 from tbk_qgis.tbk.tools.C_stand_delineation.tool_stand_delineation_algorithm import TBkStandDelineationAlgorithm
@@ -175,6 +175,18 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             result_dir = parameters['output_root']
         bk_process_dir = self._get_bk_output_dir(result_dir)
         os.makedirs(bk_process_dir, exist_ok=True)
+
+        # Write the resolved workflow parameters (including any config_file overrides applied
+        # above, and with layer parameters resolved to their source paths) as a TOML file in
+        # the run's bk_process_dir, so the full run - not just individual steps - has a
+        # persisted record of what was actually used. Named distinctly from "input_config.txt"
+        # (see tool_mainTBk.py) for consistency, even though per-region child steps here write
+        # into their own region subdirectories, not this bk_process_dir.
+        try:
+            write_dict_to_toml_file(self._extract_context_params(parameters, context).__dict__, bk_process_dir,
+                                    file_name="workflow_input_config.txt")
+        except Exception:
+            feedback.pushWarning('The TOML file was not written in the output folder because an error occurred')
 
         # set logger
         self._configure_logging(bk_process_dir, parameters['logfile_name'], context)
