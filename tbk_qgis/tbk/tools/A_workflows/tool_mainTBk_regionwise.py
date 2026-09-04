@@ -87,6 +87,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                                                   defaultValue=True)
         self._add_advanced_parameter(parameter)
 
+        parameter = QgsProcessingParameterBoolean('calc_local_density', "Calculate local densities (can take a while)",
+                                                  defaultValue=True)
+        self._add_advanced_parameter(parameter)
+
     def processAlgorithm(self, parameters, context, feedback):
         """
         Here is where the processing itself takes place.
@@ -644,25 +648,28 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if feedback.isCanceled():
             return {}
 
-        local_density_output = os.path.join(result_dir, "local_densities", "TBk_local_densities.gpkg")
-        if overwrite or not _step_output_done(local_density_output):
-            wf_log("-> local density")
-            ld_start = time.time()
-            processing.run("TBk:TBk postprocess local density", {
-            'path_tbk_input': result_dir,
-            'mg_use': True,
-            'mg_input': parameters["coniferous_raster"],
-            'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
-            'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
-                                      100, 14],
-            'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
-            'buffer_smoothing': True,
-            'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
-            _mark_step_output_done(local_density_output)
-            ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
-            wf_log(f"<- local density done ({ld_elapsed})")
+        if parameters['calc_local_density']:
+            local_density_output = os.path.join(result_dir, "local_densities", "TBk_local_densities.gpkg")
+            if overwrite or not _step_output_done(local_density_output):
+                wf_log("-> local density")
+                ld_start = time.time()
+                processing.run("TBk:TBk postprocess local density", {
+                'path_tbk_input': result_dir,
+                'mg_use': True,
+                'mg_input': parameters["coniferous_raster"],
+                'tbk_input_file': 'TBk_Bestandeskarte.gpkg', 'output_suffix': '',
+                'table_density_classes': [1, 85, 100, 7, 2, 60, 85, 14, 3, 40, 60, 14, 4, 25, 40, 14, 5, 0, 25, 7, 12, 60,
+                                          100, 14],
+                'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
+                'buffer_smoothing': True,
+                'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
+                _mark_step_output_done(local_density_output)
+                ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
+                wf_log(f"<- local density done ({ld_elapsed})")
+            else:
+                wf_log(f"Skipped local density, output already exists (overwrite = False)")
         else:
-            wf_log(f"Skipped local density, output already exists (overwrite = False)")
+            wf_log("Skipped local density (calc_local_density = False)")
 
         # Run finished successfully end-to-end: the .done markers used to resume an
         # interrupted run have no further purpose and would otherwise clutter the
