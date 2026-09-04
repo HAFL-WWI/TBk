@@ -133,6 +133,31 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
         # _extract_context_params() does not resolve to a concrete destination path (unlike
         # the diff_hdom_vhm raster destination above) - it must be read via
         # parameterAsOutputLayer(), matching the working pattern in tool_merge_stand_maps.py.
+        #
+        # Check the *expected* destination for pre-existence before calling
+        # parameterAsOutputLayer() at all - not after. vhm_10m_points.gpkg is a shared,
+        # non-per-run cache (see tool_mainTBk.py/_regionwise.py) that's typically already there
+        # by the time this runs, and parameterAsOutputLayer()'s sink resolution has been
+        # observed to itself fail/return a bogus scratch path in that case (found 2026-09-04:
+        # "Could not create layer <name>_<uuid>_points.gpkg ... sqlite3_open failed" - reproduced
+        # both single-run and with a second TBk instance running concurrently, and even with the
+        # exact same bogus filename/UUID recurring across separate runs, so this isn't lock
+        # contention and isn't a freshly-random scratch name either - something in sink
+        # resolution itself is unreliable here. Reading back parameters['vhm_10m_points'] isn't
+        # safe either: by the time processAlgorithm() sees it, the Processing framework may have
+        # already normalized it away from the plain string the caller passed (that was tried
+        # 2026-09-04 and still hit the same bogus path). Instead, recompute the expected path
+        # the same way every real caller does - from parameters['vhm_10m'], used as a raw string
+        # elsewhere in this function (e.g. two lines above) - so this check never depends on
+        # sink resolution at all. If the real destination already exists on disk, there's no
+        # need to touch sink resolution - or GDAL/OGR - at all: just skip, exactly as the
+        # "already exists" branch below always intended.
+        expected_vhm_10m_points_path = os.path.splitext(parameters['vhm_10m'])[0] + "_points.gpkg"
+        if os.path.exists(expected_vhm_10m_points_path):
+            feedback.pushWarning(f"Output already exists: {expected_vhm_10m_points_path}. Skipping.")
+            results['vhm_10m_points'] = expected_vhm_10m_points_path
+            return results
+
         vhm_10m_points_path = self.parameterAsOutputLayer(parameters, 'vhm_10m_points', context)
         if not os.path.exists(vhm_10m_points_path):
             alg_params = {
