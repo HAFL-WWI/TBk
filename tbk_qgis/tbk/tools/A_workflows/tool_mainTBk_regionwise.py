@@ -370,20 +370,25 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         f"may be empty or not overlap the input VHM raster.")
                 _mark_step_output_done(vhm_10m_clipped)
 
-            if overwrite or not _step_output_done(mg_10m_clipped):
-                # Clip Coniferous raster with buffered perimeter
-                processing.run("gdal:cliprasterbymasklayer", {
-                    'INPUT': parameters["coniferous_raster_for_classification"],
-                    'MASK': perimeter_buffered,
-                    'OPTIONS': parameters['gdal_create_options'],
-                    'OUTPUT': mg_10m_clipped
-                })
-                if not os.path.exists(mg_10m_clipped):
-                    raise QgsProcessingException(
-                        f"Clipping coniferous raster for region {region_name} produced no output file "
-                        f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
-                        f"may be empty or not overlap the input raster.")
-                _mark_step_output_done(mg_10m_clipped)
+            # coniferous_raster_for_classification is optional (TBkStandDelineationAlgorithm
+            # skips mixture-based classification entirely when it's None) - only clip it per
+            # region if a global raster was actually supplied, otherwise gdal:cliprasterbymasklayer
+            # fails with "Konnte Quelllayer für INPUT nicht laden: ungültiger Wert" on INPUT=None.
+            if parameters["coniferous_raster_for_classification"]:
+                if overwrite or not _step_output_done(mg_10m_clipped):
+                    # Clip Coniferous raster with buffered perimeter
+                    processing.run("gdal:cliprasterbymasklayer", {
+                        'INPUT': parameters["coniferous_raster_for_classification"],
+                        'MASK': perimeter_buffered,
+                        'OPTIONS': parameters['gdal_create_options'],
+                        'OUTPUT': mg_10m_clipped
+                    })
+                    if not os.path.exists(mg_10m_clipped):
+                        raise QgsProcessingException(
+                            f"Clipping coniferous raster for region {region_name} produced no output file "
+                            f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
+                            f"may be empty or not overlap the input raster.")
+                    _mark_step_output_done(mg_10m_clipped)
 
             # --- Configure parameters for region
 
@@ -394,7 +399,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # region input files (clipped vhm and mg)
             parameters_region["perimeter"] = output_vector
             parameters_region["vhm_10m"] = vhm_10m_clipped
-            parameters_region["coniferous_raster_for_classification"] = mg_10m_clipped
+            parameters_region["coniferous_raster_for_classification"] = \
+                mg_10m_clipped if parameters["coniferous_raster_for_classification"] else None
 
             # region outpoot roots
             parameters_region["output_root"] = region_root_dir
