@@ -137,7 +137,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         dg_dir = self._get_dg_output_dir(params.result_dir)
 
         # Set the logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger('Calculate crown coverage')  # todo: use self.name()?
 
         # check tif files extension

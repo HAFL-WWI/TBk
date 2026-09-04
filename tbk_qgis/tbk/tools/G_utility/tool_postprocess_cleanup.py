@@ -90,7 +90,7 @@ class TBkPostprocessCleanup(TBkProcessingAlgorithmToolG):
         params = self._extract_context_params(parameters, context)
 
         # Set the logger (log lives in bk_process/, matching every other TBk tool)
-        self._configure_logging(self._get_bk_output_dir(params.result_dir), params.logfile_name)
+        self._configure_logging(self._get_bk_output_dir(params.result_dir), params.logfile_name, context)
         log = logging.getLogger(self.name())
 
         log.info('Cleanup')

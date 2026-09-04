@@ -153,7 +153,7 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         return tmp_output_path
 
     @staticmethod
-    def _configure_logging(output_folder_path, logfile_name):
+    def _configure_logging(output_folder_path, logfile_name, context=None):
         """
         Configure logging.
 
@@ -162,6 +162,17 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         (see GitHub issue #6). Instead, the TBk-managed handlers are (re)created whenever a new
         run starts (i.e. the requested log file differs from the currently configured one), and
         left untouched for repeated calls within the same run.
+
+        `context` scopes "same run" across nested/child algorithm calls: every processing.run()
+        call within one run shares the same QgsProcessingContext, so the first call to reach
+        here for a given context wins and stamps its resolved log path onto it; every later call
+        sharing that context reuses that path unconditionally, even if it would otherwise
+        compute a different one. Without this, a nested call whose own working_root differs from
+        the run's (e.g. Generate BK Regionwise's per-region calls, each under their own
+        bk_process/regions/<X>/ subdirectory) would silently steal the shared root-logger file
+        handler for its own duration, scattering the enclosing run's log lines across multiple
+        per-region files instead of one consolidated log (found 2026-09-04). Callers that don't
+        pass a context (context=None) fall back to the original per-call path comparison.
 
         See _TBkDynamicConsoleHandler for why the console handler also needs to resolve its
         stream dynamically rather than just being recreated here.
@@ -180,6 +191,11 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
 
         logfile_tmp_path = str(os.path.join(output_folder_path, logfile_name))
 
+        if context is not None and getattr(context, '_tbk_run_log_path', None) is not None:
+            # Already inside a run anchored to its own log path - never redirect away from it,
+            # regardless of what this particular (possibly nested) call would compute on its own.
+            return
+
         # Get the root logger
         logger = logging.getLogger()
         logger.setLevel(logging.DEBUG)
@@ -188,6 +204,7 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
             (h for h in logger.handlers if getattr(h, '_tbk_managed_file', False)), None)
         if existing_file_handler and \
                 os.path.abspath(existing_file_handler.baseFilename) == os.path.abspath(logfile_tmp_path):
+            TBkProcessingAlgorithm._stamp_run_log_path(context, logfile_tmp_path)
             return  # already configured for this exact run
 
         # Starting a new run: drop any previously-attached TBk handlers (stale file path and/or
@@ -213,6 +230,23 @@ class TBkProcessingAlgorithm(QgsProcessingAlgorithm):
         console.setFormatter(console_formatter)
         console._tbk_managed_console = True
         logger.addHandler(console)
+
+        TBkProcessingAlgorithm._stamp_run_log_path(context, logfile_tmp_path)
+
+    @staticmethod
+    def _stamp_run_log_path(context, logfile_tmp_path):
+        """
+        Records the log path that owns the current run onto `context`, so nested calls sharing
+        that context (see _configure_logging) reuse it instead of redirecting. Best-effort: some
+        SIP-wrapped objects may not support arbitrary attribute assignment, in which case this
+        silently no-ops and callers fall back to per-call path comparison as before.
+        """
+        if context is None:
+            return
+        try:
+            context._tbk_run_log_path = logfile_tmp_path
+        except Exception:
+            pass
 
         # todo: The QgisHandler messages are not displayed in the QGIS log.
         # # set up logging to QGIS feedback

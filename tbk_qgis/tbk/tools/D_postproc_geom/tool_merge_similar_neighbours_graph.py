@@ -97,7 +97,7 @@ class TBkMergeSimilarNeighboursGraphAlgorithm(TBkProcessingAlgorithmToolD):
         tmp_output_folder = self._get_tmp_output_path(working_root)
         ensure_dir(tmp_output_folder)
 
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger('Merge similar neighbours (graph-based)')
 
         self._log_milestone(feedback, log, 'Starting merge similar neighbours (graph-based)')

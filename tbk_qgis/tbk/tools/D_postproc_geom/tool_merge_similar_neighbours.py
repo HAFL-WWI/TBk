@@ -126,7 +126,7 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger('Merge similar neighbours')
 
         # --- Merge similar neighbours

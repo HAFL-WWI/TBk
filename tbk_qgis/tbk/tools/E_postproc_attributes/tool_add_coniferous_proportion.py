@@ -126,7 +126,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger(self.name())
 
         # Make a copy of the stands with crown coverage

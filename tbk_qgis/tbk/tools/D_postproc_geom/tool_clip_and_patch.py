@@ -113,7 +113,7 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger('Clip to perimeter and eliminate gaps')  # todo: use self.name()?
 
         # ---  Clip

@@ -173,7 +173,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         os.makedirs(bk_process_dir, exist_ok=True)
 
         # set logger
-        self._configure_logging(bk_process_dir, parameters['logfile_name'])
+        self._configure_logging(bk_process_dir, parameters['logfile_name'], context)
         log = logging.getLogger(self.name())
 
         # elapsed time helper — timestamps prefixed [W …] distinguish main-workflow

@@ -216,7 +216,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
         ensure_dir(working_root)
 
         # set logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger(self.name())
 
         # check tif files extension

@@ -147,7 +147,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         ensure_dir(tmp_output_folder)
 
         # Set the logger
-        self._configure_logging(working_root, params.logfile_name)
+        self._configure_logging(working_root, params.logfile_name, context)
         log = logging.getLogger(self.name())
         log.debug("--------------------------------------------")
         log.debug("START Appending attributes...")
