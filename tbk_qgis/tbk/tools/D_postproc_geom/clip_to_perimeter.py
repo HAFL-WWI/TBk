@@ -53,7 +53,7 @@ def clip_to_perimeter(working_root,
     return {"stands_clipped": tmp_stands_clipped_path}
 
 
-def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT') -> QgsVectorLayer | str:
+def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT'):
     result = processing.run("native:clip", {
         'INPUT': input,
         'OVERLAY': overlay,
