@@ -517,7 +517,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                          '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                          'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': 'COMPRESS=DEFLATE,PREDICTOR=2',
                          'GRASS_RASTER_FORMAT_META': ''}
-                algoOutput = processing.run("grass7:r.neighbors", param)
+                algoOutput = run_grass_algorithm("r.neighbors", param, context=context, feedback=feedback)
                 focal_dg_layers[str(i["size"])] = QgsRasterLayer(algoOutput["output"])
                 feedback.setProgress(round(len(focal_dg_layers) / n_unique_focal_sizes * 15))
         # check

@@ -120,7 +120,7 @@ def add_coniferous_proportion(working_root,
                  'output': tmp_files["dg_layer_os_10m_sum"],
                  'GRASS_REGION_PARAMETER': extent, 'GRASS_REGION_CELLSIZE_PARAMETER': 10, 'GRASS_RASTER_FORMAT_OPT': '',
                  'GRASS_RASTER_FORMAT_META': ''}
-        algoOutput = processing.run("grass7:r.resamp.stats", param)
+        algoOutput = run_grass_algorithm("r.resamp.stats", param)
 
         meta_data = get_raster_metadata(dg_layer_os)
         param = {'INPUT': tmp_files["dg_layer_os_10m_sum"],

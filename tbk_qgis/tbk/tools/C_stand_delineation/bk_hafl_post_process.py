@@ -31,7 +31,7 @@ import os
 
 import processing
 from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
-from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile
+from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile, run_grass_algorithm
 
 # Substep narration only (file/console at DEBUG); joins the "Simplify & Clean" logger stream
 # set up by tool_simplify_and_clean.py, the only caller of post_process().
@@ -124,7 +124,7 @@ def post_process(stands_in,
              '-t': False, '-l': True, 'output': algo_output_path, 'error': tmp_files['simplified_error'],
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-    algo_output = processing.run("grass:v.generalize", param)
+    algo_output = run_grass_algorithm("v.generalize", param)
 
     # a second simplify pass, further smoothing stands
     if(smoothing):
@@ -140,7 +140,7 @@ def post_process(stands_in,
                  '-t': False, '-l': True, 'output':  tmp_files['smoothed'], 'error': tmp_files['smoothed_error'],
                  'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
                  'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-        algo_output = processing.run("grass:v.generalize", param)
+        algo_output = run_grass_algorithm("v.generalize", param)
         algo_output_path = tmp_files['smoothed']
 
     tmp_simplified_layer = QgsVectorLayer(algo_output_path, "stand_boundaries_reduced", "ogr")

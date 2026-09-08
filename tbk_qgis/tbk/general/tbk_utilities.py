@@ -89,6 +89,26 @@ class SubprocessTimer:
         self._emit(self.WRAP)
 
 
+def run_grass_algorithm(alg, params, **kwargs):
+    """
+    Runs a GRASS processing algorithm by its short name (e.g. "v.generalize"), trying both the
+    "grass" and "grass7" provider ids QGIS has used across versions (GRASS 8 vs. GRASS 7) -
+    only one is ever registered on a given install, and which one depends on the user's
+    QGIS/GRASS install, not just the QGIS version.
+
+    :param alg: GRASS algorithm short name, without the provider prefix (e.g. "v.generalize")
+    :param params: algorithm parameters, as passed to processing.run()
+    """
+    registry = QgsApplication.processingRegistry()
+    for provider_id in ("grass", "grass7"):
+        alg_id = f"{provider_id}:{alg}"
+        if registry.algorithmById(alg_id):
+            return processing.run(alg_id, params, **kwargs)
+    raise QgsProcessingException(
+        f"GRASS algorithm '{alg}' not found under either the 'grass' or 'grass7' provider - "
+        f"is the GRASS Provider plugin installed and enabled?")
+
+
 def ensure_dir(path):
     """Function to ensure that a directory exists
     (creates directory if non existent)
