@@ -120,11 +120,13 @@ class TBkClipToPerimeterAndEliminateGapsAlgorithm(TBkProcessingAlgorithmToolD):
         self._log_milestone(feedback, log, 'Starting clip to perimeter and eliminate gaps')
         # run clip function
         clip_results = clip_to_perimeter(working_root, params.input_to_clip,
-                                         tmp_output_folder, params.perimeter, del_tmp=params.del_tmp)
+                                         tmp_output_folder, params.perimeter, del_tmp=params.del_tmp,
+                                         context=context, feedback=feedback)
 
         # run gaps function
         gaps_results = eliminate_gaps(clip_results["stands_clipped"], params.stands_clipped_no_gaps, tmp_output_folder,
-                                      params.perimeter, del_tmp=params.del_tmp)
+                                      params.perimeter, del_tmp=params.del_tmp,
+                                      context=context, feedback=feedback)
 
         return {self.OUTPUT_CLIPPED_NO_GAPS: gaps_results["stands_clipped_no_gaps"] }
 

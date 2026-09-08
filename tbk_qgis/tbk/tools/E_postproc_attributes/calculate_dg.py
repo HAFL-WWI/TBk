@@ -57,6 +57,7 @@ def calculate_dg(working_root,
                  vhm,
                  del_tmp=True,
                  gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                 context=None,
                  feedback=None):
     # feedback=None still gets the Start/step/Finished lines in the log file via
     # SubprocessTimer(log=log) - only the Processing feedback panel is skipped.
@@ -119,7 +120,9 @@ def calculate_dg(working_root,
         # Calculate DG limits per stand
         timer.step("calculating DG limits...")
 
-        for f in stands_layer.getFeatures():
+        for i, f in enumerate(stands_layer.getFeatures()):
+            if i % 2000 == 0 and feedback is not None and feedback.isCanceled():
+                break
             # ensure numeric type
             hdom = f["hdom"]
             hmax = f["hmax"]
@@ -168,6 +171,12 @@ def calculate_dg(working_root,
         # print(dg_lim_field, "->", dg_tmp_file_b, "->", dg_layer_file)
         if (column_prefix == 'dg_'):
             # DG Layer can be created by using OS and UEB (need to be present)
+            # No shared `context` here (feedback alone still gives cancellation): these read/write
+            # real named files that get deleted by hand a few lines below (del_tmp), and resolving
+            # them through our long-lived workflow context leaves the file locked open under
+            # Windows until the whole run's context is torn down - the explicit cleanup then fails
+            # with "Permission denied" (verified in isolation: same context -> same lock regardless
+            # of is_child_algorithm; no shared context -> no lock).
             processing.run("gdal:rastercalculator", {
                 'INPUT_A': dg_files["os"],
                 'BAND_A': 1,
@@ -175,7 +184,7 @@ def calculate_dg(working_root,
                 'BAND_B': None, 'INPUT_C': None, 'BAND_C': None, 'INPUT_D': None, 'BAND_D': None, 'INPUT_E': None,
                 'BAND_E': None, 'INPUT_F': None, 'BAND_F': None, 'FORMULA': 'logical_or(A, B)', 'NO_DATA': None,
                 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': gdal_create_options, 'EXTRA': '',
-                'OUTPUT': dg_layer_file})
+                'OUTPUT': dg_layer_file}, feedback=feedback)
         else:
             # create an empty DG layer based on vhm extents for each layer
             create_empty_copy(vhm, dg_tmp_file_b)
@@ -184,7 +193,7 @@ def calculate_dg(working_root,
                 'INPUT': stands_dg,
                 'INPUT_RASTER': dg_tmp_file_b,
                 'FIELD': dg_lim_field,
-                'ADD': False, 'EXTRA': ''})
+                'ADD': False, 'EXTRA': ''}, feedback=feedback)
             # classify raster
             processing.run("gdal:rastercalculator", {
                 'INPUT_A': vhm, 'BAND_A': 1,
@@ -192,7 +201,7 @@ def calculate_dg(working_root,
                 'INPUT_C': dg_tmp_file_c, 'BAND_C': 1,
                 'INPUT_D': None, 'BAND_D': -1, 'INPUT_E': None, 'BAND_E': -1, 'INPUT_F': None, 'BAND_F': -1,
                 'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
-                'OPTIONS': gdal_create_options, 'EXTRA': '', 'OUTPUT': dg_layer_file})
+                'OPTIONS': gdal_create_options, 'EXTRA': '', 'OUTPUT': dg_layer_file}, feedback=feedback)
 
         # clean up temp files as soon as possible
         if del_tmp:
@@ -205,6 +214,11 @@ def calculate_dg(working_root,
         end_time = time.time()
         log.debug(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
 
+    if feedback is not None and feedback.isCanceled():
+        results = {f"dg_layer_{key}": value for key, value in dg_files.items()}
+        results["stands_dg"] = stands_dg
+        return results
+
     # Calculate DG per stand and per layer
     timer.step("zonal statistics...")
     for column_prefix, x, x, x, dg_layer_file, x in field_file_pairs:
@@ -212,10 +226,14 @@ def calculate_dg(working_root,
 
         # using the "old" zonalstatistics algorithm (not zonalstatisticsfb), that appends fields to input layer
         # for more info, read https://github.com/qgis/QGIS/issues/40356
+        # No shared `context` here (feedback alone still gives cancellation): this appends fields
+        # directly to the real stands_dg file, which is immediately re-opened below via a fresh
+        # QgsVectorLayer - sharing context keeps this write on a cached, uncommitted connection,
+        # so the fresh re-open doesn't see the new dg_xx_mean fields (they read back as NULL).
         param = {'INPUT_RASTER': dg_layer_file, 'RASTER_BAND': 1,
                  'INPUT_VECTOR': stands_dg,
                  'COLUMN_PREFIX': column_prefix, 'STATS': [2]}
-        processing.run("qgis:zonalstatistics", param)
+        processing.run("qgis:zonalstatistics", param, feedback=feedback, is_child_algorithm=True)
 
         end_time = time.time()
         log.debug(f'{column_prefix}layer classification execution time: {str(timedelta(seconds=(end_time - start_time)))}')
@@ -234,7 +252,9 @@ def calculate_dg(working_root,
         stands_layer.updateFields()
 
         # Calculate DG per stand
-        for f in stands_layer.getFeatures():
+        for i, f in enumerate(stands_layer.getFeatures()):
+            if i % 2000 == 0 and feedback is not None and feedback.isCanceled():
+                break
             # round if is a number, copy NULL values without rounding to avoid errors
             f["DG_ks"] = round(f["dg_ks_mean"] * 100) if f["dg_ks_mean"] != core.NULL else f["dg_ks_mean"]
             f["DG_us"] = round(f["dg_us_mean"] * 100) if f["dg_us_mean"] != core.NULL else f["dg_us_mean"]

@@ -27,6 +27,7 @@
 import logging
 import processing
 from PyQt5.QtCore import QMetaType
+from qgis.core import QgsProcessingUtils
 
 from tbk_qgis.tbk.general.tbk_utilities import *
 import pandas as pd
@@ -38,7 +39,8 @@ import time
 log = logging.getLogger('Merge similar neighbours')
 
 
-def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel, max_iterations=5):
+def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdom_diff_rel, max_iterations=5,
+                             context=None, feedback=None):
     """
     TBk post-process. Merge small stands into their most similar neighbour.
 
@@ -52,6 +54,11 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
 
     area_m2 is recalculated after each pass so that subsequent passes use the
     correct sizes of previously merged stands.
+
+    `context`/`feedback` (both optional, default None for standalone callers) are passed through to
+    every nested `processing.run()` call: without a shared context, each native sub-algorithm would
+    resolve its own default context/project scope instead of the caller's, and without feedback,
+    neither its own progress nor a user Cancel click would ever reach this function.
     """
 
     log.debug("--------------------------------------------")
@@ -65,10 +72,18 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
     any_merges = False
 
     for iteration in range(max_iterations):
+        # Checked once per pass (not mid-pass): a pass itself is one indivisible unit of work built
+        # from several chained native algorithms, so this is the natural granularity for Cancel here.
+        if feedback is not None and feedback.isCanceled():
+            log.debug(f"Canceled by user before pass {iteration + 1}")
+            break
+
         # add fid_input as a stable per-pass unique identifier
         param = {'INPUT': layer, 'FIELD_NAME': 'fid_input', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
+        layer = QgsProcessingUtils.mapLayerFromString(
+            processing.run("native:fieldcalculator", param, context=context, feedback=feedback,
+                           is_child_algorithm=True)["OUTPUT"], context)
 
         # ---- Build neighbour table ----
         log.debug(f"Pass {iteration + 1}: building neighbour table...")
@@ -80,7 +95,12 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
             index.addFeature(f)
 
         neighbours_tmp = []
-        for f in feature_dict.values():
+        for i, f in enumerate(feature_dict.values()):
+            # Cheap flag read, checked periodically rather than every feature to keep the overhead
+            # negligible even for stand maps with hundreds of thousands of features.
+            if i % 2000 == 0 and feedback is not None and feedback.isCanceled():
+                log.debug(f"Canceled by user while building neighbour table ({i} of {len(feature_dict)})")
+                break
             geom = f.geometry()
             src_fid = f["fid_input"]
             src_hdom = f["hdom"]
@@ -99,6 +119,9 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
                         length = isct.length()
                     neighbours_tmp.append([-1, src_fid, nbr_fid, src_hdom, nbr_hdom,
                                            src_type, nbr_type, src_area_m2, nbr_area_m2, length, -1])
+
+        if feedback is not None and feedback.isCanceled():
+            break
 
         neighbour_layer = QgsVectorLayer('None', 'Neighbours', 'memory')
         neighbour_layer.startEditing()
@@ -150,7 +173,7 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
 
         if df_sub.empty:
             param = {'INPUT': layer, 'COLUMN': ['fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            layer = processing.run("native:deletecolumn", param)["OUTPUT"]
+            layer = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
             break
 
         any_merges = True
@@ -171,46 +194,48 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
             exp = '"fid_input" IN (' + ', '.join(map(str, fid_inputs)) + ')'
 
             param = {'INPUT': layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            stands_i = processing.run("native:extractbyexpression", param)["OUTPUT"]
+            stands_i = QgsProcessingUtils.mapLayerFromString(
+                processing.run("native:extractbyexpression", param, context=context, feedback=feedback,
+                               is_child_algorithm=True)["OUTPUT"], context)
             l_fid_merged[i] = stands_i.aggregate(QgsAggregateCalculator.ArrayAggregate, "fid")[0]
 
             # sort by area descending so the largest stand's attributes are kept by dissolve
             param = {'INPUT': stands_i, 'EXPRESSION': '$area', 'ASCENDING': False, 'NULLS_FIRST': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            stands_i = processing.run("native:orderbyexpression", param)["OUTPUT"]
+            stands_i = processing.run("native:orderbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
             param = {'INPUT': stands_i, 'FIELD': [], 'SEPARATE_DISJOINT': False, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            dissolve_i = processing.run("native:dissolve", param)["OUTPUT"]
+            dissolve_i = processing.run("native:dissolve", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
             param = {'INPUT': dissolve_i, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                      'FIELD_PRECISION': 0, 'FORMULA': '1', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            l[i] = processing.run("native:fieldcalculator", param)["OUTPUT"]
+            l[i] = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         fid_merged = sum(l_fid_merged, [])
         exp = '"fid" NOT IN (' + ', '.join(map(str, fid_merged)) + ')'
         param = {'INPUT': layer, 'EXPRESSION': exp, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        not_dissolved = processing.run("native:extractbyexpression", param)["OUTPUT"]
+        not_dissolved = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         param = {'INPUT': not_dissolved, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        l[-1] = processing.run("native:fieldcalculator", param)["OUTPUT"]
+        l[-1] = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        stands_merged = processing.run("native:mergevectorlayers", param)["OUTPUT"]
+        stands_merged = processing.run("native:mergevectorlayers", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         # overwrite fid with unique sequential values
         param = {'INPUT': stands_merged, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        stands_merged = processing.run("native:fieldcalculator", param)["OUTPUT"]
+        stands_merged = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         # drop columns added by mergevectorlayers and the per-pass fid_input
         param = {'INPUT': stands_merged, 'COLUMN': ['layer', 'path', 'fid_input'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        stands_merged = processing.run("native:deletecolumn", param)["OUTPUT"]
+        stands_merged = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         # recalculate area_m2 so subsequent passes use the correct size of merged stands
         param = {'INPUT': stands_merged, 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        layer = processing.run("native:fieldcalculator", param)["OUTPUT"]
+        layer = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)["OUTPUT"]
 
         log.debug(f"  pass done: {str(timedelta(seconds=(time.time() - start_time)))}")
 
@@ -219,12 +244,12 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
         # Update area_m2 one final time and write to output path
         param = {'INPUT': layer, 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': output_file["stands_merged"]}
-        processing.run("native:fieldcalculator", param)
+        processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
     else:
         log.debug("No stands to merge")
         param = {'INPUT': layer, 'FIELD_NAME': 'merged', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': '0', 'OUTPUT': output_file["stands_merged"]}
-        processing.run("native:fieldcalculator", param)
+        processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
 
     log.debug("DONE: merge similar neighbours")
     return output_file

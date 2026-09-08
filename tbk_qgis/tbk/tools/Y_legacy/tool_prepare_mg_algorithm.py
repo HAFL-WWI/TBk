@@ -232,7 +232,7 @@ class TBkPrepareMgAlgorithm(TBkProcessingAlgorithmToolY):
         'SOURCE_CRS':None,'TARGET_CRS':None,'RESAMPLING':0,'NODATA':None,'TARGET_RESOLUTION':10,'OPTIONS':'',
         'DATA_TYPE':0,'TARGET_EXTENT':extent,'TARGET_EXTENT_CRS':None,'MULTITHREADING':False,
         'EXTRA':'-co COMPRESS=LZW -co BIGTIFF=YES','OUTPUT':tmp_mg_aligned}
-        processing.run("gdal:warpreproject", param)
+        processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
         #os.system("gdalwarp -tr 10 10 -te {0} {1} {2} {3}".format(xmin, ymin, xmax, ymax) + " " + mg_input + " " + tmp_mg_aligned)
 
         if reclassify_mg_values:

@@ -174,7 +174,9 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                     params.vegZoneLayer,
                                                     params.vegZoneLayerField,
                                                     'VegZone',
-                                                    'VegZone_Code')
+                                                    'VegZone_Code',
+                                                    context,
+                                                    feedback)
         else:
             log.debug(f"Fill vegZone_Code with default value: {params.vegZoneLayerField}")
 
@@ -184,8 +186,11 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
         processing.run("native:fieldcalculator", {
             'INPUT': stands_file_join,
             'FIELD_NAME': 'VegZone_Code', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
-            'FORMULA': formula, 'OUTPUT': stands_file_appended})
+            'FORMULA': formula, 'OUTPUT': stands_file_appended}, context=context, feedback=feedback, is_child_algorithm=True)
         stands_file_join = stands_file_appended  # pass file with appends on as new input
+
+        if feedback.isCanceled():
+            return {self.OUTPUT_ATTRIBUTED: stands_file_join}
 
         # join forestSite if layer is provided
         if params.forestSiteLayer:
@@ -198,9 +203,11 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                                                     params.forestSiteLayer,
                                                     params.forestSiteLayerField,
                                                     'ForestSite',
-                                                    'ForestSite')
+                                                    'ForestSite',
+                                                    context,
+                                                    feedback)
 
-        if (params.forestSiteDefault is not None) and params.forestSiteDefault != "":
+        if (params.forestSiteDefault is not None) and params.forestSiteDefault != "" and not feedback.isCanceled():
             log.debug(f"Fill ForestSite with default value: {params.forestSiteDefault}")
             # create field ForestSite_Code (if not already existent through join) and fill (NULL values) with default
             stands_file_forest_site = os.path.join(tmp_output_folder, "TBk_Bestandeskarte_ForestSite3.gpkg")
@@ -208,7 +215,7 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
             processing.run("native:fieldcalculator", {
                 'INPUT': stands_file_appended,
                 'FIELD_NAME': 'ForestSite', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 80, 'FIELD_PRECISION': 0,
-                'FORMULA': formula, 'OUTPUT': stands_file_forest_site})
+                'FORMULA': formula, 'OUTPUT': stands_file_forest_site}, context=context, feedback=feedback, is_child_algorithm=True)
             stands_file_join = stands_file_forest_site  # pass file with appends on as new input
 
         output_path = params.stands_dg_nh_vegZone
@@ -224,24 +231,29 @@ class TBkAppendStandAttributesAlgorithm(TBkProcessingAlgorithmToolE):
                         join_layer: str,
                         join_field: str,
                         prefix: str,
-                        renamed_field: str) -> str:
+                        renamed_field: str,
+                        context=None,
+                        feedback=None) -> str:
 
         param = {'layer_to_join_attribute_on': input_layer,
                  'attribute_layer': join_layer,
                  'fields_to_join': [join_field],
                  'joined_attributes_prefix': f"{prefix}_",
                  'OUTPUT': joined_path}
-        processing.run("TBk:Optimized Spatial Join", param)
+        processing.run("TBk:Optimized Spatial Join", param, context=context, feedback=feedback, is_child_algorithm=True)
 
         # If the field has already the correct name, it is not necessary to rename it
         joined_field = f"{prefix}_{join_field}"
         if joined_field == renamed_field:
             return joined_path
 
+        if feedback is not None and feedback.isCanceled():
+            return joined_path
+
         processing.run("native:renametablefield", {
             'INPUT': joined_path,
             'FIELD': joined_field, 'NEW_NAME': renamed_field,
-            'OUTPUT': renamed_path})
+            'OUTPUT': renamed_path}, context=context, feedback=feedback, is_child_algorithm=True)
 
         return renamed_path
 

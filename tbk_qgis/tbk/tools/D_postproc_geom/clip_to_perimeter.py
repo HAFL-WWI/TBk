@@ -26,7 +26,7 @@
 import logging
 import os
 import processing
-from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, edit
+from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsProcessingUtils, edit
 from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopackage, getVectorSaveOptions, delete_fields
 
 # Substep narration only (file/console at DEBUG); joins the "Clip to perimeter and eliminate
@@ -38,28 +38,39 @@ def clip_to_perimeter(working_root,
                       input_to_clip_path,
                       tmp_output_folder,
                       perimeter,
-                      del_tmp=True):
+                      del_tmp=True,
+                      context=None,
+                      feedback=None):
     log.debug("--------------------------------------------")
     log.debug("START Clip to perimeter...")
 
     # Clip stand and convert to singlepart
     tmp_stands_clipped_path = os.path.join(tmp_output_folder, "stands_clip_tmp.gpkg")
-    clipped = clip_vector_layer(input_to_clip_path, perimeter)
+    clipped = clip_vector_layer(input_to_clip_path, perimeter, context=context, feedback=feedback)
+    # context isn't shared in this alg call so that subsequent file deletion of results isn't
+    # blocked by QGIS (this OUTPUT is a real file, later delete_shapefile()'d by eliminate_gaps())
     processing.run("native:multiparttosingleparts", {
         'INPUT': clipped,
         'OUTPUT': tmp_stands_clipped_path
-    })
+    }, feedback=feedback)
 
     return {"stands_clipped": tmp_stands_clipped_path}
 
 
-def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT'):
+def clip_vector_layer(input: str, overlay: str, output='TEMPORARY_OUTPUT', context=None, feedback=None):
     result = processing.run("native:clip", {
         'INPUT': input,
         'OVERLAY': overlay,
         'OUTPUT': output
-    })
-    return result['OUTPUT']
+    }, context=context, feedback=feedback, is_child_algorithm=True)
+    # Resolved into an actual layer object (rather than left as the raw context-scoped reference
+    # string) so callers can safely pass it on to a *different* processing.run() call that doesn't
+    # share our `context` - e.g. because that call's own OUTPUT gets deleted by hand shortly after
+    # and must not be resolved through our long-lived context (see clip_to_perimeter() below). A
+    # materialized layer object resolves correctly regardless of which context (or none) is used
+    # for the next call, whereas the bare reference string only resolves within the context that
+    # created it.
+    return QgsProcessingUtils.mapLayerFromString(result['OUTPUT'], context)
 
 
 def clip_vhm_to_perimeter(working_root, tmp_output_folder, vhm_input, perimeter, vhm_output_name):
@@ -84,7 +95,9 @@ def eliminate_gaps(in_shape_path,
                    output_shape_path,
                    tmp_output_folder,
                    perimeter_shape,
-                   del_tmp=True):
+                   del_tmp=True,
+                   context=None,
+                   feedback=None):
     """
     Align tbk shapefile to perimeter (for example Waldmaske AV).
     Idea: If small gaps remain between a defined perimeter and the
@@ -103,15 +116,22 @@ def eliminate_gaps(in_shape_path,
 
     ########################################
     # Find gaps
+    # No shared `context` in this block (feedback alone still gives cancellation): these calls
+    # read/write real named files (gaps_tmp_path, gaps_single_tmp_path, union_tmp_path,
+    # union_tmp_buf_path, in_shape_path) that get delete_shapefile()'d by hand below once del_tmp
+    # is set, and resolving them through our long-lived workflow context leaves them locked open
+    # under Windows until the whole run's context is torn down - the explicit cleanup then fails
+    # with "Permission denied" (verified in isolation: same context -> same lock regardless of
+    # is_child_algorithm; no shared context -> no lock).
     log.debug("finding gaps...")
     param = {'INPUT': perimeter_shape, 'OVERLAY': in_shape_path, 'OUTPUT': gaps_tmp_path}
-    processing.run("native:difference", param)
+    processing.run("native:difference", param, feedback=feedback)
 
     ########################################
     # Transform gaps to single part
     log.debug("transform gaps to single part")
     param = {'INPUT': gaps_tmp_path, 'OUTPUT': gaps_single_tmp_path}
-    processing.run("native:multiparttosingleparts", param)
+    processing.run("native:multiparttosingleparts", param, feedback=feedback)
 
     ########################################
     # Union with stand layer
@@ -120,12 +140,12 @@ def eliminate_gaps(in_shape_path,
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 1)
     param = {'INPUT': in_shape_path, 'OVERLAY': gaps_single_tmp_path, 'OVERLAY_FIELDS_PREFIX': '',
              'OUTPUT': union_tmp_path}
-    processing.run("native:union", param)
+    processing.run("native:union", param, feedback=feedback)
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 2)
 
     params = {'INPUT': union_tmp_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
               'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': union_tmp_buf_path}
-    processing.run("native:buffer", params)
+    processing.run("native:buffer", params, feedback=feedback)
 
     ########################################
     # Eliminate gaps
@@ -137,11 +157,13 @@ def eliminate_gaps(in_shape_path,
 
     # TODO Does not persist results when writing directly to file
     param = {'INPUT': union_layer, 'MODE': 2, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algo_output = processing.run("qgis:eliminateselectedpolygons", param)
+    algo_output = processing.run("qgis:eliminateselectedpolygons", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], output_shape_path, ctc,
-                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+        QgsProcessingUtils.mapLayerFromString(algo_output['OUTPUT'], context), output_shape_path, ctc,
+        getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # Delete gaps not possible to eliminate

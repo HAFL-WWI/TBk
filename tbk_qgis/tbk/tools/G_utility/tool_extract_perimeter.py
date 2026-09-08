@@ -631,7 +631,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
             'INTERSECT': perimeter,
             'OUTPUT': path_tbk_main_out
         }
-        algoOutput = processing.run("native:extractbylocation", param)
+        algoOutput = processing.run("native:extractbylocation", param, context=context, feedback=feedback, is_child_algorithm=True)
         algoOutput["OUTPUT"]
 
         if tbk_qgis_proj:
@@ -671,7 +671,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
 
                 # get resolution of raster layer
                 param =  {'INPUT': dataset_in, 'BAND': None}
-                res_i = processing.run("native:rasterlayerproperties",param)['PIXEL_HEIGHT']
+                res_i = processing.run("native:rasterlayerproperties",param, context=context, feedback=feedback, is_child_algorithm=True)['PIXEL_HEIGHT']
 
                 # create extraction perimeter of raster dataset if it does not exist yet
                 if not str(res_i) in extraction_perimeter_raster:
@@ -686,7 +686,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                         'SEPARATE_DISJOINT': False,
                         'OUTPUT': 'TEMPORARY_OUTPUT'
                     }
-                    algoOutput = processing.run("native:buffer", param)
+                    algoOutput = processing.run("native:buffer", param, context=context, feedback=feedback, is_child_algorithm=True)
                     extraction_perimeter_raster[str(res_i)] = algoOutput["OUTPUT"]
                     # check extraction perimeter for raster layer
                     # f_save_as_gpkg(extraction_perimeter_raster[str(res_i)], "extraction_perimeter_raster_" + str(res_i))
@@ -704,7 +704,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                         'EXTRA': '',
                         'OUTPUT': dataset_out
                     }
-                    algoOutput = processing.run("gdal:cliprasterbyextent", param)
+                    algoOutput = processing.run("gdal:cliprasterbyextent", param, context=context, feedback=feedback, is_child_algorithm=True)
                     algoOutput["OUTPUT"]
                 # else
                 else:
@@ -727,7 +727,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                         'EXTRA': '',
                         'OUTPUT': dataset_out
                     }
-                    algoOutput = processing.run("gdal:cliprasterbymasklayer", param)
+                    algoOutput = processing.run("gdal:cliprasterbymasklayer", param, context=context, feedback=feedback, is_child_algorithm=True)
                     algoOutput["OUTPUT"]
 
         # extract vector datatsets
@@ -749,7 +749,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                 'SEPARATE_DISJOINT': False,
                 'OUTPUT': 'TEMPORARY_OUTPUT'
             }
-            algoOutput = processing.run("native:buffer", param)
+            algoOutput = processing.run("native:buffer", param, context=context, feedback=feedback, is_child_algorithm=True)
             extraction_perimeter_vector = algoOutput["OUTPUT"]
             # check perimeter for vector layers
             # f_save_as_gpkg(extraction_perimeter_vector, "extraction_perimeter_vector")
@@ -779,7 +779,7 @@ class TBkPostprocessExtractPerimeter(TBkProcessingAlgorithmToolG):
                     'INTERSECT': extraction_perimeter_vector,
                     'OUTPUT': dataset_out
                 }
-                algoOutput = processing.run("native:extractbylocation", param)
+                algoOutput = processing.run("native:extractbylocation", param, context=context, feedback=feedback, is_child_algorithm=True)
                 algoOutput["OUTPUT"]
 
         feedback.pushInfo("====================================================================")

@@ -347,7 +347,7 @@ class TBkPostprocessWIS2Export(TBkProcessingAlgorithmToolF):
                         geometryCheck=QgsFeatureRequest.GeometryNoCheck),
                     'JOIN_FIELDS': [field_forest_site_category], 'METHOD': 2,
                     'DISCARD_NONMATCHING': False, 'PREFIX': 'siteCategory_',
-                    'OUTPUT': tmp_joined_layer})
+                    'OUTPUT': tmp_joined_layer}, context=context, feedback=feedback, is_child_algorithm=True)
 
                 feedback.pushInfo("Successfully extracted forest sites.\n" +
                                   f"Joined layer saved as {tmp_joined_layer}")

@@ -234,7 +234,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             'INPUT': perimeter_layer,
             'FIELD': [fieldname_region],
             'SEPARATE_DISJOINT': False,
-            'OUTPUT': 'TEMPORARY_OUTPUT'})['OUTPUT']
+            'OUTPUT': 'TEMPORARY_OUTPUT'}, context=context, feedback=feedback, is_child_algorithm=True)['OUTPUT']
         # create layer from memory layer ID
         perimeter_layer = QgsUtility.ensure_vector_layer(perimeter_layer, context)
 
@@ -362,7 +362,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     # 'MASK': buffered_feature_layer,
                     'OPTIONS': parameters['gdal_create_options'],
                     'OUTPUT': vhm_10m_clipped
-                })
+                }, context=context, feedback=feedback, is_child_algorithm=True)
                 if not os.path.exists(vhm_10m_clipped):
                     raise QgsProcessingException(
                         f"Clipping VHM raster for region {region_name} produced no output file "
@@ -382,7 +382,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'MASK': perimeter_buffered,
                         'OPTIONS': parameters['gdal_create_options'],
                         'OUTPUT': mg_10m_clipped
-                    })
+                    }, context=context, feedback=feedback, is_child_algorithm=True)
                     if not os.path.exists(mg_10m_clipped):
                         raise QgsProcessingException(
                             f"Clipping coniferous raster for region {region_name} produced no output file "
@@ -432,7 +432,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 region_step("-> stand delineation")
                 step_start = time.time()
                 results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
-                                                           context=context, feedback=feedback)
+                                                           context=context, feedback=feedback,
+                                                           is_child_algorithm=True)
                 _mark_step_output_done(parameters_region["output_stand_boundaries"])
                 region_step(f"<- stand delineation done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
@@ -443,7 +444,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 region_step("-> simplify & clean")
                 step_start = time.time()
                 results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
-                                                  context=context, feedback=feedback)
+                                                  context=context, feedback=feedback,
+                                                  is_child_algorithm=True)
                 _mark_step_output_done(parameters_region['stands_simplified'])
                 region_step(f"<- simplify & clean done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
@@ -454,7 +456,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 region_step("-> clip to perimeter and eliminate gaps")
                 step_start = time.time()
                 results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
-                                                 context=context, feedback=feedback)
+                                                 context=context, feedback=feedback,
+                                                 is_child_algorithm=True)
                 _mark_step_output_done(parameters_region["stands_clipped_no_gaps"])
                 region_step(f"<- clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
@@ -465,7 +468,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 region_step("-> merge similar neighbours")
                 step_start = time.time()
                 algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
-                                           context=context, feedback=feedback)
+                                           context=context, feedback=feedback,
+                                           is_child_algorithm=True)
                 _mark_step_output_done(parameters_region["stands_merged"])
                 region_step(f"<- merge similar neighbours done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
@@ -476,7 +480,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 region_step("-> postprocess cleanup")
                 step_start = time.time()
                 algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
-                                           context=context, feedback=feedback)
+                                           context=context, feedback=feedback,
+                                           is_child_algorithm=True)
                 _mark_step_output_done(parameters_region["output_stand_map_clean"])
                 region_step(f"<- postprocess cleanup done ({str(timedelta(seconds=round(time.time() - step_start)))})")
             else:
@@ -543,7 +548,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 'id_prefix': 2,  # '2' corresponds to the "custom" option
                 'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
                 'OUTPUT': merged
-            })
+            }, context=context, feedback=feedback, is_child_algorithm=True)
             _mark_step_output_done(merged)
 
         else:
@@ -581,7 +586,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'id_prefix': 2,  # Custom prefix
                         'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
                         'OUTPUT': merged  # Output path for the merged vector file
-                    })
+                    }, context=context, feedback=feedback, is_child_algorithm=True)
                     _mark_step_output_done(merged)
 
             # Handle raster data
@@ -603,7 +608,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                         'SEPARATE': False,  # False ensures layers are merged, not stacked
                         'PREFERRED': 'FIRST',  # Keeps the first valid data (prevents overwriting)
                         'OPTIONS': parameters['gdal_create_options']
-                    })
+                    }, context=context, feedback=feedback, is_child_algorithm=True)
                     _mark_step_output_done(merged_raster)
 
         # *************************************** #
@@ -656,7 +661,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 continue
             wf_log(f"-> {alg.name()}")
             alg_start = time.time()
-            result = processing.run(alg, parameters, context=context, feedback=feedback)
+            result = processing.run(alg, parameters, context=context, feedback=feedback, is_child_algorithm=True)
             if skip_output:
                 _mark_step_output_done(skip_output)
             alg_elapsed = str(timedelta(seconds=round(time.time() - alg_start)))
@@ -669,7 +674,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
         if overwrite or not _step_output_done(parameters['final_stand_map']):
             if os.path.exists(parameters['final_stand_map']):
                 os.remove(parameters['final_stand_map'])
-            finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'])
+            finalize_TBk(parameters['stands_dg_nh_vegZone'], parameters['final_stand_map'],
+                        context=context, feedback=feedback)
             _mark_step_output_done(parameters['final_stand_map'])
         else:
             print(f"Skipped final cleanup, output already exists (overwrite = False)")
@@ -698,7 +704,8 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                                           100, 14],
                 'calc_all_dg': True, 'min_size_clump': 1200, 'min_size_stand': 1200, 'holes_thresh': 400,
                 'buffer_smoothing': True,
-                'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3})
+                'buffer_smoothing_dist': 7, 'save_unclipped': False, 'grid_cell_size': 3},
+                              context=context, feedback=feedback, is_child_algorithm=True)
                 _mark_step_output_done(local_density_output)
                 ld_elapsed = str(timedelta(seconds=round(time.time() - ld_start)))
                 wf_log(f"<- local density done ({ld_elapsed})")

@@ -355,7 +355,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                          'NODATA': vNA, 'TARGET_RESOLUTION': None, 'OPTIONS': '', 'DATA_TYPE': 1,
                          'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': True,
                          'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES', 'OUTPUT': tmp_vhm_byte}
-                algoOutput = processing.run("gdal:warpreproject", param)
+                algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
                 vhm_input = tmp_vhm_byte
 
         if mask_vhm:
@@ -366,7 +366,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                      'OPTIONS': '', 'DATA_TYPE': 0,
                      'EXTRA': f'-multi -wm 5000 {gdal_co_to_extra(gdal_create_options)} -co TILED=YES -co BIGTIFF=YES  -wo "CUTLINE_ALL_TOUCHED=TRUE"',
                      'OUTPUT': tmp_vhm_cropped}
-            processing.run("gdal:cliprasterbymasklayer", param)
+            processing.run("gdal:cliprasterbymasklayer", param, context=context, feedback=feedback, is_child_algorithm=True)
 
             # TODO this does nothing if no masking is necessary, resulting in no output generated
             #  and the following command failing
@@ -390,7 +390,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                  'RESAMPLING': 7, 'NODATA': None, 'TARGET_RESOLUTION': 10, 'OPTIONS': '', 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None,
                  'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': gdal_co_to_extra(gdal_create_options), 'OUTPUT': vhm_10m}
-        algoOutput = processing.run("gdal:warpreproject", param)
+        algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
         # os.system("gdalwarp -tr 10 10 -r max -co COMPRESS=LZW " + vhm_detail + " " + vhm_10m)
 
         feedback.pushInfo("aggregate vhm to 150cm...")
@@ -400,7 +400,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                  'RESAMPLING': 7, 'NODATA': None, 'TARGET_RESOLUTION': 1.5, 'OPTIONS': '', 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None,
                  'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': gdal_co_to_extra(gdal_create_options), 'OUTPUT': vhm_150cm}
-        algoOutput = processing.run("gdal:warpreproject", param)
+        algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
         # os.system("gdalwarp -tr 1.5 1.5 -r max -co COMPRESS=LZW " + vhm_detail + " " + vhm_150cm)
 
         feedback.pushInfo("====================================================================")
@@ -421,7 +421,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                  'OPTIONS': '',
                  'DATA_TYPE': 0, 'TARGET_EXTENT': extent, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False,
                  'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES', 'OUTPUT': tmp_mg_aligned}
-        processing.run("gdal:warpreproject", param)
+        processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
 
         if mg_rescale_factor != 1.0:
             feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
@@ -433,7 +433,7 @@ class TBkPrepareAlgorithm(TBkProcessingAlgorithmToolY):
                 'NO_DATA': None, 'PROJWIN': None, 'RTYPE': 0, 'OPTIONS': gdal_create_options,
                 'EXTRA': '',
                 'OUTPUT': mg_10m}
-            processing.run("gdal:rastercalculator", param)
+            processing.run("gdal:rastercalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
         else:
             feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
             copy_raster_tiff(tmp_mg_aligned, mg_10m, gdal_create_options)

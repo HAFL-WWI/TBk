@@ -450,7 +450,8 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
 
         # --- Finalize: normalize field schema, calculate PH_STRUCTURE, recalculate area_m2
 
-        finalize_TBk(outputs['TbkPostprocessCleanup']['OUTPUT'], parameters['final_stand_map'])
+        finalize_TBk(outputs['TbkPostprocessCleanup']['OUTPUT'], parameters['final_stand_map'],
+                    context=context, feedback=feedback)
         main_results['TBk_Bestandeskarte'] = parameters['final_stand_map']
 
         feedback.setCurrentStep(11)

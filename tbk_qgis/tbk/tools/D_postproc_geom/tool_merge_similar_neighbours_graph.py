@@ -107,7 +107,9 @@ class TBkMergeSimilarNeighboursGraphAlgorithm(TBkProcessingAlgorithmToolD):
         results = merge_similar_neighbours_graph(params.input_to_merge,
                                                  params.stands_merged,
                                                  params.similar_neighbours_min_area,
-                                                 params.similar_neighbours_hdom_diff_rel)
+                                                 params.similar_neighbours_hdom_diff_rel,
+                                                 context=context,
+                                                 feedback=feedback)
 
         return {self.OUTPUT_MERGED: results["stands_merged"]}
 

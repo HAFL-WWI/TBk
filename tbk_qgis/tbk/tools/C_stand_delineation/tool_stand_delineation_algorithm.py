@@ -252,6 +252,7 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
             'vhm_min_height': params.vhm_min_height,
             'vhm_max_height': params.vhm_max_height,
             'output_stand_boundaries': params.output_stand_boundaries,
+            'feedback': feedback,
         }
 
         log.debug(f"used parameters: {params_args}")
@@ -310,7 +311,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                               min_cells_per_stand,
                               min_cells_per_pure_stand,
                               vhm_min_height,
-                              vhm_max_height):
+                              vhm_max_height,
+                              feedback=None):
         """
         Run stand classification based on vegetation height model input raster.
 
@@ -425,16 +427,24 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                                                                         min_tol, max_tol, min_corr, max_corr,
                                                                         min_valid_cells, min_cells_per_pure_stand,
                                                                         zone, coniferous_data,
-                                                                        stand, stands, hdom, hmax)
+                                                                        stand, stands, hdom, hmax, feedback)
+
+        if feedback is not None and feedback.isCanceled():
+            log.info("Canceled by user - skipping remaining classification, smoothing and polygonizing")
+            return output_files
 
         log.info("classification without mixture information...")
         stand, stand_nbr, stands, hdom, hmax = self.classify_pixels(vhm_data, sorted_vhm_data, stand_nbr,
                                                                     min_tol, max_tol, min_corr, max_corr,
                                                                     min_valid_cells, min_cells_per_stand,
                                                                     zone, None,
-                                                                    stand, stands, hdom, hmax)
+                                                                    stand, stands, hdom, hmax, feedback)
 
         log.info(f"--- {self._get_elapsed_time(start_time)} minutes, classification finished ---")
+
+        if feedback is not None and feedback.isCanceled():
+            log.info("Canceled by user - skipping smoothing and polygonizing")
+            return output_files
 
         # Assign remaining pixels to last stand number
         m_tmp = (vhm_data >= 0) & (stand == 0)
@@ -491,7 +501,8 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
                         stand,
                         stands,
                         hdom,
-                        hmax):
+                        hmax,
+                        feedback=None):
 
         log = logging.getLogger(self.name())
         progress_print_step = len(sorted_vhm_data) / 10
@@ -503,6 +514,14 @@ class TBkStandDelineationAlgorithm(TBkProcessingAlgorithmToolC):
 
         # loop over all pixels, starting with the biggest value
         for i, (value, row, col) in enumerate(sorted_vhm_data):
+
+            # Check for cancellation between pixels (never mid-region-growing) so a "Cancel" click
+            # actually stops this loop instead of only being noticed once it returns on its own -
+            # this loop is the single longest-running, least interruptible part of TBk (can run for
+            # many minutes on a large VHM raster) and previously had no feedback object at all.
+            if feedback is not None and feedback.isCanceled():
+                log.info(f"Canceled by user after {i} of {len(sorted_vhm_data)} pixels")
+                break
 
             # log every 10 % of pixel processed
             if i >= next_print_threshold:

@@ -231,6 +231,7 @@ class OptimizedSpatialJoin(TBkProcessingAlgorithmToolG):
             res_box = processing.run(
                 "native:polygonfromlayerextent",
                 {"INPUT": layer_A, "ROUND_TO": 0, "OUTPUT": "TEMPORARY_OUTPUT"},
+                context=context, feedback=feedback, is_child_algorithm=True
             )
             temp_bbox = res_box["OUTPUT"]
 

@@ -172,7 +172,8 @@ class TBkSimplifyAndCleanAlgorithm(TBkProcessingAlgorithmToolC):
         results = post_process(params.input_to_simplify, params.h_max_input,
                                params.stands_simplified, params.stands_highest_tree,
                                tmp_output_folder, params.min_area_m2, params.smoothing,
-                               params.simplification_tolerance, params.del_tmp)
+                               params.simplification_tolerance, params.del_tmp,
+                               context=context, feedback=feedback)
 
         return {self.OUTPUT_SIMPLIFIED: results["stands_simplified"],
                 self.OUTPUT_STANDS_HIGHEST_TREE: results["stands_highest_tree"], }

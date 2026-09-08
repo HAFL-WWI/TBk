@@ -53,6 +53,7 @@ def add_coniferous_proportion(working_root,
                               tbk_result_dir,
                               del_tmp=True,
                               gdal_create_options='COMPRESS=DEFLATE|PREDICTOR=2|ZLEVEL=9',
+                              context=None,
                               feedback=None):
     # feedback=None (e.g. Y_legacy callers) still gets the Start/step/Finished lines in the
     # log file via SubprocessTimer(log=log) - only the Processing feedback panel is skipped.
@@ -66,7 +67,11 @@ def add_coniferous_proportion(working_root,
 
     timer.step("calc mean coniferous proportion...")
 
-    zonal_statistics(coniferous_raster, stands_dg_copy, 'nh_', [2])
+    # No shared `context` here (feedback alone still gives cancellation): this appends fields
+    # directly to the real stands_dg_copy file, which is immediately re-opened below via a fresh
+    # QgsVectorLayer - sharing context keeps this write on a cached, uncommitted connection,
+    # so the fresh re-open doesn't see the new nh_mean field (it reads back as NULL).
+    zonal_statistics(coniferous_raster, stands_dg_copy, 'nh_', [2], feedback=feedback)
 
     stands_layer_copy = QgsVectorLayer(stands_dg_copy, "stands", "ogr")
 
@@ -77,9 +82,15 @@ def add_coniferous_proportion(working_root,
         stands_layer_copy.updateFields()
 
         # Write NH attribute per stand
-        for f in stands_layer_copy.getFeatures():
+        for i, f in enumerate(stands_layer_copy.getFeatures()):
+            if i % 2000 == 0 and feedback is not None and feedback.isCanceled():
+                break
             f["NH"] = f["nh_mean"]
             stands_layer_copy.updateFeature(f)
+
+    if feedback is not None and feedback.isCanceled():
+        timer.finish()
+        return stands_dg_copy
 
     # NH OS
     if calc_main_layer:
@@ -102,11 +113,17 @@ def add_coniferous_proportion(working_root,
         tmp_files = {key: os.path.join(tmp_output_folder, filename) for key, filename in tmp_files_names.items()}
 
         # Resample os layer to 1m to align with 10m raster
+        # No shared `context` from here down to the delete_raster() calls below (feedback alone
+        # still gives cancellation): these read/write real named temp files that get deleted by
+        # hand when del_tmp is set, and resolving them through our long-lived workflow context
+        # leaves the file locked open under Windows until the whole run's context is torn down -
+        # the explicit cleanup then fails with "Permission denied" (verified in isolation: same
+        # context -> same lock regardless of is_child_algorithm; no shared context -> no lock).
         param = {'INPUT': dg_layer_os, 'SOURCE_CRS': None, 'TARGET_CRS': None, 'RESAMPLING': 1, 'NODATA': None,
                  'TARGET_RESOLUTION': 1, 'OPTIONS': gdal_create_options, 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_1m"]}
-        algoOutput = processing.run("gdal:warpreproject", param)
+        algoOutput = processing.run("gdal:warpreproject", param, feedback=feedback)
 
         # Aggregate os sum per 10m Sentinel-2 pixel
         meta_data = get_raster_metadata(coniferous_raster)
@@ -120,12 +137,12 @@ def add_coniferous_proportion(working_root,
                  'output': tmp_files["dg_layer_os_10m_sum"],
                  'GRASS_REGION_PARAMETER': extent, 'GRASS_REGION_CELLSIZE_PARAMETER': 10, 'GRASS_RASTER_FORMAT_OPT': '',
                  'GRASS_RASTER_FORMAT_META': ''}
-        algoOutput = run_grass_algorithm("r.resamp.stats", param)
+        algoOutput = run_grass_algorithm("r.resamp.stats", param, feedback=feedback)
 
         meta_data = get_raster_metadata(dg_layer_os)
         param = {'INPUT': tmp_files["dg_layer_os_10m_sum"],
                  'CRS': QgsCoordinateReferenceSystem('EPSG:{0}'.format(meta_data["epsg"]))}
-        processing.run("gdal:assignprojection", param)
+        processing.run("gdal:assignprojection", param, feedback=feedback)
 
         # Reclassify
         condition_string = "(A > {0})*1".format(str(cover))
@@ -138,7 +155,7 @@ def add_coniferous_proportion(working_root,
                  'FORMULA': condition_string, 'NO_DATA': None, 'RTYPE': 0,
                  'OPTIONS': gdal_create_options, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_10m_mask"]}
-        processing.run("gdal:rastercalculator", param)
+        processing.run("gdal:rastercalculator", param, feedback=feedback)
 
         # Extract pixels covered by OS
         formula = "A*B"
@@ -151,13 +168,13 @@ def add_coniferous_proportion(working_root,
                  'FORMULA': formula, 'NO_DATA': None, 'RTYPE': 0,
                  'OPTIONS': gdal_create_options, 'EXTRA': '',
                  'OUTPUT': tmp_files["dg_layer_os_nh"]}
-        processing.run("gdal:rastercalculator", param)
+        processing.run("gdal:rastercalculator", param, feedback=feedback)
 
         # Calculate mean NH_OS
-        zonal_statistics(tmp_files["dg_layer_os_nh"], stands_dg_copy, 'nh_os_', [2])
+        zonal_statistics(tmp_files["dg_layer_os_nh"], stands_dg_copy, 'nh_os_', [2], feedback=feedback)
 
         # Calculate sum NH_OS pixels
-        zonal_statistics(tmp_files["dg_layer_os_10m_mask"], stands_dg_copy, 'nhm_', [1])
+        zonal_statistics(tmp_files["dg_layer_os_10m_mask"], stands_dg_copy, 'nhm_', [1], feedback=feedback)
 
         with edit(stands_layer_copy):
             # Add NH fields
@@ -167,7 +184,9 @@ def add_coniferous_proportion(working_root,
             stands_layer_copy.updateFields()
 
             # Write NH_OS attribute per stand
-            for f in stands_layer_copy.getFeatures():
+            for i, f in enumerate(stands_layer_copy.getFeatures()):
+                if i % 2000 == 0 and feedback is not None and feedback.isCanceled():
+                    break
                 # todo: It looks like NH_OS_PIX field is not necessary. we could do:
                 #  if f["NH_OS_PIX"] > 0:
                 #  f["NH_OS"] = f["nh_os_mean"]...
@@ -195,7 +214,8 @@ def add_coniferous_proportion(working_root,
     return stands_dg_copy
 
 
-def zonal_statistics(input_raster: str, input_vector: str, column_prefix: str, stats: list, rasterband=1) -> Dict:
+def zonal_statistics(input_raster: str, input_vector: str, column_prefix: str, stats: list, rasterband=1,
+                     context=None, feedback=None) -> Dict:
     """
     For the statistics: 0=count, 1=sum, 2=mean
     """
@@ -204,4 +224,4 @@ def zonal_statistics(input_raster: str, input_vector: str, column_prefix: str, s
         'RASTER_BAND': rasterband,
         'INPUT_VECTOR': input_vector,
         'COLUMN_PREFIX': column_prefix,
-        'STATISTICS': stats})
+        'STATISTICS': stats}, context=context, feedback=feedback, is_child_algorithm=True)

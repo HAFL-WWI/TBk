@@ -280,7 +280,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
                      'NODATA': vNA, 'TARGET_RESOLUTION': None, 'OPTIONS': '', 'DATA_TYPE': 1,
                      'TARGET_EXTENT': None, 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': True,
                      'EXTRA': '-co COMPRESS=LZW -co BIGTIFF=YES', 'OUTPUT': tmp_byte}
-            algoOutput = processing.run("gdal:warpreproject", param)
+            algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
             # os.system("gdalwarp -of GTiff -ot Byte -dstnodata " + str(vNA) + " -co COMPRESS=LZW -co BIGTIFF=YES " + vhm_input + " " + tmp_byte)
             vhm_input = tmp_byte
 
@@ -303,7 +303,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
                 param = {'INPUT': mask, 'FIELD': None, 'BURN': 1, 'UNITS': raster_size, 'WIDTH': xRes, 'HEIGHT': yRes,
                          'EXTENT': extent, 'NODATA': vNA, 'OPTIONS': '', 'DATA_TYPE': 0, 'INIT': vNA, 'INVERT': False,
                          'EXTRA': '-co COMPRESS=LZW ', 'OUTPUT': tmp_mask}
-                algoOutput = processing.run("gdal:rasterize", param)
+                algoOutput = processing.run("gdal:rasterize", param, context=context, feedback=feedback, is_child_algorithm=True)
                 # os.system("gdal_rasterize -burn 1 -at -tr " + str(xRes) + " " + str(yRes) + " -ot Byte -init "
                 #        + str(vNA) + " -a_nodata " + str(vNA) + " -co COMPRESS=LZW " + mask + " " + tmp_mask)
 
@@ -341,7 +341,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
 
                 param = {'INPUT': tmp_cropped,
                          'CRS': QgsCoordinateReferenceSystem('EPSG:{0}'.format(mask_layer.sourceCrs().srsid()))}
-                algoOutput = processing.run("gdal:assignprojection", param)
+                algoOutput = processing.run("gdal:assignprojection", param, context=context, feedback=feedback, is_child_algorithm=True)
 
                 ## TODO: find gdal / rasterio solution (not found yet)
                 # os.system("\"" + arcgis_python + "\" " + tbk_tool_path + "\\pre_processing\\extract_by_mask.py" + " " + vhm_input + " " + tmp_mask + " " + tmp_cropped)
@@ -354,7 +354,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
                          'OPTIONS': '', 'DATA_TYPE': 0,
                          'EXTRA': '-multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES  -wo \"CUTLINE_ALL_TOUCHED=TRUE\"',
                          'OUTPUT': tmp_cropped}
-                processing.run("gdal:cliprasterbymasklayer", param)
+                processing.run("gdal:cliprasterbymasklayer", param, context=context, feedback=feedback, is_child_algorithm=True)
                 # os.system("gdalwarp -of GTiff -cutline " + mask + " -crop_to_cutline -wo \"CUTLINE_ALL_TOUCHED=TRUE\"" +
                 #        " -tr " + str(xRes) + " " + str(yRes) + " -dstnodata " + str(vNA) +
                 #        " -multi -wm 5000 -co COMPRESS=LZW -co TILED=YES -co BIGTIFF=YES " +  # large raster processing
@@ -373,7 +373,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
                  'RESAMPLING': 7, 'NODATA': None, 'TARGET_RESOLUTION': 10, 'OPTIONS': '', 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None,
                  'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '-co COMPRESS=LZW ', 'OUTPUT': vhm_10m}
-        algoOutput = processing.run("gdal:warpreproject", param)
+        algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
         # os.system("gdalwarp -tr 10 10 -r max -co COMPRESS=LZW " + vhm_detail + " " + vhm_10m)
 
         feedback.pushInfo("aggregate to 150cm...")
@@ -383,7 +383,7 @@ class TBkPrepareVhmAlgorithm(TBkProcessingAlgorithmToolY):
                  'RESAMPLING': 7, 'NODATA': None, 'TARGET_RESOLUTION': 1.5, 'OPTIONS': '', 'DATA_TYPE': 0,
                  'TARGET_EXTENT': None,
                  'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '-co COMPRESS=LZW ', 'OUTPUT': vhm_150cm}
-        algoOutput = processing.run("gdal:warpreproject", param)
+        algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
         # os.system("gdalwarp -tr 1.5 1.5 -r max -co COMPRESS=LZW " + vhm_detail + " " + vhm_150cm)
 
         if del_tmp:

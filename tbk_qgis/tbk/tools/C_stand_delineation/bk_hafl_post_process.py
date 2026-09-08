@@ -30,7 +30,7 @@ import os
 # Import system modules
 
 import processing
-from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter
+from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsProcessingUtils
 from tbk_qgis.tbk.general.tbk_utilities import delete_fields, getVectorSaveOptions, delete_shapefile, run_grass_algorithm
 
 # Substep narration only (file/console at DEBUG); joins the "Simplify & Clean" logger stream
@@ -46,7 +46,9 @@ def post_process(stands_in,
                  min_area,
                  smoothing,
                  simplification_tolerance=8,
-                 del_tmp=True):
+                 del_tmp=True,
+                 context=None,
+                 feedback=None):
     # -------- INIT -------#
     log.debug("--------------------------------------------")
     log.debug("START post processing...")
@@ -83,18 +85,25 @@ def post_process(stands_in,
 
     params = {'INPUT_RASTER': h_max_input, 'RASTER_BAND': 1, 'FIELD_NAME': 'VALUE',
               'OUTPUT': 'TEMPORARY_OUTPUT'}
-    algo_output = processing.run("native:pixelstopoints", params)
+    algo_output = processing.run("native:pixelstopoints", params, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     params = {'INPUT': algo_output["OUTPUT"], 'FIELD': 'VALUE', 'OPERATOR': 2, 'VALUE': '0',
               'OUTPUT': output_files['stands_highest_tree']}
-    processing.run("native:extractbyattribute", params)
+    processing.run("native:extractbyattribute", params, context=context, feedback=feedback, is_child_algorithm=True)
 
     ########################################
     # --- Eliminate small polygons
 
+    # No shared `context` here (feedback alone still gives cancellation): OUTPUT is a real named
+    # file that gets delete_shapefile()'d by hand near the end of this function once del_tmp is
+    # set, and resolving it through our long-lived workflow context leaves it locked open under
+    # Windows until the whole run's context is torn down - the explicit cleanup then fails with
+    # "Permission denied" (verified in isolation: same context -> same lock regardless of
+    # is_child_algorithm; no shared context -> no lock).
     params = {'INPUT': stands_in, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
               'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': tmp_files['stands_buf']}
-    processing.run("native:buffer", params)
+    processing.run("native:buffer", params, feedback=feedback)
 
     stand_boundaries_layer = QgsVectorLayer(tmp_files['stands_buf'], "stand_boundaries", "ogr")
     # Execute SelectLayerByAttribute to define features to be eliminated
@@ -106,11 +115,13 @@ def post_process(stands_in,
 
     # Does not persist results when writing directly to file
     param = {'INPUT': stand_boundaries_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:eliminateselectedpolygons", param)
+    algo_output = processing.run("qgis:eliminateselectedpolygons", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     ctc = QgsProject.instance().transformContext()
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['reduced'], ctc,
-                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+        QgsProcessingUtils.mapLayerFromString(algo_output['OUTPUT'], context), tmp_files['reduced'], ctc,
+        getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # --- Simplify
@@ -124,10 +135,12 @@ def post_process(stands_in,
              '-t': False, '-l': True, 'output': algo_output_path, 'error': tmp_files['simplified_error'],
              'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
              'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-    algo_output = run_grass_algorithm("v.generalize", param)
+    # No shared `context` (see the native:buffer call above for why): reads tmp_files['reduced']
+    # and writes tmp_files['simplified']/['simplified_error'], all delete_shapefile()'d by hand below.
+    algo_output = run_grass_algorithm("v.generalize", param, feedback=feedback)
 
     # a second simplify pass, further smoothing stands
-    if(smoothing):
+    if smoothing and not (feedback is not None and feedback.isCanceled()):
         log.debug("smoothing polygons...")
         # processing.run("native:densifygeometries", {
         #     'INPUT': algo_output_path,
@@ -140,7 +153,9 @@ def post_process(stands_in,
                  '-t': False, '-l': True, 'output':  tmp_files['smoothed'], 'error': tmp_files['smoothed_error'],
                  'GRASS_REGION_PARAMETER': None, 'GRASS_SNAP_TOLERANCE_PARAMETER': -1, 'GRASS_MIN_AREA_PARAMETER': 0.0001,
                  'GRASS_OUTPUT_TYPE_PARAMETER': 0, 'GRASS_VECTOR_DSCO': '', 'GRASS_VECTOR_LCO': ''}
-        algo_output = run_grass_algorithm("v.generalize", param)
+        # No shared `context` (see the native:buffer call above for why): reads algo_output_path,
+        # which is tmp_files['simplified'] here - delete_shapefile()'d by hand below.
+        algo_output = run_grass_algorithm("v.generalize", param, feedback=feedback)
         algo_output_path = tmp_files['smoothed']
 
     tmp_simplified_layer = QgsVectorLayer(algo_output_path, "stand_boundaries_reduced", "ogr")
@@ -154,16 +169,19 @@ def post_process(stands_in,
     # --- Recalculate area
     log.debug("recalculating area...")
     param = {'INPUT': algo_output_path, 'OUTPUT': 'memory:'}
-    algo_output = processing.run("native:fixgeometries", param)
+    algo_output = processing.run("native:fixgeometries", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': area_expression, 'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:fieldcalculator", param)
+    algo_output = processing.run("qgis:fieldcalculator", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     del tmp_simplified_layer
 
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['simplified_final'], ctc,
-                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+        QgsProcessingUtils.mapLayerFromString(algo_output['OUTPUT'], context), tmp_files['simplified_final'], ctc,
+        getVectorSaveOptions('GPKG', 'utf-8'))
 
     ########################################
     # --- Redo elimination of small polygons
@@ -182,7 +200,8 @@ def post_process(stands_in,
 
     # Does not persist results when writing directly to file
     param = {'INPUT': tmp_simplified_layer, 'MODE': 2, 'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:eliminateselectedpolygons", param)
+    algo_output = processing.run("qgis:eliminateselectedpolygons", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     # QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], tmp_files['reduced_final'], ctc,
     #                                           getVectorSaveOptions('GPKG', 'utf-8'))
@@ -192,7 +211,8 @@ def post_process(stands_in,
     log.debug("recalculating area...")
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': area_expression, 'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:fieldcalculator", param)
+    algo_output = processing.run("qgis:fieldcalculator", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     del tmp_simplified_layer
     # QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'],tmp_simplified_path,ctc,getVectorSaveOptions('GPKG','utf-8'))
@@ -206,27 +226,31 @@ def post_process(stands_in,
 
     # Select remainders and calculate hmax, hdom
     param = {'INPUT': tmp_simplified_layer, 'FIELD': 'type', 'OPERATOR': 0, 'VALUE': 'remainder', 'METHOD': 0}
-    algo_output = processing.run("qgis:selectbyattribute", param)
+    algo_output = processing.run("qgis:selectbyattribute", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     # update hmax attribute (with value of hmax_eff) for selected stands
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'hmax', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': 'if(is_selected(),hmax_eff,hmax)',
              'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:fieldcalculator", param)
+    algo_output = processing.run("qgis:fieldcalculator", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     # Select remainders and calculate hmax, hdom
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD': 'type', 'OPERATOR': 0, 'VALUE': 'remainder', 'METHOD': 0}
-    algo_output = processing.run("qgis:selectbyattribute", param)
+    algo_output = processing.run("qgis:selectbyattribute", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     # update hmax attribute (with value of hp_80) for selected stands
     param = {'INPUT': algo_output['OUTPUT'], 'FIELD_NAME': 'hdom', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 10,
              'FIELD_PRECISION': 3, 'NEW_FIELD': False, 'FORMULA': 'if(is_selected(),hp80,hdom)', 'OUTPUT': 'memory:'}
-    algo_output = processing.run("qgis:fieldcalculator", param)
+    algo_output = processing.run("qgis:fieldcalculator", param, context=context, feedback=feedback,
+                                 is_child_algorithm=True)
 
     # Delete fields
     fields = ['hmax_eff', 'hp80']
     if del_tmp:
-        delete_fields(algo_output['OUTPUT'], fields)
+        delete_fields(QgsProcessingUtils.mapLayerFromString(algo_output['OUTPUT'], context), fields)
 
     ########################################
     # # create Field "FID_orig"
@@ -242,8 +266,9 @@ def post_process(stands_in,
     ########################################
 
     # finally persist output
-    QgsVectorFileWriter.writeAsVectorFormatV3(algo_output['OUTPUT'], output_files["stands_simplified"], ctc,
-                                              getVectorSaveOptions('GPKG', 'utf-8'))
+    QgsVectorFileWriter.writeAsVectorFormatV3(
+        QgsProcessingUtils.mapLayerFromString(algo_output['OUTPUT'], context), output_files["stands_simplified"], ctc,
+        getVectorSaveOptions('GPKG', 'utf-8'))
 
     # Delete files
     if del_tmp:

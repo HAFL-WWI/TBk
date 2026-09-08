@@ -144,6 +144,7 @@ class TBkAddConiferousProportionAlgorithm(TBkProcessingAlgorithmToolE):
                                                  params.result_dir,
                                                  del_tmp=params.del_tmp,
                                                  gdal_create_options=params.gdal_create_options,
+                                                 context=context,
                                                  feedback=feedback)
 
         return {self.OUTPUT_STANDS_WITH_CONIFEROUS: stands_dg_nh}

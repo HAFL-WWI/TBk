@@ -35,6 +35,7 @@ from PyQt5.QtCore import QMetaType
 # import string # not needed since some code involving chr() replaces string.ascii_uppercase
 
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import QgsProcessingUtils
 import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
@@ -215,6 +216,9 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
         fid = 0
         for i in range(len(tbk_map_layers)):
+            if feedback.isCanceled():
+                return {}
+
             index = indexes[i]
             prefix = prefixes[i]
 
@@ -232,7 +236,9 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
                     tbk_map_layers[index].addAttribute(QgsField('ID', QMetaType.Int))
 
                     # Assign 'fid' to 'ID' for all features
-                    for feature in tbk_map_layers[index].getFeatures():
+                    for fi, feature in enumerate(tbk_map_layers[index].getFeatures()):
+                        if fi % 2000 == 0 and feedback.isCanceled():
+                            break
                         tbk_map_layers[index].changeAttributeValue(feature.id(), tbk_map_layers[index].fields().indexFromName('ID'), feature.id())
 
             # --- add prefixed IDs (also preserve original IDs)
@@ -240,8 +246,8 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
             # rename ID --> ID_pre_merge
             param = {'INPUT': tbk_map_layers[index], 'FIELD': 'ID', 'NEW_NAME': 'ID_pre_merge',
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:renametablefield", param)
-            tbk_map = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:renametablefield", param, context=context, feedback=feedback, is_child_algorithm=True)
+            tbk_map = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
             # add attribute ID_meta & ID
             if prefix_type == 'numerical':
@@ -255,7 +261,9 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
             # populate attribute ID_meta & ID with values
             with edit(tbk_map):
-                for f in tbk_map.getFeatures():
+                for fi, f in enumerate(tbk_map.getFeatures()):
+                    if fi % 2000 == 0 and feedback.isCanceled():
+                        break
                     fid = fid + 1
                     f.setAttribute("fid", fid)
                     f['ID_meta'] = prefix
@@ -267,12 +275,12 @@ class TBkPostprocessMergeStandMaps(TBkProcessingAlgorithmToolG):
 
         # --- final merge
         param = {'LAYERS': tbk_map_layers_new, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:mergevectorlayers", param)
+        algoOutput = processing.run("native:mergevectorlayers", param, context=context, feedback=feedback, is_child_algorithm=True)
         tbk_map_merged = algoOutput["OUTPUT"]
 
         # drop attribute layer & path (add by native:mergevectorlayers)
         param = {'INPUT': tbk_map_merged, 'COLUMN': ['layer', 'path'], 'OUTPUT': output}
-        algoOutput = processing.run("native:deletecolumn", param)
+        algoOutput = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)
         tbk_map_merged = algoOutput["OUTPUT"]
 
         feedback.pushInfo("====================================================================")

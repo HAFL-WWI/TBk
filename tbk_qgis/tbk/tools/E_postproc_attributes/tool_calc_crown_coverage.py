@@ -150,7 +150,7 @@ class TBkCalculateCrownCoverageAlgorithm(TBkProcessingAlgorithmToolE):
         # block via SubprocessTimer, given feedback - no separate _log_milestone here)
         results = calculate_dg(working_root, stands_clipped_copy, tmp_output_folder, dg_dir, params.vhm_150cm,
                                del_tmp=params.del_tmp, gdal_create_options=params.gdal_create_options,
-                               feedback=feedback)
+                               context=context, feedback=feedback)
 
         return {self.OUTPUT_STANDS_DG: results["stands_dg"],
                 self.OUTPUT_DG_LAYER_MAIN: results["dg_layer_main"],

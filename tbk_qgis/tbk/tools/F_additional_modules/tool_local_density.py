@@ -33,6 +33,7 @@ import math
 
 from PyQt5.QtCore import QMetaType
 from qgis.PyQt.QtCore import QCoreApplication
+from qgis.core import QgsProcessingUtils
 import processing
 
 from tbk_qgis.tbk.general.tbk_utilities import *
@@ -407,8 +408,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # add fid (--> fid_stand) as unique identifier for later joins to original stands
         param = {'INPUT': stands_all, 'FIELD_NAME': 'fid_stand', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10,
                  'FIELD_PRECISION': 0, 'FORMULA': ' "fid" ', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        stands_all = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands_all = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] load DG rasters ...")
         # load dg raster "DG" (Hauptschicht = hs = DG_OS + DG_UEB)
@@ -437,8 +438,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # select stands with min. area size
         log(f"[{elapsed()}] select stands with area > {min_size_stand} m² ...")
         param = {'INPUT': stands_all, 'EXPRESSION': '$area > ' + str(min_size_stand), 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:extractbyexpression", param)
-        stands = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] reduce and rename stand attributes ...")
         # reduce attributes
@@ -451,21 +452,21 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         if not mg_use:
             col_names.remove('NH')
         param = {'INPUT': stands, 'FIELDS': col_names, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:retainfields", param)
-        stands = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:retainfields", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # suffix attribute columns with _stand
         for col in col_names[1:]:  # 1st of col_names = fid_stand = tmp. id is not suffixed a 2nd time!
             param = {'INPUT': stands, 'FIELD': col, 'NEW_NAME': col + '_stand', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:renametablefield", param)
-            stands = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:renametablefield", param, context=context, feedback=feedback, is_child_algorithm=True)
+            stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] recalculate stand area ...")
         # recalculate stand area
         param = {'INPUT': stands, 'FIELD_NAME': 'area_stand', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        stands = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # check attributes of selected stands
         # print("attributes of selected stands:")
@@ -517,7 +518,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                          '-c': True, '-a': False, 'weight': '', 'output': 'TEMPORARY_OUTPUT', 'GRASS_REGION_PARAMETER': None,
                          'GRASS_REGION_CELLSIZE_PARAMETER': 0, 'GRASS_RASTER_FORMAT_OPT': 'COMPRESS=DEFLATE,PREDICTOR=2',
                          'GRASS_RASTER_FORMAT_META': ''}
-                algoOutput = run_grass_algorithm("r.neighbors", param, context=context, feedback=feedback)
+                algoOutput = run_grass_algorithm("r.neighbors", param, context=context, feedback=feedback, is_child_algorithm=True)
                 focal_dg_layers[str(i["size"])] = QgsRasterLayer(algoOutput["output"])
                 feedback.setProgress(round(len(focal_dg_layers) / n_unique_focal_sizes * 15))
         # check
@@ -552,21 +553,21 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             param = {'INPUT_RASTER': focal_in_use, 'RASTER_BAND': 1, 'TABLE': [cl_min, cl_max, '1'], 'NO_DATA': 0,
                      'RANGE_BOUNDARIES': 0, 'NODATA_FOR_MISSING': True, 'DATA_TYPE': 1,
                      'CREATION_OPTIONS': self._GDAL_CREATE_OPTIONS_DEFAULT, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:reclassifybytable", param)
-            recl = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:reclassifybytable", param, context=context, feedback=feedback, is_child_algorithm=True)
+            recl = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
             # polygonize
             param = {'INPUT': recl, 'BAND': 1, 'FIELD': 'DN', 'EIGHT_CONNECTEDNESS': False, 'EXTRA': '',
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("gdal:polygonize", param)
-            polys_cl = algoOutput["OUTPUT"]
+            algoOutput = processing.run("gdal:polygonize", param, context=context, feedback=feedback, is_child_algorithm=True)
+            polys_cl = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # f_save_as_gpkg(polys_cl, "0_class_" + cl_)
 
             # add density class as attribute
             param = {'INPUT': polys_cl, 'FIELD_NAME': 'class', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 0,
                      'FIELD_PRECISION': 0, 'FORMULA': "to_string( '" + cl_ + "' )", 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:fieldcalculator", param)
-            polys_cl = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+            polys_cl = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # f_save_as_gpkg(polys_cl, "3_class_" + cl_)
 
             den_polys.append(polys_cl)
@@ -574,15 +575,15 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # merge listed layers with density polygons of different classes
         log(f"[{elapsed()}] merge local densities of all classes ...")
         param = {'LAYERS': den_polys, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:mergevectorlayers", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:mergevectorlayers", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] assign unique fids to merged density polygons ...")
         # overwrite fid of merged density polygons with unique values ...
         param ={'INPUT': den_polys, 'FIELD_NAME': 'fid', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
                 'FORMULA': '@row_number', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_polygonized") # ... in order make them exportable without complain and not ...
                                                              # ... just those features inherited form the 1st element of above merged list
 
@@ -590,22 +591,22 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         if holes_thresh > 0:
             log(f"[{elapsed()}] remove holes < {holes_thresh} m² ...")
             param = {'INPUT': den_polys, 'MIN_AREA': holes_thresh, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:deleteholes", param)
-            den_polys = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:deleteholes", param, context=context, feedback=feedback, is_child_algorithm=True)
+            den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # f_save_as_gpkg(den_polys, "den_polys_without_holes")
 
         # fix geometries before buffering to prevent crashes from polygonize artifacts (self-intersections etc.)
         log(f"[{elapsed()}] fix geometries before buffer smoothing ...")
         param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fixgeometries", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fixgeometries", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # filter sub-threshold polygons before buffering: the negative buffer eliminates them anyway,
         # so filtering first avoids running the buffer over potentially millions of tiny raster fragments
         log(f"[{elapsed()}] pre-buffer: filter out local densities with area < {min_size_clump} m² ...")
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:extractbyexpression", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # apply buffer smoothing if ...
         if buffer_smoothing and buffer_smoothing_dist != 0:
@@ -613,35 +614,36 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             param = {'INPUT': den_polys, 'DISTANCE': -buffer_smoothing_dist, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:buffer", param)
-            den_polys = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:buffer", param, context=context, feedback=feedback, is_child_algorithm=True)
+            den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # f_save_as_gpkg(den_polys, "den_polys_minus_buffered")
             log(f"[{elapsed()}]   re-expand (plus buffer {round(buffer_smoothing_dist + 1.5, 2)}m) ...")
             param = {'INPUT': den_polys, 'DISTANCE': buffer_smoothing_dist + 1.5, 'SEGMENTS': 5, 'END_CAP_STYLE': 0,
                      'JOIN_STYLE': 0, 'MITER_LIMIT': 2, 'DISSOLVE': False, 'SEPARATE_DISJOINT': False,
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:buffer", param)
-            den_polys = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:buffer", param, context=context, feedback=feedback, is_child_algorithm=True)
+            den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # f_save_as_gpkg(den_polys, "den_polys_plus_buffered")
 
         log(f"[{elapsed()}] fix geometries of local densities and selected stands ...")
         param = {'INPUT': den_polys, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fixgeometries", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fixgeometries", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         param = {'INPUT': stands, 'METHOD': 1, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fixgeometries", param)
-        stands = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fixgeometries", param, context=context, feedback=feedback,
+                                    is_child_algorithm=True)
+        stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] drop zero-area density polygons and cleanup temp attributes ...")
         # drop local densities having zero area
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > 0', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:extractbyexpression", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # drop attributes DN (added by gdal:polygonize), layer & path (added by native:mergevectorlayers)
         param = {'INPUT': den_polys, 'COLUMN': ['DN', 'layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:deletecolumn", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         if save_unclipped:
             log(f"[{elapsed()}] save output: TBk_local_densities_unclipped{output_suffix}.gpkg ...")
@@ -655,8 +657,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         log(f"[{elapsed()}] post-buffer: filter out local densities with area < {min_size_clump} m² ...")
         # print("N of local densities geometries before filtering with min. area: " + str(len(den_polys)))
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:extractbyexpression", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # print("N of local densities geometries after filtering with min. area: " + str(len(den_polys)))
         # f_save_as_gpkg(den_polys, "den_polys_larger_before_intersection")
 
@@ -677,15 +679,16 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # print(formular)
         param = {'INPUT': stands, 'FIELD_NAME': 'group', 'FIELD_TYPE': 2, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
                  'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        stands = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback,
+                                    is_child_algorithm=True)
+        stands = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(stands, "stands_grouped")
 
         log(f"[{elapsed()}] build spatial indices ...")
         # creat spatial index for selected stands
-        processing.run("native:createspatialindex", {'INPUT': stands})
+        processing.run("native:createspatialindex", {'INPUT': stands}, context=context, feedback=feedback, is_child_algorithm=True)
         # creat spatial index for local densities
-        processing.run("native:createspatialindex", {'INPUT': den_polys})
+        processing.run("native:createspatialindex", {'INPUT': den_polys}, context=context, feedback=feedback, is_child_algorithm=True)
 
         # list unique group names
         group_index = stands.fields().indexFromName("group")
@@ -707,19 +710,20 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             expression = ' "group"  =  ' + "'" + group_unique[i] + "'"
             # print(expression)
             param = {'INPUT': stands, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:extractbyexpression", param)
-            stands_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+            stands_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # print("N stands: " + str(len(stands_g)))
 
             # make rectangle polygon = extent of stands belonging to the i-th group
             param = {'INPUT': stands_g, 'ROUND_TO': 0, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:polygonfromlayerextent", param)
-            rect_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:polygonfromlayerextent", param, context=context, feedback=feedback, is_child_algorithm=True)
+            rect_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
             # extract local densities overlapping with rectangle (a single & simple polygon / geometry)
             param = {'INPUT': den_polys, 'PREDICATE': [0], 'INTERSECT': rect_g, 'OUTPUT': 'TEMPORARY_OUTPUT'} # 'PREDICATE': [0] --> intersect
-            algoOutput = processing.run("native:extractbylocation", param)
-            den_polys_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:extractbylocation", param, context=context, feedback=feedback,
+                                        is_child_algorithm=True)
+            den_polys_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # print("N local densities: " + str(len(den_polys_g)))
 
             # if there aren't any overlapping local densities continue with next group
@@ -729,8 +733,9 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             # intersection stands belong to the i-th group & local densities potentially overlapping
             param = {'INPUT': den_polys_g, 'OVERLAY': stands_g, 'INPUT_FIELDS': ['class'], 'OVERLAY_FIELDS': stands_fields,
                      'OVERLAY_FIELDS_PREFIX': '', 'OUTPUT': 'TEMPORARY_OUTPUT', 'GRID_SIZE': None}
-            algoOutput = processing.run("native:intersection", param)
-            den_polys_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:intersection", param, context=context, feedback=feedback,
+                                        is_child_algorithm=True)
+            den_polys_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
             # if intersection has returned no geometries continue with next group
             if len(den_polys_g) == 0:
@@ -750,43 +755,43 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         log(f"[{elapsed()}] merge groupwise intersections ...")
         # merge groupwise intersections of stands & local densities
         param = {'LAYERS': l, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:mergevectorlayers", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:mergevectorlayers", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_intersected")
 
         log(f"[{elapsed()}] drop merge attributes (layer, path) ...")
         # drop attribute layer & path (added by native:mergevectorlayers)
         param = {'INPUT': den_polys, 'COLUMN': ['layer', 'path'], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:deletecolumn", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # multi parts --> single parts
         log(f"[{elapsed()}] turn local density multi parts into single parts ...")
         param = {'INPUT': den_polys, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:multiparttosingleparts", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:multiparttosingleparts", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_sigle_parts")
 
         # drop local densities polygons having areas below min. area
         log(f"[{elapsed()}] filter out local densities with area < {min_size_clump} m² ...")
         param = {'INPUT': den_polys, 'EXPRESSION': '$area > ' + str(min_size_clump), 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:extractbyexpression", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_larger_than_min_area")
 
         # calculate area of local densities
         log(f"[{elapsed()}] calculate area of local densities ...")
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 10, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] calculate area ratio (area_pct) ...")
         # calculate ratio of area of local density to area of stand
         param = {'INPUT': den_polys, 'FIELD_NAME': 'area_pct', 'FIELD_TYPE': 0, 'FIELD_LENGTH': 0, 'FIELD_PRECISION': 0,
                  'FORMULA': 'round($area / area_stand, 2)', 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         # resample Mishungsgrad / Nadelholzanteil raster to resolution 1m x 1m within extent of Deckungsgrad (= dg = DG)
         # 'RESAMPLING': 0 --> Nearest Neighbour
@@ -796,7 +801,7 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                      'TARGET_RESOLUTION': 1, 'OPTIONS': self._GDAL_CREATE_OPTIONS_DEFAULT, 'DATA_TYPE': 0,
                      'TARGET_EXTENT': dg.extent(), 'TARGET_EXTENT_CRS': None, 'MULTITHREADING': False, 'EXTRA': '',
                      'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("gdal:warpreproject", param)
+            algoOutput = processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
             mg = algoOutput["OUTPUT"]
 
         # zonal statistics
@@ -812,12 +817,12 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             # actual zonal stats: 'STATISTICS': [2] --> mean
             param = {'INPUT': den_polys, 'INPUT_RASTER': rasters_4_stats[raster], 'RASTER_BAND': 1,
                      'COLUMN_PREFIX': raster + '_', 'STATISTICS': [2], 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:zonalstatisticsfb", param)
-            den_polys = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:zonalstatisticsfb", param, context=context, feedback=feedback, is_child_algorithm=True)
+            den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # get rid attribute suffix _mean
             param = {'INPUT': den_polys, 'FIELD': raster + '_mean', 'NEW_NAME': raster, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:renametablefield", param)
-            den_polys = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:renametablefield", param, context=context, feedback=feedback, is_child_algorithm=True)
+            den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_zonal_stats")
 
         log(f"[{elapsed()}] group stands and density polygons for metrics calculation ...")
@@ -826,14 +831,14 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         formular = 'ceil("fid_stand" / ' + str(group_size) + ')'
         param = {'INPUT': stands_all, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        stands_all = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands_all = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(stands_all, "stands_all_grouped")
         # ... same procedure with the local densities according
         param = {'INPUT': den_polys, 'FIELD_NAME': 'fid_stand_group', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
                  'FIELD_PRECISION': 0, 'FORMULA': formular, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:fieldcalculator", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(den_polys, "den_polys_grouped")
 
         # from by now existing attributes of density polygons aggregate a (long) summary table for each combination of
@@ -906,28 +911,31 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
             # print(expression)
             # ... from original stand map
             param = {'INPUT': stands_all, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:extractbyexpression", param)
-            stands_all_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback,
+                                        is_child_algorithm=True)
+            stands_all_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # print("N stands: " + str(len(stands_all_g)))
             # ... from local densities
             param = {'INPUT': den_polys, 'EXPRESSION': expression, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-            algoOutput = processing.run("native:extractbyexpression", param)
-            den_polys_g = algoOutput["OUTPUT"]
+            algoOutput = processing.run("native:extractbyexpression", param, context=context, feedback=feedback,
+                                        is_child_algorithm=True)
+            den_polys_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
             # print("N local densities: " + str(len(den_polys_g)))
 
             # if there are any local densities overlapping with the i-th group of stands ...
             if len(den_polys_g) > 0:
                 # 1) table (long format) for each combination of stand and local density class metrics
                 param = {'INPUT': den_polys_g, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-                algoOutput = processing.run("native:dropgeometries", param)
+                algoOutput = processing.run("native:dropgeometries", param, context=context, feedback=feedback, is_child_algorithm=True)
                 param = {
                     'INPUT': algoOutput["OUTPUT"],
                     'GROUP_BY': 'Array( "fid_stand", "class")',
                     'AGGREGATES': aggregates,
                     'OUTPUT': 'TEMPORARY_OUTPUT'
                 }
-                algoOutput = processing.run("native:aggregate", param)
-                statstable_long_g = algoOutput["OUTPUT"]
+                algoOutput = processing.run("native:aggregate", param, context=context, feedback=feedback,
+                                            is_child_algorithm=True)
+                statstable_long_g = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
                 # f_save_as_gpkg(statstable_long_g, "statstable_long_g_" + gr)
                 # 2) add new attribute to i-th group of stands
                 pr = stands_all_g.dataProvider()
@@ -955,8 +963,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         log(f"[{elapsed()}] merge stand groups ...")
         # merge the groups of stands with complemented local density metrics to 1 layer
         param = {'LAYERS': l_stands_all, 'CRS': None, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:mergevectorlayers", param)
-        stands_all = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:mergevectorlayers", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands_all = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # f_save_as_gpkg(stands_all, "stands_all_merged")
 
         log(f"[{elapsed()}] tidy up attributes of local densities ...")
@@ -1004,8 +1012,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
                    'sub_type': 0, 'type': type, 'type_name': type_name}
             fields_mapping.append(map)
         param = {'INPUT': den_polys, 'FIELDS_MAPPING': fields_mapping, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:refactorfields", param)
-        den_polys = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:refactorfields", param, context=context, feedback=feedback, is_child_algorithm=True)
+        den_polys = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
 
         log(f"[{elapsed()}] save output: TBk_local_densities{output_suffix}.gpkg ...")
         # save local densities output
@@ -1019,8 +1027,8 @@ class TBkPostprocessLocalDensity(TBkProcessingAlgorithmToolF):
         # added by native:mergevectorlayers (layer, path)!
         col_to_delete = ['fid_stand', 'fid_stand_group', 'layer', 'path']
         param = {'INPUT': stands_all, 'COLUMN': col_to_delete, 'OUTPUT': 'TEMPORARY_OUTPUT'}
-        algoOutput = processing.run("native:deletecolumn", param)
-        stands_all = algoOutput["OUTPUT"]
+        algoOutput = processing.run("native:deletecolumn", param, context=context, feedback=feedback, is_child_algorithm=True)
+        stands_all = QgsProcessingUtils.mapLayerFromString(algoOutput["OUTPUT"], context)
         # output original stands + local density stats
         path_stands_out = os.path.join(path_output, "TBk_Bestandeskarte_local_densities" + output_suffix + ".gpkg")
         ctc = QgsProject.instance().transformContext()

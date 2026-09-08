@@ -444,7 +444,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
         # if align_method == 1 (to pixel of mg_input) and mg is among inputs ...
         if align_method == 1 and mg_use:
             param = {'INPUT': mg_input, 'BAND': None}
-            mg_input_properties = processing.run("native:rasterlayerproperties", param)
+            mg_input_properties = processing.run("native:rasterlayerproperties", param, context=context, feedback=feedback, is_child_algorithm=True)
             # ... but mg_input resolution != 10m x 10m ...
             if mg_input_properties['PIXEL_HEIGHT'] != 10.0 or mg_input_properties['PIXEL_WIDTH'] != 10.0:
                 feedback.pushInfo("Switch align_method from 1 to 0, because mg_imput resolution is not 10m x 10m...")
@@ -472,7 +472,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                 'EXTRA': '',
                 'OUTPUT': tmp_mg_aligned
             }
-            processing.run("gdal:cliprasterbyextent", param)
+            processing.run("gdal:cliprasterbyextent", param, context=context, feedback=feedback, is_child_algorithm=True)
             # ... get corresponding extent
             feedback.pushInfo("Defined extent of VHM 10m and MG 10m as aligned to mg_input...")
             extent_10m = get_raster_extent(tmp_mg_aligned)
@@ -513,7 +513,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_vhm_byte
                 }
-                processing.run("gdal:warpreproject", param)
+                processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
                 vhm_input = tmp_vhm_byte
 
         if mask_vhm:
@@ -536,7 +536,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                 'EXTRA': f'-multi -wm 5000 {gdal_co_to_extra(gdal_create_options)} -co TILED=YES -co BIGTIFF=YES  -wo "CUTLINE_ALL_TOUCHED=TRUE"',
                 'OUTPUT': tmp_vhm_cropped
             }
-            processing.run("gdal:cliprasterbymasklayer", param)
+            processing.run("gdal:cliprasterbymasklayer", param, context=context, feedback=feedback, is_child_algorithm=True)
 
             vhm_input = tmp_vhm_cropped
 
@@ -567,7 +567,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
             'EXTRA': gdal_co_to_extra(gdal_create_options),
             'OUTPUT': vhm_150cm
         }
-        processing.run("gdal:warpreproject", param)
+        processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
 
         feedback.pushInfo("aggregate vhm to 10m...")
         if not os.path.exists(os.path.dirname(vhm_10m)):
@@ -587,7 +587,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
             'EXTRA': gdal_co_to_extra(gdal_create_options),
             'OUTPUT': vhm_10m
         }
-        processing.run("gdal:warpreproject", param)
+        processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
 
         if mg_use:
             # if raster 10m x 10m are NOT aligned to mixture degree input ...
@@ -609,7 +609,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_mg_aligned
                 }
-                processing.run("gdal:warpreproject", param)
+                processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
 
             if mg_rescale_factor != 1.0:
                 feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
@@ -629,7 +629,7 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': '',
                     'OUTPUT': mg_10m
                 }
-                processing.run("gdal:rastercalculator", param)
+                processing.run("gdal:rastercalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
             else:
                 feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
                 copy_raster_tiff(tmp_mg_aligned, mg_10m, gdal_create_options)
