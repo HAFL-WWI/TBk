@@ -45,6 +45,7 @@ from tbk_qgis.tbk.tools.D_postproc_geom.tool_merge_similar_neighbours_graph impo
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import TBkCalculateCrownCoverageAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_estimate_hdom_existing_stands import TBkEstimateHdomExistingStandsAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_tree_species_from_raster import TBkTreeSpeciesFromRaster
 from tbk_qgis.tbk.tools.F_additional_modules.tool_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_ddom_SD import TBkDdomSDEstimate
@@ -100,6 +101,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkCalculateCrownCoverageAlgorithm())
         self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
         self.addAlgorithm(TBkAppendStandAttributesAlgorithm())
+        self.addAlgorithm(TBkEstimateHdomExistingStandsAlgorithm())
         # [grpID: f]    grpName: Additional Modules
         self.addAlgorithm(TBkDdomSDEstimate())
         self.addAlgorithm(TBkPostprocessLocalDensity())
