@@ -132,14 +132,19 @@ def calculate_dg(working_root,
 
             f["dg_ks_max"] = max_height_ks
             f["dg_us_min"] = min_height_us
-            f["dg_ms_min"] = hdom * min_height_hdom_factor_ms
-            f["dg_os_min"] = hdom * min_height_hdom_factor_os
-            f["dg_ueb_min"] = hmax * min_height_hmax_factor_ueb
-            if hdom < 14:
-                # fix small stands issue
-                f["dg_min"] = hdom * min_height_hdom_factor_ms
-            else:
-                f["dg_min"] = f["dg_os_min"]
+            # guard against a missing hdom/hmax (e.g. a sub-pixel-area stand with no
+            # overlapping VHM pixels - seen from TBk regionwise's small-region fast path on
+            # geometry-cleanup debt) rather than crash the whole run on one degenerate
+            # feature: leave its dg_ms_min/dg_os_min/dg_ueb_min/dg_min NULL instead
+            if hdom is not None and hmax is not None:
+                f["dg_ms_min"] = hdom * min_height_hdom_factor_ms
+                f["dg_os_min"] = hdom * min_height_hdom_factor_os
+                f["dg_ueb_min"] = hmax * min_height_hmax_factor_ueb
+                if hdom < 14:
+                    # fix small stands issue
+                    f["dg_min"] = hdom * min_height_hdom_factor_ms
+                else:
+                    f["dg_min"] = f["dg_os_min"]
 
             stands_layer.updateFeature(f)
 
