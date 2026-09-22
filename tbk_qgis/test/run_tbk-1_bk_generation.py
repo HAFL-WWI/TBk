@@ -6,6 +6,8 @@ This script runs TBk algorithm in a QGIS application without UI.
 Make sure to run this with a Python environment similar (or identical) to the QGIS Python.
 The environment needs to know about QGIS, the QGIS Core Plugins (i.e. Processing, GRASS) and the TBk Plugin.
 Set your PYTHONPATH accordingly or use sys.path.append to add paths to these modules as needed.
+
+Run it with C:/OSGeo4W/bin/python-qgis-ltr_with_processing_and_grass84.bat (sets the GRASS environment).
 """
 
 __author__ = 'Berner Fachhochschule HAFL'
@@ -33,7 +35,7 @@ def get_git_revision(base_path, short=True):
             return git_hash.readline().strip()
 
 # Path to the TBk plugin folder/repository, containing plugin code and test data
-tbk_path = 'C:/dev/hafl/TBk'
+tbk_path = pathlib.Path(__file__).resolve().parents[2].as_posix()
 
 # The path to the plugin is environment specific
 # Appending it is only necessary if that path is not on the PYTHONPATH. Do so e.g. with:
@@ -57,28 +59,35 @@ qgs.initQgis()
 print("# load & init Processing")
 # The path to the QGIS processing plugin (core) is environment specific
 # Appending it is only necessary if that path is not on the PYTHONPATH. Do so e.g. with:
-# sys.path.append('C:/OSGeo4W/apps/qgis-ltr/python/plugins')
+sys.path.append('C:/OSGeo4W/apps/qgis-ltr/python/plugins')
+import processing
 from processing.core.Processing import Processing
 Processing.initialize()
 
 # Add TBk Plugin Provider so that the QGIS instance knows about it's algorithms
+# (keep a reference to the providers, otherwise they are garbage collected)
 provider = TBkProvider()
 QgsApplication.processingRegistry().addProvider(provider)
 
+# Add GRASS Provider (a separate plugin, not part of Processing.initialize())
+from grassprovider.grass_provider import GrassProvider
+grass_provider = GrassProvider()
+QgsApplication.processingRegistry().addProvider(grass_provider)
+
 # Get versions of tools
 print("####------------------------####")
-from grassprovider.Grass7Utils import Grass7Utils
+from grassprovider.grass_utils import GrassUtils
 from processing.algs.gdal.GdalUtils import GdalUtils
 print(f"# QGIS Version: {Qgis.QGIS_VERSION}")
 print(f"# Python Version: {sys.version}")
-print(f"# GRASS Version: {Grass7Utils.installedVersion()}")
+print(f"# GRASS Version: {GrassUtils.installedVersion()}")
 print(f"# GDAL Version: {GdalUtils.version()}")
 print("#==============================#\n")
 print("####  call TBk Algorithm    ####")
 print("#------------------------------#\n\n")
 
 # Main call of the algorithm
-processing.run("TBk:Generate BK", {
+params = {
     'config_file': f'',  # without config file
     # 'config_file': f'{tbk_path}/tbk_qgis/config/default_input_config.toml', # with config file
     'vhm_10m': f'{tbk_path}/data/tbk_2012/VHM_10m.tif',
@@ -95,5 +104,12 @@ processing.run("TBk:Generate BK", {
     'min_cells_per_pure_stand': 30, 'vhm_min_height': 0, 'vhm_max_height': 60,
     'simplification_tolerance': 8, 'min_area_m2': 1000,
     'similar_neighbours_min_area': 2000, 'similar_neighbours_hdom_diff_rel': 0.15,
-    'calc_mixture_for_main_layer': True, 'del_tmp': True})
+    'calc_mixture_for_main_layer': True, 'del_tmp': True}
+
+# processing.run() doesn't fill in defaults for parameters missing from the dict (e.g. 'create_subdir_time')
+alg = QgsApplication.processingRegistry().createAlgorithmById("TBk:Generate BK")
+for definition in alg.parameterDefinitions():
+    params.setdefault(definition.name(), definition.defaultValue())
+
+processing.run("TBk:Generate BK", params)
 
