@@ -227,38 +227,9 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         if feedback.isCanceled():
             return {}
 
-        # --- 3 Merge similar neighbours (FM)
-
-        wf_log("-> 3 Merge similar neighbours (FM)")
-        step_start = time.time()
-
-        # create output filename parameters
-        parameters['stands_merged'] = os.path.join(bk_process_dir, "stands_merged.gpkg")
-
-        # compile params and run tool
-        alg_params = {
-            'config_file': parameters['config_file'],
-            'del_tmp': parameters['del_tmp'],
-            'input_to_merge': outputs['SimplifyAndClean']['stands_simplified'],
-            'logfile_name': parameters['logfile_name'],
-            'similar_neighbours_hdom_diff_rel': parameters['similar_neighbours_hdom_diff_rel'],
-            'similar_neighbours_min_area': parameters['similar_neighbours_min_area'],
-            'working_root': result_dir,
-            'stands_merged': parameters['stands_merged'],
-        }
-        outputs['MergeSimilarNeighboursFm'] =  processing.run('TBk:3 Merge similar neighbours (FM)', alg_params,
-                              context=context, feedback=feedback,
-                              is_child_algorithm=True)
-
-        # store outputs in dict
-        intermediate_results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
-        wf_log(f"<- 3 Merge similar neighbours (FM) done ({str(timedelta(seconds=round(time.time() - step_start)))})")
-
-        feedback.setCurrentStep(3)
-        if feedback.isCanceled():
-            return {}
-
         # --- 4 Clip to perimeter and eliminate gaps
+        # (runs before 3 Merge similar neighbours, same order as in Generate BK Regionwise, so the
+        # merge also handles stands fragmented by the clip)
 
         wf_log("-> 4 Clip to perimeter and eliminate gaps")
         step_start = time.time()
@@ -270,7 +241,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         alg_params = {
             'config_file': parameters['config_file'],
             'del_tmp': parameters['del_tmp'],
-            'input_to_clip': outputs['MergeSimilarNeighboursFm']['stands_merged'],
+            'input_to_clip': outputs['SimplifyAndClean']['stands_simplified'],
             'stands_highest_tree': outputs['SimplifyAndClean']['stands_highest_tree'],
             'logfile_name': parameters['logfile_name'],
             'perimeter': parameters['perimeter'],
@@ -284,6 +255,37 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
         # store outputs in dict
         intermediate_results['stands_clipped_no_gaps'] = outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps']
         wf_log(f"<- 4 Clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+
+        feedback.setCurrentStep(3)
+        if feedback.isCanceled():
+            return {}
+
+        # --- 3 Merge similar neighbours (FM)
+
+        wf_log("-> 3 Merge similar neighbours (FM)")
+        step_start = time.time()
+
+        # create output filename parameters
+        parameters['stands_merged'] = os.path.join(bk_process_dir, "stands_merged.gpkg")
+
+        # compile params and run tool
+        alg_params = {
+            'config_file': parameters['config_file'],
+            'del_tmp': parameters['del_tmp'],
+            'input_to_merge': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
+            'logfile_name': parameters['logfile_name'],
+            'similar_neighbours_hdom_diff_rel': parameters['similar_neighbours_hdom_diff_rel'],
+            'similar_neighbours_min_area': parameters['similar_neighbours_min_area'],
+            'working_root': result_dir,
+            'stands_merged': parameters['stands_merged'],
+        }
+        outputs['MergeSimilarNeighboursFm'] =  processing.run('TBk:3 Merge similar neighbours (FM)', alg_params,
+                              context=context, feedback=feedback,
+                              is_child_algorithm=True)
+
+        # store outputs in dict
+        intermediate_results['stands_merged'] = outputs['MergeSimilarNeighboursFm']['stands_merged']
+        wf_log(f"<- 3 Merge similar neighbours (FM) done ({str(timedelta(seconds=round(time.time() - step_start)))})")
 
         feedback.setCurrentStep(4)
         if feedback.isCanceled():
@@ -304,7 +306,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             'gdal_create_options': parameters['gdal_create_options'],
             'logfile_name': parameters['logfile_name'],
             'result_dir': result_dir,
-            'stands_clipped_no_gaps': outputs['ClipToPerimeterAndEliminateGaps']['stands_clipped_no_gaps'],
+            'stands_clipped_no_gaps': outputs['MergeSimilarNeighboursFm']['stands_merged'],
             'stands_dg': parameters['stands_dg'],
             'vhm_150cm': parameters['vhm_150cm']
         }
