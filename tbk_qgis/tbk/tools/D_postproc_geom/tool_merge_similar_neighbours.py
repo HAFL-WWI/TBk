@@ -10,7 +10,8 @@ from qgis.core import (QgsProcessing,
                        QgsProcessingParameterNumber,
                        QgsProcessingParameterString)
 from tbk_qgis.tbk.general.tbk_utilities import ensure_dir
-from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import merge_similar_neighbours
+from tbk_qgis.tbk.tools.D_postproc_geom.merge_similar_neighbours import (merge_similar_neighbours,
+                                                                          eliminate_small_stands)
 from tbk_qgis.tbk.tools.D_postproc_geom.tbk_qgis_processing_algorithm_toolsD import TBkProcessingAlgorithmToolD
 
 
@@ -39,6 +40,8 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
     SIMILAR_NEIGHBOURS_MIN_AREA_M2 = "similar_neighbours_min_area"
     # hdom relative diff to merge similar stands
     SIMILAR_NEIGHBOURS_HDOM_DIFF_REL = "similar_neighbours_hdom_diff_rel"
+    # Min. area for unconditional elimination after the merge (fallback, 0 = off)
+    MIN_AREA_M2 = "min_area_m2"
     # Delete temporary files and fields
     DEL_TMP = "del_tmp"
 
@@ -98,6 +101,14 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                                                  type=QgsProcessingParameterNumber.Double, defaultValue=0.15)
         self._add_advanced_parameter(parameter)
 
+        parameter = QgsProcessingParameterNumber(self.MIN_AREA_M2,
+                                                 "Min. area to eliminate small stands after the merge (unconditional "
+                                                 "fallback: merged into the neighbour with the longest shared "
+                                                 "boundary, 0 = off)",
+                                                 type=QgsProcessingParameterNumber.Double, defaultValue=0,
+                                                 minValue=0, optional=True)
+        self._add_advanced_parameter(parameter)
+
         # Additional parameters
         parameter = QgsProcessingParameterString(self.LOGFILE_NAME, "Log File Name (.log)",
                                                  defaultValue="tbk_processing.log")
@@ -135,12 +146,22 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
         log.debug(f"Used parameters: {params.input_to_merge}, {params.stands_merged}, "
                   f"{params.similar_neighbours_min_area}, {params.similar_neighbours_hdom_diff_rel}, {params.del_tmp}")
 
+        # with the elimination fallback enabled, the merge writes to a temp file first
+        min_area_m2 = params.min_area_m2 or 0
+        merge_output = os.path.join(tmp_output_folder, "stands_merged_tmp.gpkg") if min_area_m2 > 0 \
+            else params.stands_merged
+
         results = merge_similar_neighbours(params.input_to_merge,
-                                           params.stands_merged,
+                                           merge_output,
                                            params.similar_neighbours_min_area,
                                            params.similar_neighbours_hdom_diff_rel,
                                            context=context,
                                            feedback=feedback)
+
+        # --- Fallback: unconditionally eliminate stands still below min_area_m2
+        if min_area_m2 > 0:
+            results = eliminate_small_stands(merge_output, params.stands_merged, min_area_m2,
+                                             context=context, feedback=feedback)
 
         # todo: return as featuresink for QGIS to automatically load results
         return {self.OUTPUT_MERGED: results["stands_merged"], }
@@ -169,4 +190,5 @@ class TBkMergeSimilarNeighboursAlgorithm(TBkProcessingAlgorithmToolD):
                 'unconditional elimination in "Simplify and Clean". A stand smaller than "Min. area to merge into '
                 'similar neighbour" is merged only if a neighbour\'s hdom differs by less than the relative '
                 'tolerance below; dissimilar small stands are left untouched. Iterates until no more candidates '
-                'qualify.')
+                'qualify. Optionally, stands still below "Min. area to eliminate small stands after the merge" '
+                'are then merged unconditionally into the neighbour with the longest shared boundary.')

@@ -276,6 +276,7 @@ class TBkAlgorithmMainWorkflow(TBkProcessingAlgorithmToolA):
             'logfile_name': parameters['logfile_name'],
             'similar_neighbours_hdom_diff_rel': parameters['similar_neighbours_hdom_diff_rel'],
             'similar_neighbours_min_area': parameters['similar_neighbours_min_area'],
+            'min_area_m2': parameters['min_area_m2'],
             'working_root': result_dir,
             'stands_merged': parameters['stands_merged'],
         }

@@ -253,3 +253,31 @@ def merge_similar_neighbours(shape_in_path, shape_out_path, min_area_m2, min_hdo
 
     log.debug("DONE: merge similar neighbours")
     return output_file
+
+
+def eliminate_small_stands(shape_in_path, shape_out_path, min_area_m2, context=None, feedback=None):
+    """
+    Fallback after merge_similar_neighbours(): unconditionally merge stands still below min_area_m2
+    (e.g. slivers created by the clip without a similar neighbour) into the neighbour with the
+    longest shared boundary (same rule as the elimination in Simplify and Clean). Stands without
+    any neighbour are left unchanged. area_m2 is recalculated.
+    """
+    log.debug("--------------------------------------------")
+    log.debug(f"START eliminate small stands (< {min_area_m2} m2)...")
+
+    layer = QgsVectorLayer(shape_in_path, "stands_to_be_eliminated", "ogr")
+    layer.selectByExpression(f'$area < {min_area_m2}')
+    log.debug(f"eliminating {layer.selectedFeatureCount()} small stands...")
+
+    if layer.selectedFeatureCount() > 0:
+        # MODE 2 = largest common boundary
+        param = {'INPUT': layer, 'MODE': 2, 'OUTPUT': 'TEMPORARY_OUTPUT'}
+        layer = processing.run("qgis:eliminateselectedpolygons", param, context=context, feedback=feedback,
+                               is_child_algorithm=True)["OUTPUT"]
+
+    param = {'INPUT': layer, 'FIELD_NAME': 'area_m2', 'FIELD_TYPE': 1, 'FIELD_LENGTH': 0,
+             'FIELD_PRECISION': 0, 'FORMULA': '$area', 'OUTPUT': shape_out_path}
+    processing.run("native:fieldcalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+
+    log.debug("DONE: eliminate small stands")
+    return {"stands_merged": shape_out_path}
