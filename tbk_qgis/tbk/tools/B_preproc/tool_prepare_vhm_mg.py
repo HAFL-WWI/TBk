@@ -472,7 +472,12 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                 'EXTRA': '',
                 'OUTPUT': tmp_mg_aligned
             }
-            processing.run("gdal:cliprasterbyextent", param, context=context, feedback=feedback, is_child_algorithm=True)
+            # no context= (unlike sibling calls in this function): tmp_mg_aligned is os.remove()'d
+            # mid-run in the del_tmp cleanup below - sharing the long-lived workflow context here
+            # keeps a Windows file lock on it until the whole context is torn down, not just this
+            # call, causing a PermissionError on that later delete (see gotcha in tool_mainTBk_regionwise.py
+            # / calculate_dg.py for the same pattern)
+            processing.run("gdal:cliprasterbyextent", param, feedback=feedback, is_child_algorithm=True)
             # ... get corresponding extent
             feedback.pushInfo("Defined extent of VHM 10m and MG 10m as aligned to mg_input...")
             extent_10m = get_raster_extent(tmp_mg_aligned)
@@ -513,7 +518,9 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_vhm_byte
                 }
-                processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
+                # no context= here: tmp_vhm_byte is os.remove()'d mid-run below (del_tmp cleanup) -
+                # see the tmp_mg_aligned comment above for why a shared context breaks that delete
+                processing.run("gdal:warpreproject", param, feedback=feedback, is_child_algorithm=True)
                 vhm_input = tmp_vhm_byte
 
         if mask_vhm:
@@ -536,7 +543,9 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                 'EXTRA': f'-multi -wm 5000 {gdal_co_to_extra(gdal_create_options)} -co TILED=YES -co BIGTIFF=YES  -wo "CUTLINE_ALL_TOUCHED=TRUE"',
                 'OUTPUT': tmp_vhm_cropped
             }
-            processing.run("gdal:cliprasterbymasklayer", param, context=context, feedback=feedback, is_child_algorithm=True)
+            # no context= here: tmp_vhm_cropped is os.remove()'d mid-run below (del_tmp cleanup) -
+            # see the tmp_mg_aligned comment further down for why a shared context breaks that delete
+            processing.run("gdal:cliprasterbymasklayer", param, feedback=feedback, is_child_algorithm=True)
 
             vhm_input = tmp_vhm_cropped
 
@@ -609,7 +618,14 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': f'{gdal_co_to_extra(gdal_create_options)} -co BIGTIFF=YES',
                     'OUTPUT': tmp_mg_aligned
                 }
-                processing.run("gdal:warpreproject", param, context=context, feedback=feedback, is_child_algorithm=True)
+                # no context=: tmp_mg_aligned is os.remove()'d mid-run below (del_tmp cleanup).
+                # Sharing the long-lived workflow context on the call that WRITES a file which
+                # later gets manually deleted keeps a Windows file lock on it until the whole
+                # context is torn down (i.e. until the entire run finishes), not just until this
+                # call returns - causing os.remove() to fail with PermissionError. Reproduced
+                # headless with mg_input set (align_method != 1 path); same fix applied to the
+                # other tmp_*-writing calls in this function whose output gets deleted below.
+                processing.run("gdal:warpreproject", param, feedback=feedback, is_child_algorithm=True)
 
             if mg_rescale_factor != 1.0:
                 feedback.pushInfo(f"rescale MG values by factor {mg_rescale_factor}...")
@@ -629,7 +645,11 @@ class TBkPrepareVhmMgAlgorithm(TBkProcessingAlgorithmToolB):
                     'EXTRA': '',
                     'OUTPUT': mg_10m
                 }
-                processing.run("gdal:rastercalculator", param, context=context, feedback=feedback, is_child_algorithm=True)
+                # no context= here either: this call READS tmp_mg_aligned (INPUT_A), which is
+                # os.remove()'d mid-run below - the gotcha applies to reads of a shared-context
+                # file just as much as writes to one (both keep it locked until the whole
+                # context is torn down), not only the call that originally wrote tmp_mg_aligned
+                processing.run("gdal:rastercalculator", param, feedback=feedback, is_child_algorithm=True)
             else:
                 feedback.pushInfo(f"not rescaling MG values (factor {mg_rescale_factor}...)")
                 copy_raster_tiff(tmp_mg_aligned, mg_10m, gdal_create_options)
