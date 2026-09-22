@@ -9,7 +9,7 @@ from osgeo import ogr
 from qgis.PyQt.QtWidgets import QApplication
 from qgis._core import QgsProcessingFeatureSourceDefinition, QgsFeatureRequest, QgsVectorLayer, QgsVectorFileWriter, \
     QgsFeature, QgsProject, QgsProcessingException, QgsProcessingParameterBoolean, \
-    QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes
+    QgsProcessingMultiStepFeedback, QgsProcessingParameterField, QgsWkbTypes, QgsProcessingParameterNumber
 
 from tbk_qgis.tbk.general.tbk_utilities import (getVectorSaveOptions, dict_diff, finalize_TBk, SubprocessTimer)
 from tbk_qgis.tbk.general.persistence_utility import (read_dict_from_toml_file, write_dict_to_toml_file)
@@ -25,6 +25,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import \
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_add_coniferous_proportion import \
     TBkAddConiferousProportionAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
+from tbk_qgis.tbk.tools.E_postproc_attributes.estimate_hdom_existing_stands import estimate_hdom_existing_stands
 from tbk_qgis.tbk.tools.G_utility.tool_hdom_vhm_diff import TBkPostprocessHdomDiff
 from tbk_qgis.tbk.tools.G_utility.tool_create_TBk_project import TBkCreateProject
 
@@ -89,6 +90,21 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
         parameter = QgsProcessingParameterBoolean('calc_local_density', "Calculate local densities (can take a while)",
                                                   defaultValue=True)
+        self._add_advanced_parameter(parameter)
+
+        parameter = QgsProcessingParameterBoolean('simplify_small_regions',
+                                                  "Simplify processing for small regions (skip stand delineation "
+                                                  "for regions below 'thresh_small_region' and attribute the "
+                                                  "whole region perimeter as a single stand instead: estimated hdom "
+                                                  "and hmax as the highest VHM10m pixel in the region)",
+                                                  defaultValue=False)
+        self._add_advanced_parameter(parameter)
+
+        parameter = QgsProcessingParameterNumber('thresh_small_region',
+                                                 "Area threshold (m2) below which a region is treated as a single "
+                                                 "stand when 'simplify_small_regions' is enabled",
+                                                 type=QgsProcessingParameterNumber.Double,
+                                                 defaultValue=1000.0, minValue=0.0)
         self._add_advanced_parameter(parameter)
 
     def processAlgorithm(self, parameters, context, feedback):
@@ -261,6 +277,10 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             regions_stands_merged = []
             regions_stands_simplified = []
             regions_stands_simplified2 = []
+            # prefixes for the bk_process debug/troubleshooting merges above - excludes small
+            # regions (fast path, see is_small_region), unlike region_ID_prefix below which
+            # covers every region and is used for the actual final stand map merge
+            bk_process_region_ID_prefix = []
 
         region_ID_prefix = []
 
@@ -283,6 +303,16 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
             # --- Create folders for current feature
             region_name = feature[fieldname_region]  # Adjust attribute name if different
             region_start = time.time()
+
+            # small-region fast path (GitHub issue: TBk regionwise for Kanton Glarus): regions
+            # below thresh_small_region skip the full delineation chain entirely and are
+            # attributed as a single stand = the region perimeter itself (see branch below)
+            region_geom = feature.geometry()
+            if not region_geom.isGeosValid():
+                region_geom = region_geom.makeValid()
+            region_area_m2 = region_geom.area()
+            is_small_region = parameters['simplify_small_regions'] and region_area_m2 < parameters['thresh_small_region']
+
             region_root_dir = os.path.join(regions_dir, str(region_name))
             region_base_data_dir = os.path.join(region_root_dir, 'base_data_preprocessed')
             region_bk_process_dir = os.path.join(region_root_dir, 'bk_process')
@@ -334,61 +364,66 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                 _mark_step_output_done(output_vector)
                 print(f"Successfully saved perimeter {region_name} to {output_vector}")
 
-            if overwrite or not _step_output_done(perimeter_buffered):
-                # --- Create buffered perimeter feature layer
-                if os.path.exists(perimeter_buffered):
-                    os.remove(perimeter_buffered)
-
-                # Safe geometry handling
-                geom = feature.geometry()
-                if not geom.isGeosValid():
-                    geom = geom.makeValid()
-
-                _write_single_feature_gpkg(perimeter_layer, geom.buffer(11, 5), feature.attributes(),
-                                            "perimeter_buffered", perimeter_buffered)
-                _mark_step_output_done(perimeter_buffered)
-                print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
-
             # Construct output file path for the clipped rasters
             vhm_10m_clipped = os.path.join(region_base_data_dir, 'VHM_10m.tif')
             mg_10m_clipped = os.path.join(region_base_data_dir, 'MG_10m.tif')
-            print(f"Clipping VHM10m / Coniferous raster with buffered perimeter")
 
-            if overwrite or not _step_output_done(vhm_10m_clipped):
-                # Clip VHM with buffered mask
-                processing.run("gdal:cliprasterbymasklayer", {
-                    'INPUT': parameters["vhm_10m"],
-                    'MASK': perimeter_buffered,
-                    # 'MASK': buffered_feature_layer,
-                    'OPTIONS': parameters['gdal_create_options'],
-                    'OUTPUT': vhm_10m_clipped
-                }, context=context, feedback=feedback, is_child_algorithm=True)
-                if not os.path.exists(vhm_10m_clipped):
-                    raise QgsProcessingException(
-                        f"Clipping VHM raster for region {region_name} produced no output file "
-                        f"({vhm_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
-                        f"may be empty or not overlap the input VHM raster.")
-                _mark_step_output_done(vhm_10m_clipped)
+            # small regions skip the buffered perimeter and raster clipping entirely - they're
+            # only needed as inputs to the stand delineation chain, which the fast path below
+            # doesn't run (it reads hmax/hdom straight off the un-clipped VHM_10m instead)
+            if not is_small_region:
+                if overwrite or not _step_output_done(perimeter_buffered):
+                    # --- Create buffered perimeter feature layer
+                    if os.path.exists(perimeter_buffered):
+                        os.remove(perimeter_buffered)
 
-            # coniferous_raster_for_classification is optional (TBkStandDelineationAlgorithm
-            # skips mixture-based classification entirely when it's None) - only clip it per
-            # region if a global raster was actually supplied, otherwise gdal:cliprasterbymasklayer
-            # fails with "Konnte Quelllayer für INPUT nicht laden: ungültiger Wert" on INPUT=None.
-            if parameters["coniferous_raster_for_classification"]:
-                if overwrite or not _step_output_done(mg_10m_clipped):
-                    # Clip Coniferous raster with buffered perimeter
+                    # Safe geometry handling
+                    geom = feature.geometry()
+                    if not geom.isGeosValid():
+                        geom = geom.makeValid()
+
+                    _write_single_feature_gpkg(perimeter_layer, geom.buffer(11, 5), feature.attributes(),
+                                                "perimeter_buffered", perimeter_buffered)
+                    _mark_step_output_done(perimeter_buffered)
+                    print(f"Successfully saved buffered perimeter to {perimeter_buffered}")
+
+                print(f"Clipping VHM10m / Coniferous raster with buffered perimeter")
+
+                if overwrite or not _step_output_done(vhm_10m_clipped):
+                    # Clip VHM with buffered mask
                     processing.run("gdal:cliprasterbymasklayer", {
-                        'INPUT': parameters["coniferous_raster_for_classification"],
+                        'INPUT': parameters["vhm_10m"],
                         'MASK': perimeter_buffered,
+                        # 'MASK': buffered_feature_layer,
                         'OPTIONS': parameters['gdal_create_options'],
-                        'OUTPUT': mg_10m_clipped
+                        'OUTPUT': vhm_10m_clipped
                     }, context=context, feedback=feedback, is_child_algorithm=True)
-                    if not os.path.exists(mg_10m_clipped):
+                    if not os.path.exists(vhm_10m_clipped):
                         raise QgsProcessingException(
-                            f"Clipping coniferous raster for region {region_name} produced no output file "
-                            f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
-                            f"may be empty or not overlap the input raster.")
-                    _mark_step_output_done(mg_10m_clipped)
+                            f"Clipping VHM raster for region {region_name} produced no output file "
+                            f"({vhm_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
+                            f"may be empty or not overlap the input VHM raster.")
+                    _mark_step_output_done(vhm_10m_clipped)
+
+                # coniferous_raster_for_classification is optional (TBkStandDelineationAlgorithm
+                # skips mixture-based classification entirely when it's None) - only clip it per
+                # region if a global raster was actually supplied, otherwise gdal:cliprasterbymasklayer
+                # fails with "Konnte Quelllayer für INPUT nicht laden: ungültiger Wert" on INPUT=None.
+                if parameters["coniferous_raster_for_classification"]:
+                    if overwrite or not _step_output_done(mg_10m_clipped):
+                        # Clip Coniferous raster with buffered perimeter
+                        processing.run("gdal:cliprasterbymasklayer", {
+                            'INPUT': parameters["coniferous_raster_for_classification"],
+                            'MASK': perimeter_buffered,
+                            'OPTIONS': parameters['gdal_create_options'],
+                            'OUTPUT': mg_10m_clipped
+                        }, context=context, feedback=feedback, is_child_algorithm=True)
+                        if not os.path.exists(mg_10m_clipped):
+                            raise QgsProcessingException(
+                                f"Clipping coniferous raster for region {region_name} produced no output file "
+                                f"({mg_10m_clipped}). The buffered perimeter mask ({perimeter_buffered}) "
+                                f"may be empty or not overlap the input raster.")
+                        _mark_step_output_done(mg_10m_clipped)
 
             # --- Configure parameters for region
 
@@ -427,70 +462,92 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
             parameters_region['final_stand_map_clean'] = os.path.join(region_bk_process_dir, "TBk_Bestandeskarte.gpkg")
 
-            # --- Run Stand Delineation
-            if overwrite or not _step_output_done(parameters_region["output_stand_boundaries"]):
-                region_step("-> stand delineation")
-                step_start = time.time()
-                results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
-                                                           context=context, feedback=feedback,
-                                                           is_child_algorithm=True)
-                _mark_step_output_done(parameters_region["output_stand_boundaries"])
-                region_step(f"<- stand delineation done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+            if is_small_region:
+                # --- Small region fast path: attribute the whole region perimeter as a single
+                # stand instead of running the full delineation chain (see _build_small_region_stand_map)
+                if overwrite or not _step_output_done(parameters_region["output_stand_map_clean"]):
+                    region_step(f"-> small region fast path (area {region_area_m2:.0f} m2 < "
+                               f"thresh_small_region {parameters['thresh_small_region']:.0f} m2)")
+                    step_start = time.time()
+                    os.makedirs(region_bk_process_dir, exist_ok=True)
+                    _build_small_region_stand_map(perimeter_layer, region_geom, region_area_m2,
+                                                  vhm_10m=parameters["vhm_10m"],
+                                                  gdal_create_options=parameters['gdal_create_options'],
+                                                  output_path=parameters_region["output_stand_map_clean"],
+                                                  tmp_output_folder=region_bk_process_dir,
+                                                  context=context, feedback=feedback)
+                    _mark_step_output_done(parameters_region["output_stand_map_clean"])
+                    region_step(f"<- small region fast path done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped small region fast path, file already exists (overwrite = False)")
             else:
-                region_log(f"Skipped stand delineation, file already exists (overwrite = False)")
+                # --- Run Stand Delineation
+                if overwrite or not _step_output_done(parameters_region["output_stand_boundaries"]):
+                    region_step("-> stand delineation")
+                    step_start = time.time()
+                    results_stand_delineation = processing.run(TBkStandDelineationAlgorithm(), parameters_region,
+                                                               context=context, feedback=feedback,
+                                                               is_child_algorithm=True)
+                    _mark_step_output_done(parameters_region["output_stand_boundaries"])
+                    region_step(f"<- stand delineation done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped stand delineation, file already exists (overwrite = False)")
 
-            # --- Simplify and eliminate
-            if overwrite or not _step_output_done(parameters_region['stands_simplified']):
-                region_step("-> simplify & clean")
-                step_start = time.time()
-                results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
-                                                  context=context, feedback=feedback,
-                                                  is_child_algorithm=True)
-                _mark_step_output_done(parameters_region['stands_simplified'])
-                region_step(f"<- simplify & clean done ({str(timedelta(seconds=round(time.time() - step_start)))})")
-            else:
-                region_log(f"Skipped simplify & clean, file already exists (overwrite = False)")
+                # --- Simplify and eliminate
+                if overwrite or not _step_output_done(parameters_region['stands_simplified']):
+                    region_step("-> simplify & clean")
+                    step_start = time.time()
+                    results_simplify = processing.run(TBkSimplifyAndCleanAlgorithm(), parameters_region,
+                                                      context=context, feedback=feedback,
+                                                      is_child_algorithm=True)
+                    _mark_step_output_done(parameters_region['stands_simplified'])
+                    region_step(f"<- simplify & clean done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped simplify & clean, file already exists (overwrite = False)")
 
-            # --- Clip & Singlepart
-            if overwrite or not _step_output_done(parameters_region["stands_clipped_no_gaps"]):
-                region_step("-> clip to perimeter and eliminate gaps")
-                step_start = time.time()
-                results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
-                                                 context=context, feedback=feedback,
-                                                 is_child_algorithm=True)
-                _mark_step_output_done(parameters_region["stands_clipped_no_gaps"])
-                region_step(f"<- clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
-            else:
-                region_log(f"Skipped clip, file already exists (overwrite = False)")
+                # --- Clip & Singlepart
+                if overwrite or not _step_output_done(parameters_region["stands_clipped_no_gaps"]):
+                    region_step("-> clip to perimeter and eliminate gaps")
+                    step_start = time.time()
+                    results_clipped = processing.run(TBkClipToPerimeterAndEliminateGapsAlgorithm(), parameters_region,
+                                                     context=context, feedback=feedback,
+                                                     is_child_algorithm=True)
+                    _mark_step_output_done(parameters_region["stands_clipped_no_gaps"])
+                    region_step(f"<- clip to perimeter and eliminate gaps done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped clip, file already exists (overwrite = False)")
 
-            # --- Merge
-            if overwrite or not _step_output_done(parameters_region["stands_merged"]):
-                region_step("-> merge similar neighbours")
-                step_start = time.time()
-                algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
-                                           context=context, feedback=feedback,
-                                           is_child_algorithm=True)
-                _mark_step_output_done(parameters_region["stands_merged"])
-                region_step(f"<- merge similar neighbours done ({str(timedelta(seconds=round(time.time() - step_start)))})")
-            else:
-                region_log(f"Skipped merge, file already exists (overwrite = False)")
+                # --- Merge
+                if overwrite or not _step_output_done(parameters_region["stands_merged"]):
+                    region_step("-> merge similar neighbours")
+                    step_start = time.time()
+                    algOutput = processing.run(TBkMergeSimilarNeighboursAlgorithm(), parameters_region,
+                                               context=context, feedback=feedback,
+                                               is_child_algorithm=True)
+                    _mark_step_output_done(parameters_region["stands_merged"])
+                    region_step(f"<- merge similar neighbours done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped merge, file already exists (overwrite = False)")
 
-            # --- Cleanup
-            if overwrite or not _step_output_done(parameters_region["output_stand_map_clean"]):
-                region_step("-> postprocess cleanup")
-                step_start = time.time()
-                algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
-                                           context=context, feedback=feedback,
-                                           is_child_algorithm=True)
-                _mark_step_output_done(parameters_region["output_stand_map_clean"])
-                region_step(f"<- postprocess cleanup done ({str(timedelta(seconds=round(time.time() - step_start)))})")
-            else:
-                region_log(f"Skipped cleanup, file already exists (overwrite = False)")
+                # --- Cleanup
+                if overwrite or not _step_output_done(parameters_region["output_stand_map_clean"]):
+                    region_step("-> postprocess cleanup")
+                    step_start = time.time()
+                    algOutput = processing.run("TBk:TBk postprocess Cleanup", parameters_region,
+                                               context=context, feedback=feedback,
+                                               is_child_algorithm=True)
+                    _mark_step_output_done(parameters_region["output_stand_map_clean"])
+                    region_step(f"<- postprocess cleanup done ({str(timedelta(seconds=round(time.time() - step_start)))})")
+                else:
+                    region_log(f"Skipped cleanup, file already exists (overwrite = False)")
 
             # --- Collect regions and ID/name
             regions_stand_map.append(parameters_region["output_stand_map_clean"])
-            # collect bk_process results as well
-            if merge_bk_process:
+            # collect bk_process results as well - not available for small regions (fast path
+            # skips the delineation chain entirely, so these per-step debug/troubleshooting
+            # artifacts are never produced); bk_process_region_ID_prefix tracks only the
+            # regions actually contributing to these lists, kept aligned by appending in lockstep
+            if merge_bk_process and not is_small_region:
                 # add alg outputs
                 regions_stand_boundaries.append(parameters_region["output_stand_boundaries"])
                 regions_stands_merged.append(parameters_region["stands_merged"])
@@ -505,6 +562,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     os.path.join(region_root_dir, 'bk_process', 'classified_smooth_2.tif'))
                 regions_stands_highest_tree.append(
                     os.path.join(region_root_dir, 'bk_process', 'stands_highest_tree.gpkg'))
+                bk_process_region_ID_prefix.append(feature[fieldname_region])
 
             region_ID_prefix.append(feature[fieldname_region])
             region_log("-------------------------------")
@@ -584,7 +642,11 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
                     processing.run("TBk:TBk postprocess merge stand maps", {
                         'tbk_map_layers': region_list_item,  # List of vector layers to merge
                         'id_prefix': 2,  # Custom prefix
-                        'custom_prefix_list': str(region_ID_prefix),  # Pass the list as a string
+                        # bk_process_region_ID_prefix, not region_ID_prefix: these debug/
+                        # troubleshooting lists never include small regions (fast path skips
+                        # the delineation chain that produces them), so it must stay aligned
+                        # with region_list_item's (shorter) length instead of all regions
+                        'custom_prefix_list': str(bk_process_region_ID_prefix),  # Pass the list as a string
                         'OUTPUT': merged  # Output path for the merged vector file
                     }, context=context, feedback=feedback, is_child_algorithm=True)
                     _mark_step_output_done(merged)
@@ -751,7 +813,7 @@ class TBkAlgorithmRegionwise(TBkProcessingAlgorithmToolA):
 
 
 import os
-from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField
+from qgis.core import QgsVectorLayer, QgsVectorFileWriter, QgsProject, QgsFeature, QgsField, NULL, edit
 from PyQt5.QtCore import QVariant
 
 
@@ -792,6 +854,85 @@ def _write_single_feature_gpkg(source_layer, geometry, attributes, layer_name, o
     written_layer = QgsVectorLayer(output_path, layer_name, "ogr")
     if not written_layer.isValid() or written_layer.featureCount() == 0:
         raise QgsProcessingException(f"Wrote {output_path} but it contains no features")
+
+
+def _build_small_region_stand_map(perimeter_layer, geom, region_area_m2, vhm_10m, gdal_create_options,
+                                  output_path, tmp_output_folder, context, feedback):
+    """
+    Fast path for small regions (see 'simplify_small_regions' / 'thresh_small_region'): instead
+    of running the full stand delineation chain, attributes the whole region perimeter as a
+    single stand directly at `output_path` (the region's 'output_stand_map_clean', same as the
+    normal per-region cleanup output) with the minimal field set the downstream global
+    attribution steps (crown coverage/DG, coniferous proportion/NH, hdom_vhm_diff) need:
+    ID, type, area_m2, hmax, hdom (+ hdom_std/hdom_homogeneity/hdom_class as a bonus QA signal).
+
+    - hmax: highest vhm_10m pixel within the region (zonal max, native VHM10m resolution).
+    - hdom: VHM10m-percentile method, see estimate_hdom_existing_stands().
+    - type: "small_region" - distinct from the main delineation path's "classified" and
+      "remainder" (see bk_hafl_ClassificationHelper.getStandType()), so small-region stands
+      stay identifiable in the final TBk_Bestandeskarte.gpkg.
+
+    Both are read directly off the un-clipped vhm_10m raster (no per-region raster clip needed -
+    the zonal/windowed reads only touch the region's own extent), which is the point of this
+    fast path: it skips the buffered-perimeter and raster-clipping steps entirely.
+    """
+    single_layer = QgsVectorLayer(f"Polygon?crs={perimeter_layer.crs().authid()}",
+                                  "small_region_stand", "memory")
+    provider = single_layer.dataProvider()
+    provider.addAttributes([
+        QgsField("ID", QVariant.Int),
+        QgsField("type", QVariant.String),
+        QgsField("area_m2", QVariant.Double),
+    ])
+    single_layer.updateFields()
+
+    feat = QgsFeature(single_layer.fields())
+    feat.setGeometry(geom)
+    feat.setAttributes([1, "small_region", region_area_m2])
+    if not provider.addFeature(feat):
+        raise QgsProcessingException(f"Failed to add feature to in-memory small-region layer for {output_path}")
+
+    # hmax: zonal max directly against vhm_10m (native resolution, no resampling)
+    alg_output = processing.run("native:zonalstatisticsfb", {
+        'INPUT': single_layer, 'INPUT_RASTER': vhm_10m, 'RASTER_BAND': 1,
+        'COLUMN_PREFIX': 'hmax_', 'STATISTICS': [6],  # 6 = Max
+        'OUTPUT': 'TEMPORARY_OUTPUT'
+    }, context=context, feedback=feedback, is_child_algorithm=True)
+
+    processing.run("native:renametablefield", {
+        'INPUT': alg_output['OUTPUT'], 'FIELD': 'hmax_max', 'NEW_NAME': 'hmax',
+        'OUTPUT': output_path
+    }, context=context, feedback=feedback, is_child_algorithm=True)
+
+    # hdom: VHM10m-percentile method (estimate_hdom_existing_stands, GitHub issue #43) - edits
+    # output_path in place, adding hdom/hdom_std/hdom_homogeneity/hdom_class fields
+    estimate_hdom_existing_stands(output_path, vhm_10m, tmp_output_folder=tmp_output_folder,
+                                  gdal_create_options=gdal_create_options,
+                                  context=context, feedback=feedback)
+
+    written_layer = QgsVectorLayer(output_path, "small_region_stand", "ogr")
+    if not written_layer.isValid() or written_layer.featureCount() == 0:
+        raise QgsProcessingException(f"Wrote {output_path} but it contains no features")
+
+    # fallback for genuinely sub-pixel-area regions (seen down to 1e-19 m2 - geometry-cleanup
+    # debt from upstream parcel dissolves, not real stand slivers): estimate_hdom_existing_stands()
+    # leaves hdom NULL when zero VHM pixel centers fall inside the polygon (its own documented
+    # behavior - see its "left NULL" warning), and the zonal-max hmax calc can in principle hit
+    # the same "no pixel at all" wall too, even though it wasn't restricted to pixel centers in
+    # the cases seen so far. A NULL hdom/hmax then crashes calculate_dg.py (hdom * float) for the
+    # whole canton-wide run, not just this one degenerate stand - so default missing values to 0
+    # here rather than leave them NULL. Not an estimate (a stand this small has no meaningful
+    # height to estimate), just a numeric sentinel that keeps it from blocking every other stand.
+    feat = next(written_layer.getFeatures())
+    hdom_missing = feat["hdom"] in (None, NULL)
+    hmax_missing = feat["hmax"] in (None, NULL)
+    if hdom_missing or hmax_missing:
+        with edit(written_layer):
+            if hdom_missing:
+                feat["hdom"] = 0
+            if hmax_missing:
+                feat["hmax"] = 0
+            written_layer.updateFeature(feat)
 
 
 def _step_output_done(output_path):
