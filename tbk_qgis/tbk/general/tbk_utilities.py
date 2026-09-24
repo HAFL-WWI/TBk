@@ -365,6 +365,8 @@ def finalize_TBk(input_layer, output_layer, context=None, feedback=None):
              'sub_type': 0, 'type': 2, 'type_name': 'integer'},
             {'alias': '', 'comment': '', 'expression': '"VegZone_Code"', 'length': 0, 'name': 'VegZone_Code',
              'precision': 0, 'sub_type': 0, 'type': 2, 'type_name': 'integer'},
+            {'alias': '', 'comment': '', 'expression': '"ForestSite"', 'length': 0, 'name': 'ForestSite',
+             'precision': 0, 'sub_type': 0, 'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"ID_meta"', 'length': 0, 'name': 'ID_meta', 'precision': 0,
              'sub_type': 0, 'type': 10, 'type_name': 'text'},
             {'alias': '', 'comment': '', 'expression': '"ID_pre_merge"', 'length': 0, 'name': 'ID_pre_merge',
