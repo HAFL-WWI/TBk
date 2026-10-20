@@ -2219,31 +2219,31 @@ if("VegZone_Code" IN (-1, 0, 1, 2, 4, 5),
                 if("hdom" >= 29, 'b', 'a')
             ),
             -- OM, LH
-            if("hdom">=23, 'c',
-                if("hdom" >= 29, 'b', 'a')
+            if("hdom">=29, 'c',
+                if("hdom" >= 23, 'b', 'a')
             )
         ),
         -- Case Hochmontan (HM)
         if("VegZone_Code" IN (8),
             if("NH">50,
                 -- HM, NH
-                if("hdom">=23, 'c',
-                    if("hdom" >= 29, 'b', 'a')
+                if("hdom">=29, 'c',
+                    if("hdom" >= 23, 'b', 'a')
                 ),
                 -- HM, LH
-                if("hdom">=19, 'c',
-                    if("hdom" >= 23, 'b', 'a')
+                if("hdom">=23, 'c',
+                    if("hdom" >= 19, 'b', 'a')
                 )
             ),
             -- Case Subalpin (SA)
             if("NH">50,
                 -- SA, NH
-                if("hdom">=19, 'c',
-                    if("hdom" >= 23, 'b', 'a')
+                if("hdom">=23, 'c',
+                    if("hdom" >= 19, 'b', 'a')
                 ),
                 -- SA, LH
-                if("hdom">=16, 'c',
-                    if("hdom" >= 19, 'b', 'a')
+                if("hdom">=19, 'c',
+                    if("hdom" >= 16, 'b', 'a')
                 ) -- close a/b/c if
             ) -- close NH/LH if
         ) -- close HM/SA if
@@ -2595,31 +2595,31 @@ if("VegZone_Code" IN (-1, 0, 1, 2, 4, 5),
                 if("hdom" >= 29, 'b', 'a')
             ),
             -- OM, LH
-            if("hdom">=23, 'c',
-                if("hdom" >= 29, 'b', 'a')
+            if("hdom">=29, 'c',
+                if("hdom" >= 23, 'b', 'a')
             )
         ),
         -- Case Hochmontan (HM)
         if("VegZone_Code" IN (8),
             if("NH">50,
                 -- HM, NH
-                if("hdom">=23, 'c',
-                    if("hdom" >= 29, 'b', 'a')
+                if("hdom">=29, 'c',
+                    if("hdom" >= 23, 'b', 'a')
                 ),
                 -- HM, LH
-                if("hdom">=19, 'c',
-                    if("hdom" >= 23, 'b', 'a')
+                if("hdom">=23, 'c',
+                    if("hdom" >= 19, 'b', 'a')
                 )
             ),
             -- Case Subalpin (SA)
             if("NH">50,
                 -- SA, NH
-                if("hdom">=19, 'c',
-                    if("hdom" >= 23, 'b', 'a')
+                if("hdom">=23, 'c',
+                    if("hdom" >= 19, 'b', 'a')
                 ),
                 -- SA, LH
-                if("hdom">=16, 'c',
-                    if("hdom" >= 19, 'b', 'a')
+                if("hdom">=19, 'c',
+                    if("hdom" >= 16, 'b', 'a')
                 ) -- close a/b/c if
             ) -- close NH/LH if
         ) -- close HM/SA if
