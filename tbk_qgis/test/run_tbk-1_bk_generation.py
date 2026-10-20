@@ -7,7 +7,7 @@ Make sure to run this with a Python environment similar (or identical) to the QG
 The environment needs to know about QGIS, the QGIS Core Plugins (i.e. Processing, GRASS) and the TBk Plugin.
 Set your PYTHONPATH accordingly or use sys.path.append to add paths to these modules as needed.
 
-Run it with C:/OSGeo4W/bin/python-qgis-ltr_with_processing_and_grass84.bat (sets the GRASS environment).
+Run it with C:/OSGeo4W/bin/python-qgis-ltr_with_processing_and_grass.bat (sets the GRASS environment).
 """
 
 __author__ = 'Berner Fachhochschule HAFL'

@@ -47,6 +47,7 @@ from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_crown_coverage import TB
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_append_attributes import TBkAppendStandAttributesAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_estimate_hdom_existing_stands import TBkEstimateHdomExistingStandsAlgorithm
 from tbk_qgis.tbk.tools.E_postproc_attributes.tool_tree_species_from_raster import TBkTreeSpeciesFromRaster
+from tbk_qgis.tbk.tools.E_postproc_attributes.tool_calc_dw_phase import TBkCalculateDWPhaseAlgorithm
 from tbk_qgis.tbk.tools.F_additional_modules.tool_local_density import TBkPostprocessLocalDensity
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_ddom_SD import TBkDdomSDEstimate
 from tbk_qgis.tbk.tools.F_additional_modules.tool_estimate_volume import TBkVEstimate
@@ -102,6 +103,7 @@ class TBkProvider(QgsProcessingProvider):
         self.addAlgorithm(TBkAddConiferousProportionAlgorithm())
         self.addAlgorithm(TBkAppendStandAttributesAlgorithm())
         self.addAlgorithm(TBkEstimateHdomExistingStandsAlgorithm())
+        self.addAlgorithm(TBkCalculateDWPhaseAlgorithm())
         # [grpID: f]    grpName: Additional Modules
         self.addAlgorithm(TBkDdomSDEstimate())
         self.addAlgorithm(TBkPostprocessLocalDensity())
