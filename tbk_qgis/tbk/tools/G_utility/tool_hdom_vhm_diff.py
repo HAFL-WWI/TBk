@@ -129,23 +129,14 @@ class TBkPostprocessHdomDiff(TBkProcessingAlgorithmToolG):
             return {}
 
         # Raster pixels to points
-        # vhm_10m_points.gpkg is a shared, non-per-run cache (see tool_mainTBk.py/_regionwise.py):
-        # both real callers derive its destination the same way (from vhm_10m's path) and pass
-        # that plain absolute string explicitly as parameters['vhm_10m_points']. Never resolve
-        # it via self.parameterAsOutputLayer() - found 2026-09-04 to be unreliable for this
-        # parameter: instead of returning the plain string the caller put in `parameters`, it can
-        # fabricate a fresh, directory-less scratch name ("VHM_10m_<uuid>_points.gpkg"), which
-        # then either fails outright ("Could not create layer ... sqlite3_open failed: unable to
-        # open database file") or - worse - "succeeds" by writing the points layer into QGIS's
-        # current working directory instead of next to VHM_10m.tif, so the intended cache file is
-        # silently never created where anything downstream (e.g. CreateProject) expects it.
-        # The 2026-09-04 fix only made the pre-existence check below robust against this
-        # (deriving the expected path straight from parameters['vhm_10m'], never via
-        # parameterAsOutputLayer()) but still fed the *actual* OUTPUT through that buggy
-        # accessor. Fix: never call parameterAsOutputLayer() for this sink at all - reuse the same
-        # plain-string path for both the pre-existence check and the real OUTPUT, exactly like
-        # diff_hdom_vhm is passed through as a plain string a few lines above.
-        vhm_10m_points_path = os.path.splitext(parameters['vhm_10m'])[0] + "_points.gpkg"
+        # vhm_10m_points.gpkg is a shared, non-per-run cache next to VHM_10m.tif (also expected
+        # there by CreateProject). Its path is always derived here from the VHM source path and
+        # used for both the pre-existence check and OUTPUT; parameters['vhm_10m_points'] is ignored.
+        # Use the resolved source path (params.vhm_10m), never parameters['vhm_10m']: when the VHM
+        # is picked as a loaded layer in the GUI, parameters['vhm_10m'] is a layer ID
+        # ("VHM_10m_<uuid>"), which yields a directory-less "VHM_10m_<uuid>_points.gpkg" that is
+        # written to QGIS's cwd or fails ("sqlite3_open failed: unable to open database file").
+        vhm_10m_points_path = os.path.splitext(params.vhm_10m)[0] + "_points.gpkg"
         if not os.path.exists(vhm_10m_points_path):
             alg_params = {
                 'FIELD_NAME': 'VHM_10m',
