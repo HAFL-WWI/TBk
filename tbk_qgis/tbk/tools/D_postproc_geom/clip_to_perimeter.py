@@ -112,13 +112,12 @@ def eliminate_gaps(in_shape_path,
     gaps_tmp_path = os.path.join(tmp_output_folder, "gaps_tmp.gpkg")
     gaps_single_tmp_path = os.path.join(tmp_output_folder, "gaps_single_tmp.gpkg")
     union_tmp_path = os.path.join(tmp_output_folder, "stands_gaps_union_tmp.gpkg")
-    union_tmp_buf_path = os.path.join(tmp_output_folder, "stands_gaps_union_tmp_buf0.gpkg")
 
     ########################################
     # Find gaps
     # No shared `context` in this block (feedback alone still gives cancellation): these calls
     # read/write real named files (gaps_tmp_path, gaps_single_tmp_path, union_tmp_path,
-    # union_tmp_buf_path, in_shape_path) that get delete_shapefile()'d by hand below once del_tmp
+    # in_shape_path) that get delete_shapefile()'d by hand below once del_tmp
     # is set, and resolving them through our long-lived workflow context leaves them locked open
     # under Windows until the whole run's context is torn down - the explicit cleanup then fails
     # with "Permission denied" (verified in isolation: same context -> same lock regardless of
@@ -142,10 +141,6 @@ def eliminate_gaps(in_shape_path,
              'OUTPUT': union_tmp_path}
     processing.run("native:union", param, feedback=feedback)
     processing.ProcessingConfig.setSettingValue('FILTER_INVALID_GEOMETRIES', 2)
-
-    params = {'INPUT': union_tmp_path, 'DISTANCE': 0, 'SEGMENTS': 5, 'END_CAP_STYLE': 0, 'JOIN_STYLE': 0,
-              'MITER_LIMIT': 2, 'DISSOLVE': False, 'OUTPUT': union_tmp_buf_path}
-    processing.run("native:buffer", params, feedback=feedback)
 
     ########################################
     # Eliminate gaps
@@ -206,7 +201,6 @@ def eliminate_gaps(in_shape_path,
 
     # Delete layers
     if del_tmp:
-        delete_shapefile(union_tmp_buf_path)
         delete_shapefile(gaps_single_tmp_path)
         delete_shapefile(gaps_tmp_path)
         delete_shapefile(union_tmp_path)
