@@ -127,6 +127,10 @@ class ClassificationHelper:
         layer.CreateField(ogr.FieldDefn('type', ogr.OFTString))
         layer.CreateField(ogr.FieldDefn('area_m2', ogr.OFTInteger64))
 
+        # one transaction for all updates: without it, GPKG commits every SetFeature separately,
+        # which is very slow on network storage (P:, Ceph)
+        in_transaction = dataSource.StartTransaction() == 0
+
         # iterate over all features and add stand attribute values
         new_id_counter = 0
         objectid_counter = 0
@@ -149,6 +153,9 @@ class ClassificationHelper:
 
             # store information
             layer.SetFeature(feature)
+
+        if in_transaction and dataSource.CommitTransaction() != 0:
+            raise RuntimeError(f"Committing stand attributes to {vector_file_path} failed")
 
         try:
             # this threw errors in specific QGIS versions (e.g. QGIS 3.28.4
@@ -236,6 +243,9 @@ class ClassificationHelper:
         layer.CreateField(ogr.FieldDefn('hmax_eff', ogr.OFTInteger))
         layer.CreateField(ogr.FieldDefn('hp80', ogr.OFTInteger))
 
+        # one transaction for all updates (see add_stand_attributes)
+        in_transaction = dataSource.StartTransaction() == 0
+
         # iterate over all features and add stand attribute values
         counter = 0
         for feature in layer:
@@ -253,6 +263,9 @@ class ClassificationHelper:
             feature.SetField('hp80', hp80)
             layer.SetFeature(feature)
             counter += 1
+
+        if in_transaction and dataSource.CommitTransaction() != 0:
+            raise RuntimeError(f"Committing VHM stats to {vector_file_path} failed")
 
         try:
             # this threw errors in specific QGIS versions (e.g. QGIS 3.28.4
