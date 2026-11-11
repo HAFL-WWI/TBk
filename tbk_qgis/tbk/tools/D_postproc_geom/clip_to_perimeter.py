@@ -26,7 +26,7 @@
 import logging
 import os
 import processing
-from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsProcessingUtils, edit
+from qgis.core import QgsVectorLayer, QgsProject, QgsVectorFileWriter, QgsProcessingUtils, QgsWkbTypes, edit
 from tbk_qgis.tbk.general.tbk_utilities import delete_shapefile, delete_geopackage, getVectorSaveOptions, delete_fields
 
 # Substep narration only (file/console at DEBUG); joins the "Clip to perimeter and eliminate
@@ -179,6 +179,20 @@ def eliminate_gaps(in_shape_path,
     for field in prov.fields():
         if field.name() not in fields_to_keep:
             fields_to_delete.append(field.name())
+
+    # Eliminating a gap into a neighbour that touches it only along a line can yield a
+    # GeometryCollection (polygon + linestring). GPKG accepts it, but subsequent steps (merge
+    # similar neighbours) fail on it -> keep only polygon parts (empty results are deleted below).
+    fixed_geoms = {}
+    for feat in out_layer.getFeatures():
+        geom = feat.geometry()
+        if QgsWkbTypes.flatType(geom.wkbType()) == QgsWkbTypes.GeometryCollection:
+            geom.convertGeometryCollectionToSubclass(QgsWkbTypes.PolygonGeometry)
+            geom.convertToMultiType()
+            log.debug(f"FID {feat.id()}: GeometryCollection reduced to polygon parts (area {geom.area():.0f} m2)")
+            fixed_geoms[feat.id()] = geom
+    if fixed_geoms:
+        prov.changeGeometryValues(fixed_geoms)
 
     out_layer.selectByExpression(expression)
     if len(out_layer.selectedFeatureIds()) > 0:
